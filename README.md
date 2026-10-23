@@ -89,7 +89,8 @@ sudo ./install.sh --force    # other models, once --check output looks right
 
 The installer:
 - refuses to run while fanspeed-fix-cpio is active, to avoid two fan sensors
-- installs `iasl` (acpica), `python3`, `dkms`, `make`, `gcc` and the kernel headers if they're missing
+- installs whatever's missing of: `iasl` (acpica), `python3`, `dkms`, `make`, `gcc`, the kernel headers, `mokutil` (EFI systems), polkit and `notify-send` (the last two can be absent on minimal Debian installs)
+- warns if your user isn't in the `wheel` or `sudo` group, because the login check's polkit rule only lets those groups start its monitor
 - derives the fan config from the DSDT, as described above
 - with Secure Boot on, finds whichever MOK key is enrolled (DKMS, akmods or Ubuntu shim) and points DKMS at it
 - installs the module through DKMS, so it rebuilds automatically on kernel updates

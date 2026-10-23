@@ -371,13 +371,9 @@ generate_key() {
     [[ -f "$cert" && -f "$key" ]] || fail "Key generation didn't produce ${cert} and ${key}"
 }
 
-enrol_instructions() {
-    warn "To finish enrolling the key, reboot. A blue MokManager screen appears:"
-    warn "  Enroll MOK -> Continue -> Yes -> type the password you just set -> Reboot"
-    warn "The fan module then loads automatically - no need to re-run this installer."
-}
-
-MOK_PENDING=0
+MOK_PENDING=0     # module can't load until a key is enrolled
+MOK_QUEUED=0      # ...and the enrolment request is already queued for next boot
+MOK_CERT=""
 setup_signing() {
     if ! secure_boot_on; then
         info "Secure Boot is off - module signing not needed"
@@ -413,8 +409,7 @@ setup_signing() {
         [[ -f "$key" && "$(key_state "$cert")" == pending ]] || continue
         use_key "$cert" "$key"
         warn "Signing with ${cert}, which is waiting to be enrolled at the next boot."
-        enrol_instructions
-        MOK_PENDING=1
+        MOK_PENDING=1; MOK_QUEUED=1; MOK_CERT="$cert"
         return
     done
 
@@ -438,12 +433,11 @@ setup_signing() {
     fi
     if [[ "$st" == pending ]]; then
         ok "Key queued for enrolment"
-        enrol_instructions
+        MOK_QUEUED=1
     else
-        warn "Not imported. When you're ready:  sudo mokutil --import ${cert}"
-        warn "then reboot and complete the MokManager steps."
+        warn "Not imported - see the end of the install for what to do."
     fi
-    MOK_PENDING=1
+    MOK_PENDING=1; MOK_CERT="$cert"
 }
 
 # ---------------------------------------------------------------------------
@@ -810,7 +804,23 @@ install_monitor
 verify
 
 echo
-ok "Done. Check with: sensors   (or Mission Center / System Monitor)"
-echo "    Expected values: ${EXPECTED_SPEEDS:-see above}"
-echo "    After a BIOS update, re-run this installer - the module won't load until you do."
+if [[ $MOK_PENDING -eq 1 ]]; then
+    # Say this last, so the DKMS output above doesn't bury it
+    warn "Installed - but the fan module can't load until your signing key is enrolled."
+    echo
+    if [[ $MOK_QUEUED -eq 0 ]]; then
+        echo "    1. Queue the key for enrolment (you'll choose a one-time password):"
+        echo "         sudo mokutil --import ${MOK_CERT}"
+        echo "    2. Reboot. At the blue MokManager screen choose:"
+    else
+        echo "    1. Reboot now. At the blue MokManager screen choose:"
+    fi
+    echo "         Enroll MOK -> Continue -> Yes -> type that password -> Reboot"
+    echo "    The fan sensor then appears by itself - no need to re-run this installer."
+    echo "    Expected values afterwards: ${EXPECTED_SPEEDS:-see above}"
+else
+    ok "Done. Check with: sensors   (or Mission Center / System Monitor)"
+    echo "    Expected values: ${EXPECTED_SPEEDS:-see above}"
+    echo "    After a BIOS update, re-run this installer - the module won't load until you do."
+fi
 echo

@@ -39,7 +39,7 @@ These are Samsung's own table values, so the speed is stepped, exactly as Window
 
 The installer also enables `galaxybook-acpi-fan-unbind.service`, which unbinds the stock `acpi-fan` driver early in boot. That removes the dead "Fan 0" sensor and the AML errors in dmesg. The fan has no ACPI control methods, so the cooling device `acpi-fan` registers does nothing anyway.
 
-Compared with fanspeed-fix-cpio, this adds nothing to the boot chain. There's no initrd change and no recovery entry, and a BIOS update can't make the laptop unbootable.
+Nothing is added to the boot chain: there's no DSDT override and no initrd change, so a BIOS update can't make the laptop unbootable.
 
 ## Guards
 
@@ -95,7 +95,6 @@ sudo ./install.sh --force    # other models, once --check output looks right
 ```
 
 The installer:
-- refuses to run while fanspeed-fix-cpio is active, to avoid two fan sensors
 - installs whatever's missing of: `iasl` (acpica), `python3`, `dkms`, `make`, `gcc`, the kernel headers, `mokutil` (EFI systems), polkit and `notify-send` (the last two can be absent on minimal Debian installs)
 - warns if your user isn't in the `wheel` or `sudo` group, because the login check's polkit rule only lets those groups start its monitor
 - derives the fan config from the DSDT, as described above

@@ -2,13 +2,14 @@
 # ============================================================================
 # galaxybook-fan - install
 #
-# Fan speed reporting for Samsung Galaxy Book laptops via a small DKMS hwmon
-# module that reads the fan level straight from the Embedded Controller.
+# Fan speed reporting for Samsung Galaxy Book 5 laptops via a small DKMS hwmon
+# module that reads the EC's fan level field through ACPI, the same way the
+# firmware's _FST method does, and applies _FST's RPM table itself.
 #
-# Replaces fanspeed-fix-cpio: no DSDT override, nothing added to the boot
-# chain. Also unbinds the stock acpi-fan driver from the fan device, because
-# Samsung's _FST method is broken (missing DerefOf) and acpi-fan only ever
-# produces I/O errors, AML errors in dmesg and a dead "Fan 0" in monitors.
+# No DSDT override and nothing added to the boot chain. Also unbinds the
+# stock acpi-fan driver from the fan device, because Samsung's _FST method is
+# broken (missing DerefOf) and acpi-fan only ever produces I/O errors, AML
+# errors in dmesg and a dead "Fan 0" in monitors.
 #
 # The EC location and RPM table aren't hardcoded: they're derived from this
 # machine's own DSDT (dsdt-fan-config.py), validated, and baked into the
@@ -186,23 +187,6 @@ check_model() {
         warn "To check this machine anyway: sudo ./install.sh --check   (or --test-native)"
         fail "Not installed (use --force to override)"
     fi
-}
-
-# ---------------------------------------------------------------------------
-# Refuse if the CPIO / DSDT override fix is still active
-# ---------------------------------------------------------------------------
-check_cpio_fix() {
-    # Capture first: piping into grep -q can SIGPIPE the writer, which fails
-    # the whole test under pipefail even when grep matched.
-    local log
-    log="$(dmesg 2>/dev/null || true)"
-    if [[ "$log" == *"dsdt_fixed.aml"* ]]; then
-        fail "fanspeed-fix-cpio (DSDT override) is active. Uninstall it and reboot first, otherwise you'll get two fan sensors"
-    fi
-    if [[ -f /boot/samsung-galaxybook-acpi.img ]]; then
-        warn "/boot/samsung-galaxybook-acpi.img exists but isn't loaded this boot - consider uninstalling fanspeed-fix-cpio"
-    fi
-    ok "No DSDT override active"
 }
 
 # ---------------------------------------------------------------------------
@@ -925,7 +909,6 @@ fi
 
 check_kernel
 check_model
-check_cpio_fix
 ensure_parse_tools
 derive_config
 

@@ -239,7 +239,8 @@ dkms_remove_all() {
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         v="$(basename "$d")"
         [[ "$v" == "source" || "$v" == "*" ]] && continue
-        dkms remove "${PKG_NAME}/${v}" --all >/dev/null 2>&1 || true
+        info "Removing ${PKG_NAME}/${v} from DKMS (DKMS may rebuild the initramfs - this can take a minute)"
+        dkms remove "${PKG_NAME}/${v}" --all || true
     done
     # Anything DKMS couldn't remove (half-added tree, etc.)
     rm -rf /var/lib/dkms/"$PKG_NAME"

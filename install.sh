@@ -15,9 +15,15 @@
 # module's config header. The module also refuses to load if the DSDT later
 # changes (BIOS update) until this installer has been re-run.
 #
-# Usage: sudo ./install.sh [--check] [--force]
-#   --check   derive and show the fan config from the DSDT, install nothing
-#   --force   install on a model that isn't in the confirmed list
+# It also installs a login-time check (the same pattern as fingerprint-fix
+# and fnkeys-fix-book5): after a kernel or BIOS update it tests whether the
+# fix is still needed and notifies you if not, or if it needs re-running.
+#
+# Usage: sudo ./install.sh [--check] [--test-native] [--force]
+#   --check         derive and show the fan config from the DSDT, install nothing
+#   --test-native   test whether the stock acpi-fan driver now works by itself
+#   --force         install on a model that isn't in the confirmed list, or
+#                   when the firmware already looks fixed
 # ============================================================================
 set -uo pipefail
 
@@ -30,12 +36,26 @@ MODPROBE_CONF="/etc/modprobe.d/${MOD_NAME}.conf"
 UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"   # old versions only
 UNBIND_SERVICE="/etc/systemd/system/galaxybook-acpi-fan-unbind.service"
 DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
+
+# Login-time "still needed?" check - names follow the other Galaxy Book fixes
+CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-check.sh"
+USER_CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-user-check.sh"
+PARSER_DIR="/usr/local/lib/samsung-galaxybook/fan"
+MONITOR_SVC="samsung-galaxybook-fan-monitor.service"
+USER_CHECK_SVC="samsung-galaxybook-fan-user-check.service"
+USER_CHECK_TIMER="samsung-galaxybook-fan-user-check.timer"
+POLKIT_RULE="/etc/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules"
+SESSION_HELPER_TARGET="/etc/systemd/user/samsung-galaxybook-session.target"
+SESSION_HELPER_SCRIPT="/usr/local/bin/samsung-galaxybook-session-start.sh"
+SESSION_HELPER_AUTOSTART="/etc/xdg/autostart/samsung-galaxybook-session.desktop"
+SESSION_HELPER_USERS="/etc/samsung-galaxybook/session-helper.d"
 ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
 
 CONFIRMED_MODELS=("940XHA")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORCE=0
 CHECK_ONLY=0
+TEST_NATIVE=0
 WORK_DIR=""
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
@@ -48,7 +68,8 @@ for arg in "$@"; do
     case "$arg" in
         --force) FORCE=1 ;;
         --check) CHECK_ONLY=1 ;;
-        -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --test-native) TEST_NATIVE=1 ;;
+        -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) fail "Unknown option: $arg" ;;
     esac
 done
@@ -182,6 +203,15 @@ derive_config() {
     ok "Fan config derived from this machine's DSDT:"
     echo "$summary" | sed 's/^/        /'
     EXPECTED_SPEEDS="$(echo "$summary" | sed -n 's/^Speeds: *//p')"
+
+    if [[ "$summary" == *"fix not needed"* ]]; then
+        warn "This firmware's _FST already dereferences its table correctly, so the stock"
+        warn "acpi-fan driver should report fan speed without this fix."
+        warn "Check with: sudo ./install.sh --test-native"
+        if [[ $CHECK_ONLY -eq 0 && $FORCE -eq 0 ]]; then
+            fail "Not installed (use --force to install anyway)"
+        fi
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -395,6 +425,188 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# Login-time check: is the fix still needed / still active?
+# Same pattern as fingerprint-fix and fnkeys-fix-book5: a user timer fires
+# 10s after login; if the kernel or BIOS version changed (or the module isn't
+# loaded) it starts a root monitor service (allowed by a polkit rule), which
+# writes a notification to /run for the user script to show with notify-send.
+# ---------------------------------------------------------------------------
+install_session_helper() {
+    cat > "$SESSION_HELPER_TARGET" << 'SESSTARGETEOF'
+[Unit]
+Description=Samsung Galaxy Book — graphical session (desktops without systemd session support)
+# Started at login by samsung-galaxybook-session-start.sh. Binding to
+# graphical-session.target activates it, so units WantedBy= it start as they
+# do on KDE Plasma and GNOME.
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target
+SESSTARGETEOF
+    chmod 644 "$SESSION_HELPER_TARGET"
+
+    cat > "$SESSION_HELPER_SCRIPT" << 'SESSSCRIPTEOF'
+#!/bin/bash
+# Samsung Galaxy Book — start graphical-session.target on desktops that don't.
+# Run from XDG autostart at login. Does nothing if the desktop has already
+# started the target itself (KDE Plasma, GNOME).
+systemctl --user is-active --quiet graphical-session.target && exit 0
+# Pass the session's display variables to the systemd user manager first, so
+# services that show notifications or tray icons can reach the desktop.
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd --all
+else
+    systemctl --user import-environment DISPLAY XAUTHORITY WAYLAND_DISPLAY \
+        XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null
+fi
+systemctl --user start samsung-galaxybook-session.target
+SESSSCRIPTEOF
+    chmod 755 "$SESSION_HELPER_SCRIPT"
+
+    mkdir -p "$(dirname "$SESSION_HELPER_AUTOSTART")"
+    cat > "$SESSION_HELPER_AUTOSTART" << SESSDESKTOPEOF
+[Desktop Entry]
+Type=Application
+Name=Samsung Galaxy Book session helper
+Comment=Starts systemd graphical-session.target on desktops that do not
+Exec=${SESSION_HELPER_SCRIPT}
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+SESSDESKTOPEOF
+    chmod 644 "$SESSION_HELPER_AUTOSTART"
+
+    mkdir -p "$SESSION_HELPER_USERS"
+    touch "$SESSION_HELPER_USERS/galaxybook-fan"
+}
+
+install_monitor() {
+    install -m 755 -o root -g root "$SCRIPT_DIR/samsung-galaxybook-fan-check.sh" "$CHECK_SCRIPT" \
+        || fail "Couldn't install ${CHECK_SCRIPT}"
+    mkdir -p "$PARSER_DIR"
+    install -m 644 -o root -g root "$SCRIPT_DIR/dsdt-fan-config.py" "$PARSER_DIR/" \
+        || fail "Couldn't install the DSDT parser to ${PARSER_DIR}"
+
+    cat > "/etc/systemd/system/${MONITOR_SVC}" <<EOF
+[Unit]
+Description=Samsung Galaxy Book — fan speed fix monitor
+
+[Service]
+Type=oneshot
+ExecStart=${CHECK_SCRIPT} --monitor
+RemainAfterExit=no
+StandardOutput=journal
+StandardError=journal
+EOF
+    systemctl daemon-reload
+
+    cat > "$POLKIT_RULE" <<'EOF'
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "samsung-galaxybook-fan-monitor.service" &&
+        action.lookup("verb") == "start" &&
+        (subject.isInGroup("wheel") || subject.isInGroup("sudo"))) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+    chmod 644 "$POLKIT_RULE"
+
+    cat > "$USER_CHECK_SCRIPT" <<'EOF'
+#!/bin/bash
+# Samsung Galaxy Book — fan speed fix user check (runs as user)
+# Started by samsung-galaxybook-fan-user-check.timer 10 seconds after
+# graphical-session.target is reached, so the desktop and notify-send are ready.
+# Starts the root monitor only when something changed that it should look at.
+STATE_FILE="/var/lib/samsung-galaxybook/fan-state"
+STATUS_FILE="/run/samsung-galaxybook/fan-status"
+
+[[ -f /etc/modules-load.d/galaxybook_fan.conf ]] || exit 0
+
+KVER="" BIOS=""
+[[ -f "$STATE_FILE" ]] && { KVER="$(sed -n 's/^KVER=//p' "$STATE_FILE")"; BIOS="$(sed -n 's/^BIOS=//p' "$STATE_FILE")"; }
+CUR_BIOS="$(cat /sys/class/dmi/id/bios_version 2>/dev/null)"
+
+if [[ "$(uname -r)" == "$KVER" && "$CUR_BIOS" == "$BIOS" && -d /sys/module/galaxybook_fan ]]; then
+    exit 0
+fi
+
+# Type=oneshot: returns once the monitor has finished writing its status
+systemctl start samsung-galaxybook-fan-monitor.service || exit 0
+
+[[ -s "$STATUS_FILE" ]] || exit 0
+{ IFS= read -r ICON; IFS= read -r TITLE; IFS= read -r MSG; } < "$STATUS_FILE"
+[[ -n "$TITLE" ]] || exit 0
+
+notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i "${ICON:-dialog-information}" "$TITLE" "$MSG" \
+    || logger -t samsung-galaxybook-fan-user-check "notify-send failed: $TITLE: $MSG"
+EOF
+    chown root:root "$USER_CHECK_SCRIPT"
+    chmod 755 "$USER_CHECK_SCRIPT"
+    ok "Monitor: ${MONITOR_SVC} + polkit rule"
+
+    # Record the kernel/BIOS this install was made for
+    "$CHECK_SCRIPT" --record-state "$SCRIPT_DIR" || warn "Couldn't record the install state"
+
+    # User timer for the logged-in user
+    local user uid udir
+    user="$(loginctl list-sessions --no-legend 2>/dev/null | awk '$4 == "seat0" {print $3}' | head -1)"
+    uid="$(id -u "$user" 2>/dev/null)"
+    if [[ -z "$user" || -z "$uid" ]]; then
+        warn "Could not detect the logged-in user - skipping the login check timer"
+        return
+    fi
+    udir="$(getent passwd "$user" | cut -d: -f6)/.config/systemd/user"
+
+    _fan_user_systemctl() {
+        sudo -u "$user" \
+            XDG_RUNTIME_DIR="/run/user/${uid}" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+            systemctl --user "$@"
+    }
+
+    mkdir -p "$udir"
+    cat > "${udir}/${USER_CHECK_SVC}" <<EOF
+[Unit]
+Description=Samsung Galaxy Book — fan speed fix login check
+# Started by ${USER_CHECK_TIMER}; no [Install] section on purpose.
+
+[Service]
+Type=oneshot
+ExecStart=${USER_CHECK_SCRIPT}
+RemainAfterExit=no
+EOF
+    cat > "${udir}/${USER_CHECK_TIMER}" <<EOF
+[Unit]
+Description=Samsung Galaxy Book — fan speed fix login check (10s after login)
+# PartOf stops the timer at logout so it re-arms on the next login.
+PartOf=graphical-session.target
+After=graphical-session.target
+DefaultDependencies=no
+
+[Timer]
+OnActiveSec=10
+AccuracySec=1s
+Unit=${USER_CHECK_SVC}
+
+[Install]
+WantedBy=graphical-session.target
+EOF
+    chown -R "${user}:$(id -gn "$user")" "$(dirname "$udir")"
+    _fan_user_systemctl daemon-reload 2>/dev/null || true
+    _fan_user_systemctl enable "${USER_CHECK_TIMER}" >/dev/null 2>&1 \
+        && ok "Login check timer enabled for ${user}" \
+        || warn "systemctl --user enable failed for ${USER_CHECK_TIMER}"
+
+    # Desktops that don't start graphical-session.target (e.g. Xfce) need the
+    # shared helper, or the timer is enabled but never runs.
+    if [[ -f "$SESSION_HELPER_TARGET" ]] \
+            || ! _fan_user_systemctl is-active --quiet graphical-session.target; then
+        install_session_helper
+        _fan_user_systemctl daemon-reload 2>/dev/null || true
+        ok "Graphical session helper installed - the login check will run at login"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Load and verify
 # ---------------------------------------------------------------------------
 verify() {
@@ -419,6 +631,24 @@ verify() {
 }
 
 check_distro
+
+if [[ $TEST_NATIVE -eq 1 ]]; then
+    [[ -x "$SCRIPT_DIR/samsung-galaxybook-fan-check.sh" ]] || chmod +x "$SCRIPT_DIR/samsung-galaxybook-fan-check.sh"
+    info "Testing whether the stock acpi-fan driver can read the fan by itself."
+    if [[ -d /sys/module/$MOD_NAME ]]; then
+        info "The test needs the fan spinning - waiting up to 2 minutes."
+        info "If it's quiet, load the CPU in another terminal, e.g.: stress-ng --cpu 8 --timeout 90"
+    fi
+    case "$("$SCRIPT_DIR/samsung-galaxybook-fan-check.sh" --test-native --wait 120)" in
+        works)     ok "The stock driver reads the fan speed - this fix is no longer needed (sudo ./uninstall.sh)" ;;
+        broken)    ok "The stock driver still can't read the fan speed - keep this fix" ;;
+        fan-off)   warn "The fan wasn't spinning, so the test proved nothing - load the CPU and try again" ;;
+        no-device) warn "No ACPI fan device or acpi-fan driver found" ;;
+        *)         fail "Native test failed to run" ;;
+    esac
+    exit 0
+fi
+
 check_model
 check_cpio_fix
 ensure_parse_tools
@@ -441,6 +671,7 @@ install_deps
 setup_signing
 install_module
 install_unbind
+install_monitor
 verify
 
 echo

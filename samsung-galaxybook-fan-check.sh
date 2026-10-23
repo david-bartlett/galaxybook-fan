@@ -184,7 +184,7 @@ monitor() {
     # 2. Module should be loaded on every kernel
     if [[ ! -d /sys/module/$MOD_NAME ]]; then
         notify_user dialog-error "$TITLE" \
-            "The fan speed fix isn't active on kernel $cur_k (the DKMS build may have failed). Run 'sudo ./install.sh' in $where."
+            "The fan speed fix isn't active on kernel $cur_k - the DKMS build may have failed, or (with Secure Boot) its signing key isn't enrolled. Run 'sudo ./install.sh' in $where."
         return
     fi
 

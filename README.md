@@ -92,7 +92,7 @@ The installer:
 - installs whatever's missing of: `iasl` (acpica), `python3`, `dkms`, `make`, `gcc`, the kernel headers, `mokutil` (EFI systems), polkit and `notify-send` (the last two can be absent on minimal Debian installs)
 - warns if your user isn't in the `wheel` or `sudo` group, because the login check's polkit rule only lets those groups start its monitor
 - derives the fan config from the DSDT, as described above
-- with Secure Boot on, finds whichever MOK key is enrolled (DKMS, akmods or Ubuntu shim) and points DKMS at it
+- with Secure Boot on, sorts out module signing (see below)
 - installs the module through DKMS, so it rebuilds automatically on kernel updates
 - autoloads it via `/etc/modules-load.d/galaxybook_fan.conf`, which is also a good file for checking whether the fix is installed
 - enables `galaxybook-acpi-fan-unbind.service`, which unbinds `acpi-fan` at boot
@@ -100,6 +100,19 @@ The installer:
 - refuses to install if your firmware's `_FST` is already correct, since the stock driver should work then (`--force` overrides)
 
 Re-running `install.sh` over an existing install is fine; there's no need to uninstall first.
+
+### Secure Boot signing
+
+The installer works out the key DKMS will actually sign with, the same way DKMS does: `/etc/dkms/framework.conf`, then every `/etc/dkms/framework.conf.d/*.conf` in order, falling back to DKMS's own `/var/lib/dkms/mok.*`. That covers Fedora's akmods key (`akmods-keys.conf`), Ubuntu's shim key and plain DKMS keys. It only adds its own drop-in (`galaxybook-fan-signing.conf`) when it has to point DKMS somewhere else.
+
+| Key state | What happens |
+|---|---|
+| Enrolled (the configured key, or any standard one) | Signed and loaded straight away |
+| Imported but waiting for the next boot | Built and signed anyway; reboot and finish the MokManager screen, and the module loads automatically |
+| Exists but not enrolled (e.g. a BIOS update wiped NVRAM) | Offers `mokutil --import` (you set a one-time password), then builds and signs; same reboot step |
+| Missing | Generated first (`kmodgenca` for akmods, `update-secureboot-policy` on Ubuntu, otherwise `openssl` like DKMS), then as above |
+
+At the MokManager screen after the reboot: **Enroll MOK → Continue → Yes →** type the password **→ Reboot**. There's no need to re-run the installer afterwards.
 
 ## Uninstall
 

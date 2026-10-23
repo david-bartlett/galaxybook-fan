@@ -283,16 +283,6 @@ install_deps() {
 # Module signing (Secure Boot)
 # Pick whichever MOK key is actually enrolled and point DKMS at it.
 # ---------------------------------------------------------------------------
-is_enrolled() {
-    # mokutil --test-key prints "... is already enrolled" for an enrolled key,
-    # but exits 1 in that case - so capture the output rather than piping it
-    # (a pipe would fail under pipefail even when grep matches).
-    local out
-    [[ -f "$1" ]] || return 1
-    out="$(mokutil --test-key "$1" 2>&1 || true)"
-    [[ "$out" == *"already enrolled"* ]]
-}
-
 secure_boot_on() {
     # Read the EFI variable directly so a missing mokutil can't make us think
     # Secure Boot is off (and build an unsigned module that won't load).
@@ -307,56 +297,153 @@ secure_boot_on() {
     [[ "$sb" == *"SecureBoot enabled"* ]]
 }
 
+# mokutil --test-key exits 1 when a key IS enrolled, so match its output rather
+# than its status (and don't pipe it into grep -q: under pipefail that fails).
+key_state() {   # cert -> enrolled | pending | not-enrolled | missing
+    local out
+    [[ -f "$1" ]] || { echo missing; return; }
+    out="$(mokutil --test-key "$1" 2>&1 || true)"
+    case "$out" in
+        *"already enrolled"*)   echo enrolled ;;
+        *"enrollment request"*) echo pending ;;     # imported, waiting for reboot
+        *)                      echo not-enrolled ;;
+    esac
+}
+
+# The key pair DKMS will really use: framework.conf, then framework.conf.d/*.conf
+# in glob order (DKMS sources them the same way, so later files win), skipping
+# our own drop-in. Without any setting DKMS uses its default pair.
+dkms_effective_key() {
+    local f k="" c="" v kver
+    kver="$(uname -r)"
+    for f in /etc/dkms/framework.conf /etc/dkms/framework.conf.d/*.conf; do
+        [[ -f "$f" && "$f" != "$DKMS_SIGN_CONF" ]] || continue
+        v="$(sed -n 's/^[[:space:]]*mok_signing_key=//p' "$f" | tail -1 | tr -d "\"'")"
+        [[ -n "$v" ]] && k="$v"
+        v="$(sed -n 's/^[[:space:]]*mok_certificate=//p' "$f" | tail -1 | tr -d "\"'")"
+        [[ -n "$v" ]] && c="$v"
+    done
+    k="${k:-/var/lib/dkms/mok.key}"; c="${c:-/var/lib/dkms/mok.pub}"
+    # shellcheck disable=SC2016
+    echo "${c//'$kernelver'/$kver}|${k//'$kernelver'/$kver}"
+}
+
+# Point DKMS at cert/key - via our own drop-in only if that isn't already
+# what the existing config says.
+use_key() {
+    local cert="$1" key="$2" eff
+    eff="$(dkms_effective_key)"
+    if [[ "$eff" == "${cert}|${key}" ]]; then
+        if [[ -f "$DKMS_SIGN_CONF" ]]; then
+            rm -f "$DKMS_SIGN_CONF"
+            info "Removed ${DKMS_SIGN_CONF} - your DKMS config already uses this key"
+        fi
+        return
+    fi
+    mkdir -p "$(dirname "$DKMS_SIGN_CONF")"
+    cat > "$DKMS_SIGN_CONF" <<EOF
+# Written by ${PKG_NAME} install.sh - points DKMS at the MOK key below.
+# Removed by ${PKG_NAME} uninstall.sh.
+mok_signing_key="${key}"
+mok_certificate="${cert}"
+EOF
+    info "DKMS pointed at ${cert} (${DKMS_SIGN_CONF})"
+}
+
+generate_key() {
+    local cert="$1" key="$2"
+    if [[ "$cert" == /etc/pki/akmods/* ]] && command -v kmodgenca >/dev/null 2>&1; then
+        info "Generating the akmods signing key (kmodgenca)"
+        kmodgenca -a >/dev/null || fail "kmodgenca failed"
+    elif [[ "$cert" == /var/lib/shim-signed/* ]] && command -v update-secureboot-policy >/dev/null 2>&1; then
+        info "Generating Ubuntu's MOK signing key"
+        update-secureboot-policy --new-key >/dev/null || fail "update-secureboot-policy --new-key failed"
+    else
+        command -v openssl >/dev/null 2>&1 || fail "openssl is needed to generate a signing key"
+        info "Generating a module signing key at ${cert}"
+        mkdir -p "$(dirname "$cert")" "$(dirname "$key")"
+        openssl req -new -x509 -nodes -days 36500 -newkey rsa:2048 \
+            -subj "/CN=DKMS module signing key ($(hostname))/" \
+            -keyout "$key" -outform DER -out "$cert" >/dev/null 2>&1 \
+            || fail "openssl couldn't generate the key"
+        chmod 600 "$key"
+    fi
+    [[ -f "$cert" && -f "$key" ]] || fail "Key generation didn't produce ${cert} and ${key}"
+}
+
+enrol_instructions() {
+    warn "To finish enrolling the key, reboot. A blue MokManager screen appears:"
+    warn "  Enroll MOK -> Continue -> Yes -> type the password you just set -> Reboot"
+    warn "The fan module then loads automatically - no need to re-run this installer."
+}
+
+MOK_PENDING=0
 setup_signing() {
     if ! secure_boot_on; then
         info "Secure Boot is off - module signing not needed"
         return
     fi
     command -v mokutil >/dev/null 2>&1 \
-        || fail "Secure Boot is on but mokutil isn't installed - it's needed to find your enrolled signing key"
-    info "Secure Boot is on - checking for an enrolled signing key"
+        || fail "Secure Boot is on but mokutil isn't installed - it's needed to check your signing key"
+    info "Secure Boot is on - checking the module signing key"
 
-    # Already configured by the user / another fix?
-    local cur_key="" cur_cert=""
-    if [[ -f /etc/dkms/framework.conf ]]; then
-        cur_key="$(grep -E '^\s*mok_signing_key=' /etc/dkms/framework.conf | tail -1 | cut -d= -f2- | tr -d '"' || true)"
-        cur_cert="$(grep -E '^\s*mok_certificate=' /etc/dkms/framework.conf | tail -1 | cut -d= -f2- | tr -d '"' || true)"
-    fi
-    if [[ -n "$cur_key" && -n "$cur_cert" ]] && is_enrolled "$cur_cert"; then
-        ok "DKMS already signs with an enrolled key (${cur_cert})"
-        return
-    fi
+    local eff eff_cert eff_key c cert key st
+    eff="$(dkms_effective_key)"; eff_cert="${eff%%|*}"; eff_key="${eff##*|}"
 
-    # Candidate key pairs: cert|key
+    # Standard key pairs: what DKMS is configured with first, then the usual ones
     local candidates=(
-        "/var/lib/dkms/mok.pub|/var/lib/dkms/mok.key"
+        "$eff"
         "/etc/pki/akmods/certs/public_key.der|/etc/pki/akmods/private/private_key.priv"
         "/var/lib/shim-signed/mok/MOK.der|/var/lib/shim-signed/mok/MOK.priv"
+        "/var/lib/dkms/mok.pub|/var/lib/dkms/mok.key"
     )
-    local c cert key
+
+    # 1. An enrolled key - the normal case
     for c in "${candidates[@]}"; do
         cert="${c%%|*}"; key="${c##*|}"
-        if is_enrolled "$cert" && [[ -f "$key" ]]; then
-            if [[ "$cert" == "/var/lib/dkms/mok.pub" ]]; then
-                ok "DKMS default key is enrolled - nothing to configure"
-                return
-            fi
-            mkdir -p /etc/dkms/framework.conf.d
-            cat > "$DKMS_SIGN_CONF" <<EOF
-# Written by ${PKG_NAME} install.sh - points DKMS at the enrolled MOK key.
-# Removed by ${PKG_NAME} uninstall.sh.
-mok_signing_key="${key}"
-mok_certificate="${cert}"
-EOF
-            ok "DKMS will sign with ${cert}"
-            return
-        fi
+        [[ -f "$key" && "$(key_state "$cert")" == enrolled ]] || continue
+        use_key "$cert" "$key"
+        ok "Signing with ${cert} (enrolled)"
+        return
     done
 
-    warn "No enrolled MOK key found that DKMS can use."
-    warn "Enroll one, reboot through MokManager, then re-run this installer. On Fedora, for example:"
-    warn "  sudo mokutil --import /etc/pki/akmods/certs/public_key.der   (run 'sudo kmodgenca' first if it doesn't exist)"
-    fail "Can't load an unsigned module with Secure Boot on"
+    # 2. A key already imported, waiting for the MokManager step at next boot
+    for c in "${candidates[@]}"; do
+        cert="${c%%|*}"; key="${c##*|}"
+        [[ -f "$key" && "$(key_state "$cert")" == pending ]] || continue
+        use_key "$cert" "$key"
+        warn "Signing with ${cert}, which is waiting to be enrolled at the next boot."
+        enrol_instructions
+        MOK_PENDING=1
+        return
+    done
+
+    # 3. Nothing enrolled: use the key DKMS is configured for, creating it if needed
+    cert="$eff_cert"; key="$eff_key"
+    if [[ ! -f "$cert" || ! -f "$key" ]]; then
+        generate_key "$cert" "$key"
+    fi
+    use_key "$cert" "$key"
+    st="$(key_state "$cert")"
+    warn "Secure Boot is on, but ${cert} isn't enrolled in your firmware yet, so"
+    warn "the module can't load until it is. (A BIOS update can also clear enrolled keys.)"
+
+    local answer="n"
+    if [[ -t 0 ]]; then
+        read -r -p "        Import it now with mokutil? You'll set a one-time password. [Y/n] " answer
+        answer="${answer:-y}"
+    fi
+    if [[ "$answer" =~ ^[Yy] ]] && mokutil --import "$cert"; then
+        st="$(key_state "$cert")"
+    fi
+    if [[ "$st" == pending ]]; then
+        ok "Key queued for enrolment"
+        enrol_instructions
+    else
+        warn "Not imported. When you're ready:  sudo mokutil --import ${cert}"
+        warn "then reboot and complete the MokManager steps."
+    fi
+    MOK_PENDING=1
 }
 
 # ---------------------------------------------------------------------------
@@ -395,7 +482,15 @@ install_module() {
     info "Building with DKMS (this takes a few seconds)"
     dkms add -m "$PKG_NAME" -v "$PKG_VERSION" >/dev/null || fail "dkms add failed"
     if ! dkms install -m "$PKG_NAME" -v "$PKG_VERSION"; then
-        fail "dkms install failed - see /var/lib/dkms/${PKG_NAME}/${PKG_VERSION}/build/make.log"
+        # With a key that isn't enrolled yet, DKMS's own modprobe fails even
+        # though the module was built, signed and installed fine.
+        local st
+        st="$(dkms status -m "$PKG_NAME" -v "$PKG_VERSION" -k "$(uname -r)" 2>/dev/null || true)"
+        if [[ $MOK_PENDING -eq 1 && "$st" == *installed* ]]; then
+            info "Module installed; it can't load until the signing key is enrolled (expected)"
+        else
+            fail "dkms install failed - see /var/lib/dkms/${PKG_NAME}/${PKG_VERSION}/build/make.log"
+        fi
     fi
     ok "DKMS module installed for $(uname -r) (rebuilds automatically on kernel updates)"
 
@@ -646,6 +741,10 @@ EOF
 # Load and verify
 # ---------------------------------------------------------------------------
 verify() {
+    if [[ $MOK_PENDING -eq 1 ]]; then
+        warn "Skipping the load test - the module will load after the key is enrolled and you reboot."
+        return
+    fi
     modprobe "$MOD_NAME" || fail "modprobe ${MOD_NAME} failed - check 'dmesg | tail'"
 
     local h name rpm=""

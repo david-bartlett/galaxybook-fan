@@ -59,6 +59,26 @@ The module also checks itself at load time, and refuses to load unless both of t
 
 So after a **BIOS update** the fan sensor disappears, and dmesg tells you to re-run `install.sh`, instead of a changed `_FST` or RPM table producing wrong readings. At load it also checks that the field exists and can be read.
 
+## Is the fix still needed?
+
+The installer adds a login-time check, the same pattern as fingerprint-fix and fnkeys-fix-book5. Ten seconds after login, a user timer checks whether the kernel or BIOS version has changed since the last check, or whether the module isn't loaded. If so, it starts a root monitor service (allowed by a polkit rule), which works out what happened and notifies you:
+
+| What changed | What the monitor does | You'll be told |
+|---|---|---|
+| BIOS update that fixed `_FST` (the table lookup now uses `DerefOf`) | Parses the new DSDT | The fix is no longer needed; run `uninstall.sh` |
+| BIOS update, `_FST` still broken | Module has paused itself (DSDT changed) | Re-run `install.sh` to re-derive for the new firmware (repeated at each login until you do) |
+| BIOS update that rewrote `_FST` beyond recognition | — | Run `install.sh --test-native` to check |
+| New kernel, module not loaded | — | The DKMS build probably failed; re-run `install.sh` |
+| New kernel | Briefly binds the stock `acpi-fan` driver while the fan is spinning and reads it | If it works: the kernel now handles the fan, so run `uninstall.sh` |
+
+The native test is only conclusive while the fan is running, because the broken code path is only reached then. The monitor waits up to a minute for that. If the fan stays off, it quietly tries again at the next login.
+
+Nothing is installed or removed automatically: the notifications tell you what to run. You can run the same native test yourself at any time:
+
+```bash
+sudo ./install.sh --test-native
+```
+
 ## Install
 
 ```bash
@@ -74,7 +94,9 @@ The installer:
 - with Secure Boot on, finds whichever MOK key is enrolled (DKMS, akmods or Ubuntu shim) and points DKMS at it
 - installs the module through DKMS, so it rebuilds automatically on kernel updates
 - autoloads it via `/etc/modules-load.d/galaxybook_fan.conf`, which is also a good file for checking whether the fix is installed
-- enables the `acpi-fan` unbind service
+- enables `galaxybook-acpi-fan-unbind.service`, which unbinds `acpi-fan` at boot
+- installs the login-time check described above (plus the shared graphical session helper on desktops that need it, such as Xfce)
+- refuses to install if your firmware's `_FST` is already correct, since the stock driver should work then (`--force` overrides)
 
 Re-running `install.sh` over an existing install is fine; there's no need to uninstall first.
 
@@ -92,5 +114,6 @@ This removes everything the installer added and rebinds `acpi-fan`. No reboot is
 |---|---|
 | `galaxybook_fan.c` | the module |
 | `galaxybook_fan_config.h` | default config (940XHA), so the module builds standalone; the installer replaces it in `/usr/src` |
-| `dsdt-fan-config.py` | derives and validates the config from a disassembled DSDT |
+| `dsdt-fan-config.py` | derives and validates the config from a disassembled DSDT; `--status` reports whether `_FST` still has the bug |
+| `samsung-galaxybook-fan-check.sh` | the native test and the login-time monitor logic |
 | `install.sh` / `uninstall.sh` | as above |

@@ -20,8 +20,14 @@ ACPI by name, the same way _FST does - only the broken lookup is bypassed.
 Anything that doesn't match this shape is an error - the script never guesses.
 
 Usage: dsdt-fan-config.py --dsl dsdt.dsl --product 940XHA --out config.h
+       dsdt-fan-config.py --dsl dsdt.dsl --status
 Exit status: 0 = header written, 1 = DSDT doesn't match / failed a check,
              2 = bad arguments or unreadable input.
+
+--status prints "broken" (Samsung's FANT lookup without DerefOf - the bug
+this fix works around), "fixed" (same method, lookup uses DerefOf, so the
+stock acpi-fan driver can read it) or "unknown" (exit 1: _FST no longer has
+a shape this script recognises).
 """
 
 import argparse
@@ -175,6 +181,7 @@ def parse_fst(raw, code, fst_start, fst_end):
     if not tm:
         raise FanConfigError(f"_FST has no 'LocalN = TABLE [{var}]' lookup")
     rvar, table = tm.group(1), tm.group(2)
+    derefof = "DerefOf" in tm.group(0)
 
     # 6. Optional RPM offset
     offset = 0
@@ -209,6 +216,7 @@ def parse_fst(raw, code, fst_start, fst_end):
     return {
         "field": field, "full_path": full_path, "ec_path": ec_path,
         "level_map": level_map, "table": table, "offset": offset,
+        "derefof": derefof,
     }
 
 
@@ -340,9 +348,13 @@ def c_string(s):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--dsl", required=True, help="disassembled DSDT (iasl -d)")
-    ap.add_argument("--product", required=True, help="DMI product_name to lock the module to")
+    ap.add_argument("--product", help="DMI product_name to lock the module to")
     ap.add_argument("--out", help="header to write (omit to just print the summary)")
+    ap.add_argument("--status", action="store_true",
+                    help="only report whether _FST still has the bug: broken / fixed / unknown")
     args = ap.parse_args()
+    if not args.status and not args.product:
+        ap.error("--product is required unless --status is given")
 
     try:
         with open(args.dsl, encoding="utf-8", errors="replace") as f:
@@ -350,6 +362,19 @@ def main():
     except OSError as e:
         print(f"Can't read {args.dsl}: {e}", file=sys.stderr)
         return 2
+
+    if args.status:
+        try:
+            code = [strip_line(l) for l in raw]
+            _, dev_start, dev_end, (fst_start, fst_end, _) = find_fan_device(raw, code)
+            fst = parse_fst(raw, code, fst_start, fst_end)
+            parse_table(code, fst["table"], dev_start, dev_end)
+        except FanConfigError as e:
+            print("unknown")
+            print(f"_FST not recognised: {e}", file=sys.stderr)
+            return 1
+        print("fixed" if fst["derefof"] else "broken")
+        return 0
 
     try:
         oem_id, oem_table, oem_rev = dsdt_id(raw)
@@ -372,6 +397,9 @@ def main():
              f"bits {loc['shift']}-{loc['shift'] + width - 1}")
     print(f"EC field:    {fst['full_path']} = {where}")
     print(f"Table:       {fst['table']} = {', '.join(f'0x{v:04X}' for v in table_vals)} (+{fst['offset']} RPM)")
+    print("Firmware:    " + ("_FST already uses DerefOf - the stock driver should work, fix not needed"
+                             if fst["derefof"] else
+                             "_FST bug present (FANT lookup without DerefOf) - fix needed"))
     speeds = sorted(set(r for r in rpm if r >= 0))
     print(f"Speeds:      {', '.join(str(s) for s in speeds)} RPM")
     unmapped = [i for i, r in enumerate(rpm) if r < 0]

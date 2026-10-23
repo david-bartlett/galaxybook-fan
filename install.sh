@@ -898,6 +898,14 @@ check_verdict() {
 
 check_distro
 
+# The unbind service and the login check are systemd units. Some distros offer
+# a non-systemd boot option (e.g. MX Linux's SysVinit), where they would never
+# run - same guard as the other Galaxy Book fixes. --check and --test-native
+# only read things, so they still work there.
+if [[ ! -d /run/systemd/system && $CHECK_ONLY -eq 0 && $TEST_NATIVE -eq 0 ]]; then
+    fail "systemd is not running (e.g. MX Linux booted with SysVinit). galaxybook-fan needs systemd - reboot, choose the systemd boot option and run this installer again."
+fi
+
 if [[ $TEST_NATIVE -eq 1 ]]; then
     [[ -x "$SCRIPT_DIR/samsung-galaxybook-fan-check.sh" ]] || chmod +x "$SCRIPT_DIR/samsung-galaxybook-fan-check.sh"
     info "Testing whether the stock acpi-fan driver can read the fan by itself."

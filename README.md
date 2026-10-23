@@ -94,9 +94,9 @@ All tests were on a Galaxy Book 5 Pro (940XHA, BIOS P10VAJ.390.260522.02, DSDT `
 |---|---|---|---|---|---|---|---|---|
 | Fedora 45 | 7.2.12 | KDE Plasma | akmods key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Ubuntu 26.04.1 LTS | 7.0.0 | GNOME | Ubuntu shim key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Linux Mint 27 (beta) | 7.0.0 | Cinnamon | Ubuntu shim key (enrolled) | ✓ | ✓ | ✓ | ✓ | — |
-| MX Linux 25.2 (systemd boot) | 7.2.10 Liquorix | Xfce (session helper) | Secure Boot off | ✓ | ✓ | ✓ | ✓ after a reboot¹ | — |
-| CachyOS | 7.2.9 | KDE Plasma | Secure Boot off | ✓ | ✓ | ✓ | ✓ | — |
+| Linux Mint 27 (beta) | 7.0.0 | Cinnamon | Ubuntu shim key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| MX Linux 25.2 (systemd boot) | 7.2.10 Liquorix | Xfce (session helper) | Secure Boot off | ✓ | ✓ | ✓ | ✓ after a reboot¹ | ✓ |
+| CachyOS | 7.2.9 | KDE Plasma | Secure Boot off | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 `--test-native` passing means it correctly reported that the stock `acpi-fan` driver still can't read the fan, so the fix is needed. The firmware bug is the same on every distro.
 

@@ -46,12 +46,24 @@ if [[ -d /sys/module/$MOD_NAME ]]; then
     modprobe -r "$MOD_NAME" && ok "Unloaded ${MOD_NAME}" || fail "Couldn't unload ${MOD_NAME}"
 fi
 
+# Same as install.sh / fnkeys-fix-book5: suspend DKMS's post_transaction
+# initramfs rebuild (Fedora runs dracut --regenerate-all there) for this
+# script's DKMS steps - galaxybook_fan is never in the initramfs. The trap
+# removes the drop-in again even if the script fails.
+DKMS_DEFER_CONF="/etc/dkms/framework.conf.d/zz-${PKG_NAME}-defer-initramfs.conf"
+trap 'rm -f "$DKMS_DEFER_CONF"' EXIT
+if grep -qs '^[[:space:]]*post_transaction=' /etc/dkms/framework.conf \
+        || grep -rqs '^[[:space:]]*post_transaction=' /etc/dkms/framework.conf.d/; then
+    mkdir -p "$(dirname "$DKMS_DEFER_CONF")"
+    echo 'post_transaction=""' > "$DKMS_DEFER_CONF"
+fi
+
 if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
     # Remove every registered version in the module/version form current DKMS expects
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         v="$(basename "$d")"
         [[ -L "${d%/}" || "$v" == kernel-* || "$v" == "source" || "$v" == "*" ]] && continue
-        info "Removing ${PKG_NAME}/${v} from DKMS (DKMS may rebuild the initramfs - this can take a minute)"
+        info "Removing ${PKG_NAME}/${v} from DKMS"
         dkms remove "${PKG_NAME}/${v}" --all || true
     done
     rm -rf /var/lib/dkms/"$PKG_NAME"
@@ -59,7 +71,7 @@ if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
 fi
 rm -rf /usr/src/"${PKG_NAME}"-* && ok "Removed source from /usr/src"
 
-for f in "$MODLOAD_CONF" "$MODPROBE_CONF" "$DKMS_SIGN_CONF"; do
+for f in "$MODLOAD_CONF" "$MODPROBE_CONF" "$DKMS_SIGN_CONF" "/etc/dracut.conf.d/${PKG_NAME}.conf"; do
     [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
 done
 

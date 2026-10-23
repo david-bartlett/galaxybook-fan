@@ -37,6 +37,10 @@ MODPROBE_CONF="/etc/modprobe.d/${MOD_NAME}.conf"
 UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"   # old versions only
 UNBIND_SERVICE="/etc/systemd/system/galaxybook-acpi-fan-unbind.service"
 DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
+# Temporary, while this script runs DKMS (see defer_initramfs) - sorts last
+DKMS_DEFER_CONF="/etc/dkms/framework.conf.d/zz-${PKG_NAME}-defer-initramfs.conf"
+# Keeps galaxybook_fan out of dracut initramfs images (see keep_out_of_initramfs)
+DRACUT_CONF="/etc/dracut.conf.d/${PKG_NAME}.conf"
 # Fedora: share the akmods key and DKMS config with Andy's fixes (same file,
 # same format as webcam-fix-book5), so there's only ever one key to enrol
 AKMODS_CERT="/etc/pki/akmods/certs/public_key.der"
@@ -218,7 +222,10 @@ ensure_parse_tools() {
 # ---------------------------------------------------------------------------
 # Derive the EC location and RPM table from this machine's DSDT
 # ---------------------------------------------------------------------------
-cleanup() { [[ -n "$WORK_DIR" ]] && rm -rf "$WORK_DIR"; }
+cleanup() {
+    [[ -n "$WORK_DIR" ]] && rm -rf "$WORK_DIR"
+    rm -f "$DKMS_DEFER_CONF"      # always put DKMS's post_transaction back
+}
 trap cleanup EXIT
 
 derive_config() {
@@ -512,11 +519,62 @@ dkms_remove_all() {
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         v="$(basename "$d")"
         [[ -L "${d%/}" || "$v" == kernel-* || "$v" == "source" || "$v" == "*" ]] && continue
-        info "Removing ${PKG_NAME}/${v} from DKMS (DKMS may rebuild the initramfs - this can take a minute)"
+        info "Removing ${PKG_NAME}/${v} from DKMS"
         dkms remove "${PKG_NAME}/${v}" --all || true
     done
     # Anything DKMS couldn't remove (half-added tree, etc.)
     rm -rf /var/lib/dkms/"$PKG_NAME"
+}
+
+# ---------------------------------------------------------------------------
+# Initramfs handling - same approach as fnkeys-fix-book5.
+# Some distros (Fedora) set post_transaction in DKMS's config to rebuild every
+# kernel's initramfs after each DKMS operation, which takes minutes. This
+# module is never in the initramfs (it loads later via modules-load.d), so
+# suspend that for this script's own DKMS steps; the EXIT trap removes the
+# drop-in again even if the script fails. DKMS's own setting is untouched.
+# ---------------------------------------------------------------------------
+defer_initramfs() {
+    if grep -qs '^[[:space:]]*post_transaction=' /etc/dkms/framework.conf \
+            || grep -rqs '^[[:space:]]*post_transaction=' /etc/dkms/framework.conf.d/; then
+        mkdir -p "$(dirname "$DKMS_DEFER_CONF")"
+        echo 'post_transaction=""' > "$DKMS_DEFER_CONF"
+        info "DKMS's initramfs rebuild suspended while installing (galaxybook_fan isn't in the initramfs)"
+    fi
+}
+
+# Tell dracut never to pack this module into an initramfs. Otherwise dracut's
+# host-only mode can include it if it's loaded when a new initramfs is built,
+# and then a later reinstall would leave a stale copy there - which is exactly
+# what deferring the rebuild above relies on not happening.
+keep_out_of_initramfs() {
+    command -v dracut >/dev/null 2>&1 || return 0
+    mkdir -p "$(dirname "$DRACUT_CONF")"
+    cat > "$DRACUT_CONF" <<EOF
+# Written by ${PKG_NAME} install.sh - galaxybook_fan loads from modules-load.d
+# after boot and must never be in the initramfs. Removed by uninstall.sh.
+omit_drivers+=" ${MOD_NAME} "
+EOF
+}
+
+# If an older install did end up in this kernel's initramfs, rebuild just this
+# kernel's image so the stale copy goes (one kernel, not --regenerate-all).
+refresh_initramfs_if_needed() {
+    local kver img
+    kver="$(uname -r)"
+    if command -v lsinitrd >/dev/null 2>&1; then
+        img="$(lsinitrd --kver "$kver" 2>/dev/null || true)"
+        if [[ "$img" == *"/${MOD_NAME}.ko"* ]]; then
+            info "Removing an old ${MOD_NAME} copy from the initramfs (this kernel only)"
+            dracut --force --kver "$kver" >/dev/null 2>&1 || warn "dracut failed - run: sudo dracut --force"
+        fi
+    elif command -v lsinitramfs >/dev/null 2>&1; then
+        img="$(lsinitramfs "/boot/initrd.img-${kver}" 2>/dev/null || true)"
+        if [[ "$img" == *"/${MOD_NAME}.ko"* ]]; then
+            info "Removing an old ${MOD_NAME} copy from the initramfs (this kernel only)"
+            update-initramfs -u -k "$kver" >/dev/null 2>&1 || warn "update-initramfs failed - run: sudo update-initramfs -u"
+        fi
+    fi
 }
 
 install_module() {
@@ -924,7 +982,10 @@ fi
 
 install_deps
 setup_signing
+defer_initramfs
+keep_out_of_initramfs
 install_module
+refresh_initramfs_if_needed
 install_unbind
 install_monitor
 verify

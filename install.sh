@@ -75,7 +75,15 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC
 info()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
 ok()    { echo -e "${GREEN}[ OK ]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-fail()  { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
+fail()  {
+    echo -e "${RED}[FAIL]${NC}  $*"
+    if [[ ${CHECK_ONLY:-0} -eq 1 ]]; then
+        echo
+        echo -e "${RED}[FAIL]${NC}  Check failed - galaxybook-fan can't be installed on this machine (see above)."
+        echo
+    fi
+    exit 1
+}
 
 for arg in "$@"; do
     case "$arg" in
@@ -255,7 +263,9 @@ derive_config() {
     echo "$summary" | sed 's/^/        /'
     EXPECTED_SPEEDS="$(echo "$summary" | sed -n 's/^Speeds: *//p')"
 
+    FIRMWARE_FIXED=0
     if [[ "$summary" == *"fix not needed"* ]]; then
+        FIRMWARE_FIXED=1
         warn "This firmware's _FST already dereferences its table correctly, so the stock"
         warn "acpi-fan driver should report fan speed without this fix."
         warn "Check with: sudo ./install.sh --test-native"
@@ -837,6 +847,55 @@ verify() {
     fi
 }
 
+# ---------------------------------------------------------------------------
+# --check summary: can this machine use the fix, and what would install do?
+# Read-only - signing state is only reported, never changed.
+# ---------------------------------------------------------------------------
+check_verdict() {
+    local sb_line="" eff cert st
+    if secure_boot_on; then
+        if command -v mokutil >/dev/null 2>&1; then
+            eff="$(dkms_effective_key)"; cert="${eff%%|*}"
+            # Same choice setup_signing makes: Fedora uses the akmods key
+            [[ "$PKG_MGR" == dnf && "$eff" == "/var/lib/dkms/mok.pub|/var/lib/dkms/mok.key" ]] && cert="$AKMODS_CERT"
+            st="$(key_state "$cert")"
+            case "$st" in
+                enrolled) sb_line="Secure Boot on - module will be signed with ${cert} (enrolled)" ;;
+                pending)  sb_line="Secure Boot on - ${cert} is waiting to be enrolled at the next boot" ;;
+                missing)  sb_line="Secure Boot on - no signing key yet; install will create one and ask to enrol it (one reboot)" ;;
+                *)        sb_line="Secure Boot on - ${cert} isn't enrolled; install will ask to enrol it (one reboot)" ;;
+            esac
+        else
+            sb_line="Secure Boot on - install will set up a signing key (mokutil will be installed)"
+        fi
+    else
+        sb_line="Secure Boot off - no module signing needed"
+    fi
+
+    echo
+    echo "=============================================="
+    if [[ ${FIRMWARE_FIXED:-0} -eq 1 ]]; then
+        ok "Check passed, but this fix isn't needed: the firmware's _FST is already correct."
+        echo "    Confirm the stock driver works with: sudo ./install.sh --test-native"
+    elif [[ ${BOOK5:-0} -eq 0 ]]; then
+        warn "Check passed: the firmware has the bug this fix works around,"
+        warn "but ${PRODUCT} isn't a Galaxy Book 5, so installing needs --force:"
+        echo "    sudo ./install.sh --force"
+    else
+        ok "Check passed - galaxybook-fan can be installed on this machine."
+        if [[ -f "$MODLOAD_CONF" ]]; then
+            echo "    It's already installed; re-running install.sh will update it:"
+        else
+            echo "    To install:"
+        fi
+        echo "    sudo ./install.sh"
+    fi
+    echo "    ${sb_line}"
+    echo "    Nothing was installed or changed."
+    echo "=============================================="
+    echo
+}
+
 check_distro
 
 if [[ $TEST_NATIVE -eq 1 ]]; then
@@ -863,9 +922,7 @@ ensure_parse_tools
 derive_config
 
 if [[ $CHECK_ONLY -eq 1 ]]; then
-    echo
-    ok "Check only - nothing installed."
-    echo
+    check_verdict
     exit 0
 fi
 

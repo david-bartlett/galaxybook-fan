@@ -204,6 +204,7 @@ ensure_parse_tools() {
     esac
     if [[ ${#pkgs[@]} -gt 0 ]]; then
         info "Installing: ${pkgs[*]}"
+        PARSE_PKGS_INSTALLED="${pkgs[*]}"
         case "$PKG_MGR" in
             dnf)    dnf install -y "${pkgs[@]}" ;;
             apt)    apt-get update -qq && apt-get install -y "${pkgs[@]}" ;;
@@ -875,7 +876,11 @@ check_verdict() {
         echo "    sudo ./install.sh"
     fi
     echo "    ${sb_line}"
-    echo "    Nothing was installed or changed."
+    if [[ -n "${PARSE_PKGS_INSTALLED:-}" ]]; then
+        echo "    Only ${PARSE_PKGS_INSTALLED} was installed (needed to read the DSDT); nothing else changed."
+    else
+        echo "    Nothing was installed or changed."
+    fi
     echo "=============================================="
     echo
 }

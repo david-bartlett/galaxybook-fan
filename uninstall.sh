@@ -44,7 +44,8 @@ if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         v="$(basename "$d")"
         [[ "$v" == "source" || "$v" == "*" ]] && continue
-        dkms remove "${PKG_NAME}/${v}" --all >/dev/null 2>&1 || true
+        info "Removing ${PKG_NAME}/${v} from DKMS (DKMS may rebuild the initramfs - this can take a minute)"
+        dkms remove "${PKG_NAME}/${v}" --all || true
     done
     rm -rf /var/lib/dkms/"$PKG_NAME"
     ok "Removed from DKMS"

@@ -21,7 +21,8 @@ MOD_NAME="galaxybook_fan"
 SRC_DIR="/usr/src/${PKG_NAME}-${PKG_VERSION}"
 MODLOAD_CONF="/etc/modules-load.d/${MOD_NAME}.conf"
 MODPROBE_CONF="/etc/modprobe.d/${MOD_NAME}.conf"
-UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"
+UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"   # old versions only
+UNBIND_SERVICE="/etc/systemd/system/galaxybook-acpi-fan-unbind.service"
 DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
 ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
 
@@ -261,21 +262,43 @@ install_module() {
 }
 
 # ---------------------------------------------------------------------------
-# Unbind stock acpi-fan from the fan device (built-in driver on most distros,
-# so blacklisting doesn't work - use a udev rule on the bind event)
+# Unbind stock acpi-fan from the fan device.
+# acpi-fan is built in on most distros (so it can't be blacklisted) and binds
+# before udevd starts; udev RUN programs also get a read-only /sys, so a udev
+# rule can't do the unbind. A oneshot systemd service early in boot can.
 # ---------------------------------------------------------------------------
 install_unbind() {
-    cat > "$UDEV_RULE" <<'EOF'
+    # Remove the udev rule from earlier versions of this installer
+    if [[ -f "$UDEV_RULE" ]]; then
+        rm -f "$UDEV_RULE"
+        udevadm control --reload
+        ok "Removed old udev rule ${UDEV_RULE}"
+    fi
+
+    cat > "$UNBIND_SERVICE" <<'EOF'
 # Written by galaxybook-fan install.sh.
 # Samsung's FAN0._FST is broken (Index without DerefOf), so the stock acpi-fan
 # driver only produces AML errors and a dead fan sensor. galaxybook_fan reads
 # the EC directly instead. The fan has no ACPI control (_FPS/_FSL), so the
 # cooling device acpi-fan registers does nothing - unbinding it loses nothing.
-ACTION=="bind", SUBSYSTEM=="platform", DRIVER=="acpi-fan", KERNEL=="PNP0C0B:*", \
-  RUN+="/bin/sh -c 'echo %k > /sys/bus/platform/drivers/acpi-fan/unbind'"
+[Unit]
+Description=Unbind acpi-fan from Samsung Galaxy Book fan (broken _FST)
+DefaultDependencies=no
+Before=sysinit.target
+ConditionPathIsDirectory=/sys/bus/platform/drivers/acpi-fan
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for d in /sys/bus/platform/drivers/acpi-fan/PNP0C0B:*; do [ -e "$$d" ] && echo "$${d##*/}" > /sys/bus/platform/drivers/acpi-fan/unbind; done; true'
+
+[Install]
+WantedBy=sysinit.target
 EOF
-    udevadm control --reload
-    ok "udev rule: ${UDEV_RULE}"
+    systemctl daemon-reload
+    systemctl enable "$(basename "$UNBIND_SERVICE")" >/dev/null 2>&1 \
+        || fail "Couldn't enable $(basename "$UNBIND_SERVICE")"
+    ok "Boot-time unbind: $(basename "$UNBIND_SERVICE") (enabled)"
 
     local dev
     for dev in "$ACPI_FAN_DRV"/PNP0C0B:*; do

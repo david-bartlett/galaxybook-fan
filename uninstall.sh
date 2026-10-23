@@ -3,8 +3,8 @@
 # galaxybook-fan - uninstall
 #
 # Removes the DKMS module, its autoload/options files, the acpi-fan unbind
-# udev rule and the DKMS signing drop-in (if install.sh created it), then
-# rebinds the stock acpi-fan driver.
+# service (and any old udev rule) and the DKMS signing drop-in (if install.sh
+# created it), then rebinds the stock acpi-fan driver.
 #
 # Usage: sudo ./uninstall.sh
 # ============================================================================
@@ -14,7 +14,8 @@ PKG_NAME="galaxybook-fan"
 MOD_NAME="galaxybook_fan"
 MODLOAD_CONF="/etc/modules-load.d/${MOD_NAME}.conf"
 MODPROBE_CONF="/etc/modprobe.d/${MOD_NAME}.conf"
-UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"
+UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"   # old versions only
+UNBIND_SERVICE="/etc/systemd/system/galaxybook-acpi-fan-unbind.service"
 DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
 ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
 
@@ -46,6 +47,13 @@ rm -rf /usr/src/"${PKG_NAME}"-* && ok "Removed source from /usr/src"
 for f in "$MODLOAD_CONF" "$MODPROBE_CONF" "$DKMS_SIGN_CONF"; do
     [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
 done
+
+if [[ -f "$UNBIND_SERVICE" ]]; then
+    systemctl disable "$(basename "$UNBIND_SERVICE")" >/dev/null 2>&1 || true
+    rm -f "$UNBIND_SERVICE"
+    systemctl daemon-reload
+    ok "Removed $(basename "$UNBIND_SERVICE")"
+fi
 
 if [[ -f "$UDEV_RULE" ]]; then
     rm -f "$UDEV_RULE"

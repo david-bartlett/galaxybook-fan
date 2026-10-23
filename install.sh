@@ -900,7 +900,7 @@ if [[ $TEST_NATIVE -eq 1 ]]; then
     info "Testing whether the stock acpi-fan driver can read the fan by itself."
     if [[ -d /sys/module/$MOD_NAME ]]; then
         info "The test needs the fan spinning - waiting up to 2 minutes."
-        info "If it's quiet, load the CPU in another terminal, e.g.: stress-ng --cpu 8 --timeout 90"
+        info "If it's quiet, load the CPU in another terminal, e.g.: timeout 180 openssl speed -multi \$(nproc) rsa4096"
     fi
     case "$("$SCRIPT_DIR/samsung-galaxybook-fan-check.sh" --test-native --wait 120)" in
         works)     ok "The stock driver reads the fan speed - this fix is no longer needed (sudo ./uninstall.sh)" ;;

@@ -106,7 +106,11 @@ check_model() {
 # Refuse if the CPIO / DSDT override fix is still active
 # ---------------------------------------------------------------------------
 check_cpio_fix() {
-    if dmesg 2>/dev/null | grep -q "dsdt_fixed.aml"; then
+    # Capture first: piping into grep -q can SIGPIPE the writer, which fails
+    # the whole test under pipefail even when grep matched.
+    local log
+    log="$(dmesg 2>/dev/null || true)"
+    if [[ "$log" == *"dsdt_fixed.aml"* ]]; then
         fail "fanspeed-fix-cpio (DSDT override) is active. Uninstall it and reboot first, otherwise you'll get two fan sensors"
     fi
     if [[ -f /boot/samsung-galaxybook-acpi.img ]]; then
@@ -180,7 +184,9 @@ is_enrolled() {
 }
 
 setup_signing() {
-    if ! command -v mokutil >/dev/null 2>&1 || ! mokutil --sb-state 2>/dev/null | grep -q "SecureBoot enabled"; then
+    local sb=""
+    command -v mokutil >/dev/null 2>&1 && sb="$(mokutil --sb-state 2>/dev/null || true)"
+    if [[ "$sb" != *"SecureBoot enabled"* ]]; then
         info "Secure Boot is off - module signing not needed"
         return
     fi
@@ -248,7 +254,7 @@ dkms_remove_all() {
 
 install_module() {
     # Remove any previous registration of this package (any version)
-    if dkms status -m "$PKG_NAME" 2>/dev/null | grep -q . || [[ -d /var/lib/dkms/$PKG_NAME ]]; then
+    if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
         info "Removing previous ${PKG_NAME} DKMS install"
         modprobe -r "$MOD_NAME" 2>/dev/null || true
         dkms_remove_all

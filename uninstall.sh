@@ -35,7 +35,7 @@ echo "  Samsung Galaxy Book fan speed (DKMS) - uninstall"
 echo "================================================"
 echo
 
-if lsmod | grep -q "^${MOD_NAME} "; then
+if [[ -d /sys/module/$MOD_NAME ]]; then
     modprobe -r "$MOD_NAME" && ok "Unloaded ${MOD_NAME}" || fail "Couldn't unload ${MOD_NAME}"
 fi
 

@@ -22,8 +22,8 @@
 # Usage: sudo ./install.sh [--check] [--test-native] [--force]
 #   --check         derive and show the fan config from the DSDT, install nothing
 #   --test-native   test whether the stock acpi-fan driver now works by itself
-#   --force         install on a model that isn't in the confirmed list, or
-#                   when the firmware already looks fixed
+#   --force         install on a Samsung that isn't a Galaxy Book 5, or when
+#                   the firmware already looks fixed
 # ============================================================================
 set -uo pipefail
 
@@ -56,7 +56,15 @@ SESSION_HELPER_AUTOSTART="/etc/xdg/autostart/samsung-galaxybook-session.desktop"
 SESSION_HELPER_USERS="/etc/samsung-galaxybook/session-helper.d"
 ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
 
-CONFIRMED_MODELS=("940XHA")
+# Galaxy Book 5 series - the same list as fnkeys-fix-book5. TESTED_MODELS
+# have been run on real hardware; the rest of the series is expected to share
+# the firmware bug, and the DSDT check decides for each machine anyway.
+BOOK5_MODELS=("940XHA" "960XHA" "960QHA" "750XHD" "754XHD" "750QHA" "754QHA")
+TESTED_MODELS=("940XHA")
+# Oldest kernel the module has been build-tested against (6.8 to 7.0 all build
+# cleanly); anything able to run a Lunar Lake Book 5 is newer than this.
+MIN_KERNEL_MAJOR=6
+MIN_KERNEL_MINOR=8
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORCE=0
 CHECK_ONLY=0
@@ -112,25 +120,63 @@ check_distro() {
 # ---------------------------------------------------------------------------
 # Model check
 # ---------------------------------------------------------------------------
+check_kernel() {
+    local kver major minor
+    kver="$(uname -r)"
+    major="${kver%%.*}"; minor="${kver#*.}"; minor="${minor%%.*}"
+    if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ ]]; then
+        warn "Couldn't parse the kernel version '${kver}' - carrying on"
+        return
+    fi
+    if (( major < MIN_KERNEL_MAJOR || (major == MIN_KERNEL_MAJOR && minor < MIN_KERNEL_MINOR) )); then
+        fail "Kernel ${kver} is too old - galaxybook-fan needs ${MIN_KERNEL_MAJOR}.${MIN_KERNEL_MINOR} or newer"
+    fi
+    ok "Kernel: ${kver}"
+}
+
 check_model() {
-    local vendor product
+    local vendor product model m
     vendor="$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)"
     product="$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)"
 
-    if [[ "$vendor" != *SAMSUNG* ]]; then
-        fail "Not a Samsung laptop (vendor: '${vendor}')"
+    if [[ "${vendor^^}" != *SAMSUNG* ]]; then
+        fail "Not a Samsung laptop (vendor: '${vendor}') - galaxybook-fan is for Samsung Galaxy Book 5 laptops only"
     fi
-
     [[ -n "$product" ]] || fail "Couldn't read the DMI product name"
     PRODUCT="$product"
-    CONFIRMED=0
-    for m in "${CONFIRMED_MODELS[@]}"; do
-        [[ "$product" == *"$m"* ]] && CONFIRMED=1
+
+    # Same normalisation as fnkeys-fix-book5: upper-case, drop a leading "NP"
+    model="${product^^}"; model="${model#NP}"
+
+    BOOK5=0
+    for m in "${BOOK5_MODELS[@]}"; do
+        [[ "$model" == "$m" ]] && BOOK5=1
     done
-    if [[ $CONFIRMED -eq 1 ]]; then
-        ok "Model: ${product} (confirmed)"
+
+    if [[ $BOOK5 -eq 1 ]]; then
+        local tested=0
+        for m in "${TESTED_MODELS[@]}"; do [[ "$model" == "$m" ]] && tested=1; done
+        if [[ $tested -eq 1 ]]; then
+            ok "Model: ${product} (Galaxy Book 5, tested)"
+        else
+            ok "Model: ${product} (Galaxy Book 5)"
+            info "Not tested on this model yet - the DSDT check below confirms it has the same firmware bug"
+        fi
+        return
+    fi
+
+    # Not a Book 5. Earlier Galaxy Books' fan speed works with the stock driver
+    # (the kernel's _FST-only fan support was written and tested on a Book2 Pro),
+    # so this fix isn't meant for them. --check is read-only, so allow it.
+    if [[ $FORCE -eq 1 ]]; then
+        warn "Model: ${product} is not a Galaxy Book 5 - continuing because of --force"
+    elif [[ $CHECK_ONLY -eq 1 || $TEST_NATIVE -eq 1 ]]; then
+        warn "Model: ${product} is not a Galaxy Book 5 (checking only)"
     else
-        warn "Model: ${product} (not confirmed - the DSDT check below decides whether it can work)"
+        warn "Model: ${product} is not a Galaxy Book 5 - galaxybook-fan is for the Book 5 series only."
+        warn "Earlier Galaxy Books report fan speed with the stock kernel driver."
+        warn "To check this machine anyway: sudo ./install.sh --check   (or --test-native)"
+        fail "Not installed (use --force to override)"
     fi
 }
 
@@ -810,6 +856,7 @@ if [[ $TEST_NATIVE -eq 1 ]]; then
     exit 0
 fi
 
+check_kernel
 check_model
 check_cpio_fix
 ensure_parse_tools
@@ -820,12 +867,6 @@ if [[ $CHECK_ONLY -eq 1 ]]; then
     ok "Check only - nothing installed."
     echo
     exit 0
-fi
-
-if [[ $CONFIRMED -eq 0 && $FORCE -eq 0 ]]; then
-    warn "The DSDT check passed, but ${PRODUCT} hasn't been confirmed on real hardware."
-    warn "If the speeds above look plausible, re-run with --force to install."
-    fail "Not installed"
 fi
 
 install_deps

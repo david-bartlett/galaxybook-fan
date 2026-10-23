@@ -215,7 +215,8 @@ derive_config() {
 }
 
 # ---------------------------------------------------------------------------
-# Dependencies: dkms, make, gcc, headers for the running kernel
+# Dependencies: dkms, make, gcc, headers for the running kernel, and
+# notify-send for the login check (libnotify-bin isn't always on Debian)
 # ---------------------------------------------------------------------------
 install_deps() {
     local kver pkgs=()
@@ -228,6 +229,7 @@ install_deps() {
             command -v gcc  >/dev/null 2>&1 || pkgs+=(gcc)
             [[ -d /usr/src/kernels/${kver} ]] || pkgs+=("kernel-devel-${kver}")
             rpm -q dwarves >/dev/null 2>&1 || pkgs+=(dwarves)
+            command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify)
             if [[ ${#pkgs[@]} -gt 0 ]]; then
                 info "Installing: ${pkgs[*]}"
                 dnf install -y "${pkgs[@]}" || fail "Package install failed"
@@ -238,6 +240,7 @@ install_deps() {
             command -v make >/dev/null 2>&1 || pkgs+=(make)
             command -v gcc  >/dev/null 2>&1 || pkgs+=(gcc)
             [[ -d /lib/modules/${kver}/build ]] || pkgs+=("linux-headers-${kver}")
+            command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify-bin)
             if [[ ${#pkgs[@]} -gt 0 ]]; then
                 info "Installing: ${pkgs[*]}"
                 apt-get update -qq
@@ -248,6 +251,7 @@ install_deps() {
             command -v dkms >/dev/null 2>&1 || pkgs+=(dkms)
             command -v make >/dev/null 2>&1 || pkgs+=(make)
             command -v gcc  >/dev/null 2>&1 || pkgs+=(gcc)
+            command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify)
             if [[ ! -d /lib/modules/${kver}/build ]]; then
                 local kpkg
                 kpkg="$(pacman -Qqo "/usr/lib/modules/${kver}/vmlinuz" 2>/dev/null || true)"
@@ -261,6 +265,8 @@ install_deps() {
     esac
 
     [[ -d /lib/modules/${kver}/build ]] || fail "Kernel headers for ${kver} not found"
+    command -v notify-send >/dev/null 2>&1 \
+        || warn "notify-send still missing - login-check messages will only go to the journal"
     ok "Build dependencies present"
 }
 

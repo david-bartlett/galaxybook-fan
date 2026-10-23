@@ -3,77 +3,59 @@
  * galaxybook_fan - fan speed for Samsung Galaxy Book laptops, read directly
  * from the Embedded Controller.
  *
- * Bypasses \_SB.PC00.LPCB.FAN0._FST, which fails on ACPICA with
+ * Bypasses the fan device's _FST method, which fails on ACPICA with
  * AE_AML_OPERAND_TYPE whenever the fan is running: it does
  *     Local1 = FANT [Local0]
  * without DerefOf(), storing an Index reference instead of an integer.
  *
- * This mirrors what _FST is meant to return:
- *     FANS  = EC byte 0x87, bits 0-3
- *     level = 1->1, 2->2, 3->3, 4->3, 5->4, 0->off
- *     rpm   = FANT[level - 1] + 10
+ * Where to read and how to turn the raw EC value into RPM comes from
+ * galaxybook_fan_config.h, which install.sh generates from this machine's
+ * own DSDT (dsdt-fan-config.py). The copy in the repo is for the 940XHA.
  */
 
 #include <linux/acpi.h>
+#include <linux/build_bug.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/hwmon.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/string.h>
+
+#include "galaxybook_fan_config.h"
 
 #define DRV_NAME	"galaxybook_fan"
 
-#define EC_FANS_ADDR	0x87
-#define EC_FANS_MASK	0x0f
+static_assert(ARRAY_SIZE(gb_rpm_for_raw) == (1 << GB_EC_WIDTH));
+static_assert(GB_EC_SHIFT + GB_EC_WIDTH <= 8);
 
 static bool force;
 module_param(force, bool, 0444);
-MODULE_PARM_DESC(force, "Load even if the DMI model is not in the known list");
-
-/* \_SB.PC00.LPCB.FAN0.FANT from the 940XHA DSDT */
-static const u16 fant[] = { 0x0dac, 0x0ee2, 0x1144, 0x127a };
+MODULE_PARM_DESC(force, "Load even if the DMI product or DSDT isn't the one the config was generated for");
 
 static struct platform_device *gb_pdev;
 static struct device *gb_hwmon;
 
-static int gb_fan_level(u8 fans)
-{
-	switch (fans) {
-	case 0:
-		return 0;
-	case 1:
-		return 1;
-	case 2:
-		return 2;
-	case 3:
-	case 4:
-		return 3;
-	case 5:
-		return 4;
-	default:
-		/* _FST would index past FANT here; report no data instead */
-		return -ENODATA;
-	}
-}
-
 static int gb_fan_read(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel, long *val)
 {
-	u8 raw;
-	int ret, level;
+	u8 byte, raw;
+	int ret, rpm;
 
 	if (type != hwmon_fan || attr != hwmon_fan_input)
 		return -EOPNOTSUPP;
 
-	ret = ec_read(EC_FANS_ADDR, &raw);
+	ret = ec_read(GB_EC_ADDR, &byte);
 	if (ret)
 		return ret;
 
-	level = gb_fan_level(raw & EC_FANS_MASK);
-	if (level < 0)
-		return level;
+	raw = (byte >> GB_EC_SHIFT) & ((1u << GB_EC_WIDTH) - 1);
+	rpm = gb_rpm_for_raw[raw];
+	if (rpm < 0)
+		return -ENODATA;	/* _FST would index past the firmware table */
 
-	*val = level ? fant[level - 1] + 10 : 0;
+	*val = rpm;
 	return 0;
 }
 
@@ -112,28 +94,74 @@ static const struct hwmon_chip_info gb_fan_chip_info = {
 	.info	= gb_fan_info,
 };
 
-static const struct dmi_system_id gb_fan_dmi[] = {
-	{
-		.ident = "Samsung Galaxy Book5 Pro (940XHA)",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "940XHA"),
-		},
-	},
-	{ }
-};
-MODULE_DEVICE_TABLE(dmi, gb_fan_dmi);
+/* Compare a fixed-width, space/NUL-padded ACPI header field with a C string */
+static bool gb_acpi_field_eq(const char *field, size_t len, const char *want)
+{
+	size_t n = len;
+
+	while (n && (field[n - 1] == ' ' || field[n - 1] == '\0'))
+		n--;
+	return n == strlen(want) && !memcmp(field, want, n);
+}
+
+/*
+ * The EC offset and RPM table were derived from one specific DSDT. After a
+ * BIOS update the field could move, so refuse to report anything until
+ * install.sh has re-derived the config from the new table.
+ */
+static int gb_check_dsdt(void)
+{
+	struct acpi_table_header *hdr;
+	bool same;
+
+	if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_DSDT, 0, &hdr))) {
+		pr_err(DRV_NAME ": can't read the DSDT header\n");
+		return -ENODEV;
+	}
+	same = gb_acpi_field_eq(hdr->oem_id, ACPI_OEM_ID_SIZE, GB_DSDT_OEM_ID) &&
+	       gb_acpi_field_eq(hdr->oem_table_id, ACPI_OEM_TABLE_ID_SIZE, GB_DSDT_OEM_TABLE_ID) &&
+	       hdr->oem_revision == GB_DSDT_OEM_REV;
+	if (!same)
+		pr_err(DRV_NAME ": DSDT is %.*s %.*s 0x%08x but config was generated for %s - BIOS updated? Re-run install.sh\n",
+		       ACPI_OEM_ID_SIZE, hdr->oem_id,
+		       ACPI_OEM_TABLE_ID_SIZE, hdr->oem_table_id,
+		       hdr->oem_revision, GB_DSDT_ID);
+	acpi_put_table(hdr);
+	return same ? 0 : -ENODEV;
+}
 
 static int __init gb_fan_init(void)
 {
+	const char *vendor = dmi_get_system_info(DMI_SYS_VENDOR);
+	const char *product = dmi_get_system_info(DMI_PRODUCT_NAME);
 	acpi_handle handle;
+	int ret;
 
-	if (!dmi_check_system(gb_fan_dmi) && !force)
+	if (!vendor || !strstr(vendor, "SAMSUNG"))
 		return -ENODEV;
 
-	/* Sanity check: this is the EC that FAN0._FST reads from */
-	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB.PC00.LPCB.H_EC", &handle)))
+	/* The config describes one machine's firmware - don't apply it to another */
+	if (!product || strcmp(product, GB_DMI_PRODUCT)) {
+		if (!force) {
+			pr_err(DRV_NAME ": config is for %s, this is %s - re-run install.sh (or load with force=1)\n",
+			       GB_DMI_PRODUCT, product ?: "unknown");
+			return -ENODEV;
+		}
+		pr_warn(DRV_NAME ": config is for %s, this is %s - loading because force=1\n",
+			GB_DMI_PRODUCT, product ?: "unknown");
+	}
+
+	if (!force) {
+		ret = gb_check_dsdt();
+		if (ret)
+			return ret;
+	}
+
+	/* Sanity check: this is the EC that the fan's _FST reads from */
+	if (ACPI_FAILURE(acpi_get_handle(NULL, GB_EC_PATH, &handle))) {
+		pr_err(DRV_NAME ": EC device %s not found\n", GB_EC_PATH);
 		return -ENODEV;
+	}
 
 	gb_pdev = platform_device_register_simple(DRV_NAME, PLATFORM_DEVID_NONE,
 						  NULL, 0);
@@ -147,6 +175,8 @@ static int __init gb_fan_init(void)
 		return PTR_ERR(gb_hwmon);
 	}
 
+	pr_info(DRV_NAME ": DSDT %s, EC 0x%02x bits %d-%d\n", GB_DSDT_ID,
+		GB_EC_ADDR, GB_EC_SHIFT, GB_EC_SHIFT + GB_EC_WIDTH - 1);
 	return 0;
 }
 

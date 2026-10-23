@@ -10,13 +10,19 @@
 # Samsung's _FST method is broken (missing DerefOf) and acpi-fan only ever
 # produces I/O errors, AML errors in dmesg and a dead "Fan 0" in monitors.
 #
-# Usage: sudo ./install.sh [--force]
+# The EC location and RPM table aren't hardcoded: they're derived from this
+# machine's own DSDT (dsdt-fan-config.py), validated, and baked into the
+# module's config header. The module also refuses to load if the DSDT later
+# changes (BIOS update) until this installer has been re-run.
+#
+# Usage: sudo ./install.sh [--check] [--force]
+#   --check   derive and show the fan config from the DSDT, install nothing
 #   --force   install on a model that isn't in the confirmed list
 # ============================================================================
 set -uo pipefail
 
 PKG_NAME="galaxybook-fan"
-PKG_VERSION="0.1"
+PKG_VERSION="0.2"
 MOD_NAME="galaxybook_fan"
 SRC_DIR="/usr/src/${PKG_NAME}-${PKG_VERSION}"
 MODLOAD_CONF="/etc/modules-load.d/${MOD_NAME}.conf"
@@ -29,6 +35,8 @@ ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
 CONFIRMED_MODELS=("940XHA")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FORCE=0
+CHECK_ONLY=0
+WORK_DIR=""
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 info()  { echo -e "${BLUE}[INFO]${NC}  $*"; }
@@ -39,7 +47,8 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
 for arg in "$@"; do
     case "$arg" in
         --force) FORCE=1 ;;
-        -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --check) CHECK_ONLY=1 ;;
+        -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) fail "Unknown option: $arg" ;;
     esac
 done
@@ -86,19 +95,16 @@ check_model() {
         fail "Not a Samsung laptop (vendor: '${vendor}')"
     fi
 
+    [[ -n "$product" ]] || fail "Couldn't read the DMI product name"
+    PRODUCT="$product"
+    CONFIRMED=0
     for m in "${CONFIRMED_MODELS[@]}"; do
-        if [[ "$product" == *"$m"* ]]; then
-            ok "Model: ${product} (confirmed)"
-            return
-        fi
+        [[ "$product" == *"$m"* ]] && CONFIRMED=1
     done
-
-    if [[ $FORCE -eq 1 ]]; then
-        warn "Model ${product} is not confirmed - continuing because of --force"
-        warn "The EC offset (0x87) and RPM table come from the 940XHA DSDT; readings may be wrong"
-        FORCED_MODEL=1
+    if [[ $CONFIRMED -eq 1 ]]; then
+        ok "Model: ${product} (confirmed)"
     else
-        fail "Model ${product} is not confirmed. Check your DSDT matches the 940XHA (_FST reads H_EC.FANS at EC 0x87, FANT = 0x0DAC/0x0EE2/0x1144/0x127A), then re-run with --force"
+        warn "Model: ${product} (not confirmed - the DSDT check below decides whether it can work)"
     fi
 }
 
@@ -117,6 +123,65 @@ check_cpio_fix() {
         warn "/boot/samsung-galaxybook-acpi.img exists but isn't loaded this boot - consider uninstalling fanspeed-fix-cpio"
     fi
     ok "No DSDT override active"
+}
+
+# ---------------------------------------------------------------------------
+# Tools to read the DSDT: iasl (acpica) and python3
+# ---------------------------------------------------------------------------
+ensure_parse_tools() {
+    local pkgs=()
+    case "$PKG_MGR" in
+        dnf)    command -v iasl >/dev/null 2>&1 || pkgs+=(acpica-tools)
+                command -v python3 >/dev/null 2>&1 || pkgs+=(python3) ;;
+        apt)    command -v iasl >/dev/null 2>&1 || pkgs+=(acpica-tools)
+                command -v python3 >/dev/null 2>&1 || pkgs+=(python3) ;;
+        pacman) command -v iasl >/dev/null 2>&1 || pkgs+=(acpica)
+                command -v python3 >/dev/null 2>&1 || pkgs+=(python) ;;
+    esac
+    if [[ ${#pkgs[@]} -gt 0 ]]; then
+        info "Installing: ${pkgs[*]}"
+        case "$PKG_MGR" in
+            dnf)    dnf install -y "${pkgs[@]}" ;;
+            apt)    apt-get update -qq && apt-get install -y "${pkgs[@]}" ;;
+            pacman) pacman -S --needed --noconfirm "${pkgs[@]}" ;;
+        esac || fail "Package install failed"
+    fi
+    command -v iasl >/dev/null 2>&1 || fail "iasl not found after install"
+    command -v python3 >/dev/null 2>&1 || fail "python3 not found after install"
+}
+
+# ---------------------------------------------------------------------------
+# Derive the EC location and RPM table from this machine's DSDT
+# ---------------------------------------------------------------------------
+cleanup() { [[ -n "$WORK_DIR" ]] && rm -rf "$WORK_DIR"; }
+trap cleanup EXIT
+
+derive_config() {
+    local dsdt=/sys/firmware/acpi/tables/DSDT summary rc
+    [[ -r "$dsdt" ]] || fail "Can't read ${dsdt}"
+    [[ -f "$SCRIPT_DIR/dsdt-fan-config.py" ]] || fail "dsdt-fan-config.py missing from ${SCRIPT_DIR}"
+
+    WORK_DIR="$(mktemp -d)" || fail "mktemp failed"
+    cp "$dsdt" "$WORK_DIR/dsdt.dat" || fail "Couldn't copy the DSDT"
+    info "Disassembling the DSDT"
+    if ! (cd "$WORK_DIR" && iasl -d dsdt.dat >iasl.log 2>&1) || [[ ! -s "$WORK_DIR/dsdt.dsl" ]]; then
+        tail -5 "$WORK_DIR/iasl.log" >&2
+        fail "iasl couldn't disassemble the DSDT"
+    fi
+
+    summary="$(python3 -I "$SCRIPT_DIR/dsdt-fan-config.py" \
+        --dsl "$WORK_DIR/dsdt.dsl" --product "$PRODUCT" \
+        --out "$WORK_DIR/galaxybook_fan_config.h" 2>&1)"
+    rc=$?
+    if [[ $rc -ne 0 ]]; then
+        echo "$summary" | sed 's/^/        /' >&2
+        cp "$WORK_DIR/dsdt.dsl" /tmp/galaxybook-fan-dsdt.dsl 2>/dev/null \
+            && warn "Disassembled DSDT saved to /tmp/galaxybook-fan-dsdt.dsl for inspection"
+        fail "This firmware's fan method doesn't match the shape galaxybook-fan supports - nothing installed"
+    fi
+    ok "Fan config derived from this machine's DSDT:"
+    echo "$summary" | sed 's/^/        /'
+    EXPECTED_SPEEDS="$(echo "$summary" | sed -n 's/^Speeds: *//p')"
 }
 
 # ---------------------------------------------------------------------------
@@ -264,6 +329,9 @@ install_module() {
     mkdir -p "$SRC_DIR"
     cp "$SCRIPT_DIR"/galaxybook_fan.c "$SCRIPT_DIR"/Makefile "$SCRIPT_DIR"/dkms.conf "$SRC_DIR"/ \
         || fail "Couldn't copy module source to ${SRC_DIR}"
+    # The machine-specific config replaces the repo's 940XHA default
+    cp "$WORK_DIR/galaxybook_fan_config.h" "$SRC_DIR"/ \
+        || fail "Couldn't copy the generated config to ${SRC_DIR}"
 
     info "Building with DKMS (this takes a few seconds)"
     dkms add -m "$PKG_NAME" -v "$PKG_VERSION" >/dev/null || fail "dkms add failed"
@@ -275,10 +343,8 @@ install_module() {
     echo "$MOD_NAME" > "$MODLOAD_CONF"
     ok "Autoload: ${MODLOAD_CONF}"
 
-    if [[ "${FORCED_MODEL:-0}" -eq 1 ]]; then
-        echo "options ${MOD_NAME} force=1" > "$MODPROBE_CONF"
-        ok "force=1 set in ${MODPROBE_CONF}"
-    fi
+    # Earlier versions set force=1 here; the config now matches this machine
+    [[ -f "$MODPROBE_CONF" ]] && rm -f "$MODPROBE_CONF" && info "Removed old ${MODPROBE_CONF}"
 }
 
 # ---------------------------------------------------------------------------
@@ -344,7 +410,7 @@ verify() {
     done
 
     if [[ -z "$rpm" ]]; then
-        fail "Module loaded but no ${MOD_NAME} hwmon device appeared"
+        fail "Module loaded but no ${MOD_NAME} hwmon device appeared - check 'dmesg | grep galaxybook_fan'"
     elif [[ "$rpm" == "read error" ]]; then
         warn "hwmon device present but fan1_input returned an error - EC level out of range?"
     else
@@ -355,6 +421,22 @@ verify() {
 check_distro
 check_model
 check_cpio_fix
+ensure_parse_tools
+derive_config
+
+if [[ $CHECK_ONLY -eq 1 ]]; then
+    echo
+    ok "Check only - nothing installed."
+    echo
+    exit 0
+fi
+
+if [[ $CONFIRMED -eq 0 && $FORCE -eq 0 ]]; then
+    warn "The DSDT check passed, but ${PRODUCT} hasn't been confirmed on real hardware."
+    warn "If the speeds above look plausible, re-run with --force to install."
+    fail "Not installed"
+fi
+
 install_deps
 setup_signing
 install_module
@@ -363,5 +445,6 @@ verify
 
 echo
 ok "Done. Check with: sensors   (or Mission Center / System Monitor)"
-echo "    Expected values: 0, 3510, 3820, 4430, 4740 RPM"
+echo "    Expected values: ${EXPECTED_SPEEDS:-see above}"
+echo "    After a BIOS update, re-run this installer - the module won't load until you do."
 echo

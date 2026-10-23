@@ -79,6 +79,13 @@ Nothing is installed or removed automatically: the notifications tell you what t
 sudo ./install.sh --test-native
 ```
 
+## Supported hardware and kernels
+
+- **Samsung Galaxy Book 5 series only:** `940XHA`, `960XHA`, `960QHA`, `750XHD`, `754XHD`, `750QHA`, `754QHA` (the same list as fnkeys-fix-book5, matched with or without an `NP` prefix). Tested on the 940XHA. On the other Book 5 models, the DSDT check confirms the firmware has the same bug before anything is installed.
+- Other Samsung models are refused. Earlier Galaxy Books report fan speed with the stock kernel driver, whose `_FST`-only fan support was written and tested on a Book2 Pro. `--check` and `--test-native` still work on them, and `--force` overrides.
+- Non-Samsung machines are always refused.
+- **Kernel 6.8 or newer.** The module builds cleanly against 6.8, 6.11, 6.14, 6.17 and 7.0.
+
 ## Install
 
 ```bash

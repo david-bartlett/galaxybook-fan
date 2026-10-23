@@ -107,6 +107,10 @@ The installer:
 
 Re-running `install.sh` over an existing install is fine; there's no need to uninstall first.
 
+### Initramfs
+
+`galaxybook_fan` loads after boot from `modules-load.d`, so it never needs to be in the initramfs. Some distros (Fedora) set DKMS's `post_transaction` to rebuild **every** kernel's initramfs after each DKMS operation, which takes a minute or two. Like fnkeys-fix-book5, both scripts suspend that for their own DKMS steps with a temporary drop-in (`/etc/dkms/framework.conf.d/zz-galaxybook-fan-defer-initramfs.conf`), which a trap removes when the script exits, even on failure. DKMS's own setting is never changed. On dracut systems, `/etc/dracut.conf.d/galaxybook-fan.conf` (`omit_drivers`) also keeps the module out of future initramfs images. If an old copy is already in the running kernel's initramfs, only that one image is rebuilt.
+
 ### Secure Boot signing
 
 The installer works out the key DKMS will actually sign with, the same way DKMS does: `/etc/dkms/framework.conf`, then every `/etc/dkms/framework.conf.d/*.conf` in order, falling back to DKMS's own `/var/lib/dkms/mok.*`. That covers Fedora's akmods key (`akmods-keys.conf`), Ubuntu's shim key and plain DKMS keys. On Fedora with nothing configured it uses the akmods key and writes the same `akmods-keys.conf` as Andy's webcam-fix-book5, so all the fixes share one key and one enrolment (that file is shared, so `uninstall.sh` leaves it alone). It only adds its own drop-in (`galaxybook-fan-signing.conf`) when it has to point DKMS somewhere else. After building, it checks that DKMS really signed the module.

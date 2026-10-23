@@ -169,8 +169,13 @@ install_deps() {
 # Pick whichever MOK key is actually enrolled and point DKMS at it.
 # ---------------------------------------------------------------------------
 is_enrolled() {
-    # mokutil --test-key prints "... is already enrolled" for an enrolled key
-    [[ -f "$1" ]] && mokutil --test-key "$1" 2>/dev/null | grep -q "already enrolled"
+    # mokutil --test-key prints "... is already enrolled" for an enrolled key,
+    # but exits 1 in that case - so capture the output rather than piping it
+    # (a pipe would fail under pipefail even when grep matches).
+    local out
+    [[ -f "$1" ]] || return 1
+    out="$(mokutil --test-key "$1" 2>&1 || true)"
+    [[ "$out" == *"already enrolled"* ]]
 }
 
 setup_signing() {

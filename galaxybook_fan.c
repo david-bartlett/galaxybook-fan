@@ -8,9 +8,14 @@
  *     Local1 = FANT [Local0]
  * without DerefOf(), storing an Index reference instead of an integer.
  *
- * Where to read and how to turn the raw EC value into RPM comes from
- * galaxybook_fan_config.h, which install.sh generates from this machine's
- * own DSDT (dsdt-fan-config.py). The copy in the repo is for the 940XHA.
+ * The module reads the same EC field _FST reads (e.g. H_EC.FANS) by asking
+ * ACPI for its value, so the firmware does the access exactly as it would
+ * for _FST - through whichever region the field lives in, with its own
+ * locking - and then applies _FST's level remap and RPM table itself.
+ *
+ * The field path, remap and table come from galaxybook_fan_config.h, which
+ * install.sh generates from this machine's own DSDT (dsdt-fan-config.py).
+ * The copy in the repo is for the 940XHA.
  */
 
 #include <linux/acpi.h>
@@ -27,8 +32,8 @@
 
 #define DRV_NAME	"galaxybook_fan"
 
-static_assert(ARRAY_SIZE(gb_rpm_for_raw) == (1 << GB_EC_WIDTH));
-static_assert(GB_EC_SHIFT + GB_EC_WIDTH <= 8);
+static_assert(ARRAY_SIZE(gb_rpm_for_raw) == (1 << GB_FIELD_WIDTH));
+static_assert(GB_FIELD_WIDTH >= 1 && GB_FIELD_WIDTH <= 8);
 
 static bool force;
 module_param(force, bool, 0444);
@@ -36,21 +41,33 @@ MODULE_PARM_DESC(force, "Load even if the DMI product or DSDT isn't the one the 
 
 static struct platform_device *gb_pdev;
 static struct device *gb_hwmon;
+static acpi_handle gb_field;
+
+static int gb_read_field(unsigned long long *raw)
+{
+	acpi_status status;
+
+	status = acpi_evaluate_integer(gb_field, NULL, NULL, raw);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+	if (*raw >> GB_FIELD_WIDTH)
+		return -EIO;	/* wider than the DSDT declares - shouldn't happen */
+	return 0;
+}
 
 static int gb_fan_read(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel, long *val)
 {
-	u8 byte, raw;
+	unsigned long long raw;
 	int ret, rpm;
 
 	if (type != hwmon_fan || attr != hwmon_fan_input)
 		return -EOPNOTSUPP;
 
-	ret = ec_read(GB_EC_ADDR, &byte);
+	ret = gb_read_field(&raw);
 	if (ret)
 		return ret;
 
-	raw = (byte >> GB_EC_SHIFT) & ((1u << GB_EC_WIDTH) - 1);
 	rpm = gb_rpm_for_raw[raw];
 	if (rpm < 0)
 		return -ENODATA;	/* _FST would index past the firmware table */
@@ -134,7 +151,7 @@ static int __init gb_fan_init(void)
 {
 	const char *vendor = dmi_get_system_info(DMI_SYS_VENDOR);
 	const char *product = dmi_get_system_info(DMI_PRODUCT_NAME);
-	acpi_handle handle;
+	unsigned long long raw;
 	int ret;
 
 	if (!vendor || !strstr(vendor, "SAMSUNG"))
@@ -157,10 +174,15 @@ static int __init gb_fan_init(void)
 			return ret;
 	}
 
-	/* Sanity check: this is the EC that the fan's _FST reads from */
-	if (ACPI_FAILURE(acpi_get_handle(NULL, GB_EC_PATH, &handle))) {
-		pr_err(DRV_NAME ": EC device %s not found\n", GB_EC_PATH);
+	/* The field the fan's _FST reads from - and prove it can be read */
+	if (ACPI_FAILURE(acpi_get_handle(NULL, GB_FIELD_PATH, &gb_field))) {
+		pr_err(DRV_NAME ": EC field %s not found\n", GB_FIELD_PATH);
 		return -ENODEV;
+	}
+	ret = gb_read_field(&raw);
+	if (ret) {
+		pr_err(DRV_NAME ": can't read EC field %s\n", GB_FIELD_PATH);
+		return ret;
 	}
 
 	gb_pdev = platform_device_register_simple(DRV_NAME, PLATFORM_DEVID_NONE,
@@ -175,8 +197,8 @@ static int __init gb_fan_init(void)
 		return PTR_ERR(gb_hwmon);
 	}
 
-	pr_info(DRV_NAME ": DSDT %s, EC 0x%02x bits %d-%d\n", GB_DSDT_ID,
-		GB_EC_ADDR, GB_EC_SHIFT, GB_EC_SHIFT + GB_EC_WIDTH - 1);
+	pr_info(DRV_NAME ": DSDT %s, reading %s (currently %llu)\n",
+		GB_DSDT_ID, GB_FIELD_PATH, raw);
 	return 0;
 }
 

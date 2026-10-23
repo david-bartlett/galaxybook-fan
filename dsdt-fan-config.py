@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-dsdt-fan-config.py - derive galaxybook_fan's EC location and RPM table from
+dsdt-fan-config.py - derive galaxybook_fan's EC field and RPM table from
 the running machine's disassembled DSDT, and write galaxybook_fan_config.h.
 
 It reads the fan device's _FST method rather than trusting hardcoded values:
@@ -12,8 +12,10 @@ It reads the fan device's _FST method rather than trusting hardcoded values:
     Local1 = FANT [Local0]                                   -> RPM table
     Local1 += 0x0A                                           -> RPM offset
 
-then resolves FANS's byte/bit position from its Field() in the
-EmbeddedControl OperationRegion, and FANT's values from Name (FANT, Package).
+then checks the EC field is defined exactly once, in a plain readable region
+(EmbeddedControl, or a SystemMemory/SystemIO window onto the EC), and reads
+FANT's values from Name (FANT, Package). The module reads the field through
+ACPI by name, the same way _FST does - only the broken lookup is bypassed.
 
 Anything that doesn't match this shape is an error - the script never guesses.
 
@@ -230,8 +232,14 @@ def parse_table(code, name, dev_start, dev_end):
     return vals
 
 
+READABLE_SPACES = ("EmbeddedControl", "SystemMemory", "SystemIO")
+
+
 def parse_ec_field(code, ec_path, field):
-    """Byte and bit position of FIELD inside the EC device's EmbeddedControl region."""
+    """Locate FIELD's definition in the EC device (or a Scope extending it).
+    The module reads the field through ACPI by name, exactly as _FST does, so
+    the region type doesn't matter as long as it's a plain readable one - this
+    is about proving the field exists once and fits a small lookup table."""
     ec_name = ec_path.rsplit('.', 1)[-1].rstrip('_') or ec_path.rsplit('.', 1)[-1]
     devs = [d for d in find_blocks(code, r'\s*Device\s*\((\w+)\)')
             if d[2].group(1).rstrip('_') == ec_name]
@@ -286,16 +294,13 @@ def parse_ec_field(code, ec_path, field):
     if region not in regions:
         raise FanConfigError(f"OperationRegion {region} for {field} not found in {ec_name}")
     space, base = regions[region]
-    if space != "EmbeddedControl":
-        raise FanConfigError(f"{field} is in a {space} region, not EmbeddedControl")
-    if parse_int(base) != 0:
-        raise FanConfigError(f"{region} starts at {base}, not 0 - not supported")
+    if space not in READABLE_SPACES:
+        raise FanConfigError(f"{field} is in a {space} region - only {', '.join(READABLE_SPACES)} are supported")
+    if not 1 <= width <= 8:
+        raise FanConfigError(f"{field} is {width} bits wide - expected 1..8")
     byte, shift = divmod(bit, 8)
-    if not 1 <= width <= 8 or shift + width > 8:
-        raise FanConfigError(f"{field} is {width} bits at bit {shift} - must fit in one byte")
-    if byte > 0xFF:
-        raise FanConfigError(f"{field} at EC offset 0x{byte:X} is outside the 256-byte EC space")
-    return byte, shift, width
+    return {"region": region, "space": space, "base": parse_int(base),
+            "byte": byte, "shift": shift, "width": width}
 
 
 def build_rpm_table(fst, table_vals, width):
@@ -353,7 +358,8 @@ def main():
         dev_name, dev_start, dev_end, (fst_start, fst_end, _) = find_fan_device(raw, code)
         fst = parse_fst(raw, code, fst_start, fst_end)
         table_vals = parse_table(code, fst["table"], dev_start, dev_end)
-        byte, shift, width = parse_ec_field(code, fst["ec_path"], fst["field"])
+        loc = parse_ec_field(code, fst["ec_path"], fst["field"])
+        width = loc["width"]
         rpm = build_rpm_table(fst, table_vals, width)
     except FanConfigError as e:
         print(f"DSDT check failed: {e}", file=sys.stderr)
@@ -362,7 +368,9 @@ def main():
     # Summary for the installer to show
     print(f"DSDT:        {ident}")
     print(f"Fan device:  {dev_name} (PNP0C0B)")
-    print(f"EC field:    {fst['full_path']} = EC 0x{byte:02X} bits {shift}-{shift + width - 1}")
+    where = (f"{loc['region']} ({loc['space']} @ 0x{loc['base']:X}) offset 0x{loc['byte']:02X} "
+             f"bits {loc['shift']}-{loc['shift'] + width - 1}")
+    print(f"EC field:    {fst['full_path']} = {where}")
     print(f"Table:       {fst['table']} = {', '.join(f'0x{v:04X}' for v in table_vals)} (+{fst['offset']} RPM)")
     speeds = sorted(set(r for r in rpm if r >= 0))
     print(f"Speeds:      {', '.join(str(s) for s in speeds)} RPM")
@@ -379,7 +387,8 @@ def main():
  * Re-run install.sh after a BIOS update.
  *
  * DSDT:     {ident}
- * EC field: {fst['full_path']} (EC 0x{byte:02X}, bits {shift}-{shift + width - 1})
+ * Field:    {fst['full_path']}
+ *           {where}
  * Table:    {fst['table']} = {', '.join(f'0x{v:04X}' for v in table_vals)}, +{fst['offset']}
  */
 #ifndef GALAXYBOOK_FAN_CONFIG_H
@@ -390,12 +399,11 @@ def main():
 #define GB_DSDT_OEM_TABLE_ID\t{c_string(oem_table)}
 #define GB_DSDT_OEM_REV\t\t0x{oem_rev:08x}
 #define GB_DMI_PRODUCT\t\t{c_string(args.product)}
-#define GB_EC_PATH\t\t{c_string(fst['ec_path'])}
-#define GB_EC_ADDR\t\t0x{byte:02x}
-#define GB_EC_SHIFT\t\t{shift}
-#define GB_EC_WIDTH\t\t{width}
+/* Read through ACPI by name, exactly as _FST does */
+#define GB_FIELD_PATH\t\t{c_string(fst['full_path'])}
+#define GB_FIELD_WIDTH\t\t{width}
 
-/* RPM for each raw EC value; -1 = no data (outside the firmware table) */
+/* RPM for each raw field value; -1 = no data (outside the firmware table) */
 static const int gb_rpm_for_raw[{len(rpm)}] = {{
 {rows}
 }};

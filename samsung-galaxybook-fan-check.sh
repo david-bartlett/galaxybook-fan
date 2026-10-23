@@ -157,6 +157,7 @@ monitor() {
     # 1. BIOS changed: look at the new firmware's _FST
     if [[ "$cur_b" != "$BIOS" ]]; then
         fst="$(dsdt_fst_status)"
+        logger -t "$TAG" "BIOS changed (${BIOS:-none} -> $cur_b): _FST is $fst"
         case "$fst" in
             fixed)
                 notify_user dialog-information "$TITLE" \
@@ -164,7 +165,8 @@ monitor() {
                 record_state ;;
             broken)
                 if [[ -d /sys/module/$MOD_NAME ]]; then
-                    record_state     # BIOS changed but the DSDT didn't - nothing to do
+                    logger -t "$TAG" "module still loaded (DSDT unchanged) - nothing to do"
+                    record_state
                 else
                     # The module refuses to load with a changed DSDT. Keep
                     # reminding at each login until the installer is re-run.
@@ -189,6 +191,7 @@ monitor() {
     # 3. New kernel: has it started handling the fan natively?
     if [[ "$cur_k" != "$KVER" ]]; then
         verdict="$(native_test 60)"   # wait up to a minute for the fan to spin
+        logger -t "$TAG" "kernel changed (${KVER:-none} -> $cur_k): native acpi-fan test: $verdict"
         case "$verdict" in
             works)
                 notify_user dialog-information "$TITLE" \
@@ -198,7 +201,7 @@ monitor() {
                 record_state ;;
             fan-off)
                 # Inconclusive - don't record, so the check runs again next login
-                logger -t "$TAG" "fan off, native test inconclusive on $cur_k - will retry" ;;
+                logger -t "$TAG" "fan stayed off, so the test was inconclusive - will retry next login" ;;
         esac
     fi
 }

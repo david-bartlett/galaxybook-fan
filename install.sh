@@ -36,6 +36,11 @@ MODPROBE_CONF="/etc/modprobe.d/${MOD_NAME}.conf"
 UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"   # old versions only
 UNBIND_SERVICE="/etc/systemd/system/galaxybook-acpi-fan-unbind.service"
 DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
+# Fedora: share the akmods key and DKMS config with Andy's fixes (same file,
+# same format as webcam-fix-book5), so there's only ever one key to enrol
+AKMODS_CERT="/etc/pki/akmods/certs/public_key.der"
+AKMODS_KEY="/etc/pki/akmods/private/private_key.priv"
+AKMODS_CONF="/etc/dkms/framework.conf.d/akmods-keys.conf"
 
 # Login-time "still needed?" check - names follow the other Galaxy Book fixes
 CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-check.sh"
@@ -329,9 +334,16 @@ dkms_effective_key() {
 }
 
 # Point DKMS at cert/key - via our own drop-in only if that isn't already
-# what the existing config says.
+# what the existing config says. For the akmods key, use the shared
+# akmods-keys.conf that Andy's fixes also write.
 use_key() {
     local cert="$1" key="$2" eff
+    if [[ "$cert" == "$AKMODS_CERT" && "$key" == "$AKMODS_KEY" && ! -f "$AKMODS_CONF" ]]; then
+        mkdir -p "$(dirname "$AKMODS_CONF")"
+        printf '%s\n' "# Fedora akmods MOK key for Secure Boot module signing" \
+            "mok_signing_key=${AKMODS_KEY}" "mok_certificate=${AKMODS_CERT}" > "$AKMODS_CONF"
+        info "DKMS configured to sign with the akmods key (${AKMODS_CONF})"
+    fi
     eff="$(dkms_effective_key)"
     if [[ "$eff" == "${cert}|${key}" ]]; then
         if [[ -f "$DKMS_SIGN_CONF" ]]; then
@@ -352,7 +364,11 @@ EOF
 
 generate_key() {
     local cert="$1" key="$2"
-    if [[ "$cert" == /etc/pki/akmods/* ]] && command -v kmodgenca >/dev/null 2>&1; then
+    if [[ "$cert" == "$AKMODS_CERT" ]]; then
+        if ! command -v kmodgenca >/dev/null 2>&1; then
+            info "Installing akmods (provides kmodgenca, Fedora's module signing key tool)"
+            dnf install -y akmods kmodtool >/dev/null || fail "Couldn't install akmods"
+        fi
         info "Generating the akmods signing key (kmodgenca)"
         kmodgenca -a >/dev/null || fail "kmodgenca failed"
     elif [[ "$cert" == /var/lib/shim-signed/* ]] && command -v update-secureboot-policy >/dev/null 2>&1; then
@@ -413,8 +429,13 @@ setup_signing() {
         return
     done
 
-    # 3. Nothing enrolled: use the key DKMS is configured for, creating it if needed
+    # 3. Nothing enrolled: use the key DKMS is configured for, creating it if
+    #    needed. On Fedora with nothing configured, use the akmods key rather
+    #    than DKMS's own, as Andy's fixes do - one key, one enrolment.
     cert="$eff_cert"; key="$eff_key"
+    if [[ "$PKG_MGR" == dnf && "$eff" == "/var/lib/dkms/mok.pub|/var/lib/dkms/mok.key" ]]; then
+        cert="$AKMODS_CERT"; key="$AKMODS_KEY"
+    fi
     if [[ ! -f "$cert" || ! -f "$key" ]]; then
         generate_key "$cert" "$key"
     fi
@@ -487,6 +508,17 @@ install_module() {
         fi
     fi
     ok "DKMS module installed for $(uname -r) (rebuilds automatically on kernel updates)"
+
+    # With Secure Boot on, make sure DKMS really signed it - an unsigned module
+    # would only show up later as a confusing load failure
+    if secure_boot_on; then
+        local path signer=""
+        path="$(modinfo -n "$MOD_NAME" 2>/dev/null || true)"
+        [[ -n "$path" ]] || fail "Can't find the installed ${MOD_NAME} module to check its signature"
+        signer="$(modinfo -F signer "$path" 2>/dev/null || true)"
+        [[ -n "$signer" ]] || fail "DKMS built ${MOD_NAME} without signing it, so it won't load with Secure Boot - check the mok_ settings in /etc/dkms/framework.conf.d/"
+        ok "Module signed (${signer})"
+    fi
 
     echo "$MOD_NAME" > "$MODLOAD_CONF"
     ok "Autoload: ${MODLOAD_CONF}"

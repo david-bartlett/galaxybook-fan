@@ -27,7 +27,7 @@ Windows' AML interpreter tolerates this. ACPICA doesn't, so whenever the fan is 
 
 These are Samsung's own table values (`FANT + 0x0A`), so the speed is stepped, exactly as Windows reports it. The EC doesn't expose a measured RPM.
 
-The installer also unbinds the stock `acpi-fan` driver from the fan device with a udev rule. That removes the dead "Fan 0" sensor and the AML errors in dmesg. The fan has no ACPI control methods, so the cooling device `acpi-fan` registers does nothing anyway.
+The installer also unbinds the stock `acpi-fan` driver from the fan device with a small oneshot systemd service that runs early in boot. That removes the dead "Fan 0" sensor and the AML errors in dmesg. The fan has no ACPI control methods, so the cooling device `acpi-fan` registers does nothing anyway.
 
 Compared with fanspeed-fix-cpio, this adds nothing to the boot chain. There's no initrd change and no recovery entry, and a BIOS update can't make the laptop unbootable.
 
@@ -44,7 +44,7 @@ The installer:
 - with Secure Boot on, finds whichever MOK key is enrolled (DKMS, akmods or Ubuntu shim) and points DKMS at it
 - installs the module through DKMS, so it rebuilds automatically on kernel updates
 - autoloads it via `/etc/modules-load.d/`
-- adds the `acpi-fan` unbind udev rule
+- enables `galaxybook-acpi-fan-unbind.service`, which unbinds `acpi-fan` at boot
 
 ## Uninstall
 

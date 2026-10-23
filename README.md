@@ -15,11 +15,11 @@ Windows' AML interpreter tolerates this. ACPICA doesn't, so whenever the fan is 
 
 ## The fix
 
-`galaxybook_fan` is a small DKMS hwmon module that reads the fan level directly from the Embedded Controller with the kernel's `ec_read()`, and turns it into RPM the same way `_FST` is meant to.
+`galaxybook_fan` is a small DKMS hwmon module that reads the same EC field `_FST` reads (`H_EC.FANS`) by asking ACPI for its value. The firmware performs the read exactly as it would for `_FST`, through whichever region the field lives in and with its own locking. The module then applies `_FST`'s level remap and RPM table itself, so only the broken table lookup is bypassed.
 
 Nothing is hardcoded per model. The installer disassembles **this machine's own DSDT** and `dsdt-fan-config.py` works out:
 
-- which EC field `_FST` reads, and its byte and bit position in the EmbeddedControl region
+- which EC field `_FST` reads, and that it's defined exactly once in a plain readable region (the 940XHA reads it through `ECR`, a SystemMemory window onto the EC's RAM)
 - how `_FST` remaps the raw value to a fan level (its `Switch`/`Case` table)
 - the RPM table (`FANT`) and offset
 
@@ -27,7 +27,7 @@ The results are baked into `galaxybook_fan_config.h` before DKMS builds the modu
 
 On the Galaxy Book 5 Pro (940XHA) that gives:
 
-| EC 0x87 bits 0-3 | Fan speed |
+| `FANS` value | Fan speed |
 |---|---|
 | 0 | 0 RPM (off) |
 | 1 | 3510 RPM |
@@ -47,7 +47,7 @@ Compared with fanspeed-fix-cpio, this adds nothing to the boot chain. There's no
 
 - there isn't exactly one `PNP0C0B` fan device with an `_FST` method
 - `_FST` contains any statement outside the known shape (extra maths, another EC read, `Case (Package …)`, `Default`, loops, calls…)
-- the EC field isn't defined exactly once, isn't in an EmbeddedControl region starting at 0, or doesn't fit in one byte
+- the EC field isn't defined exactly once, is wider than 8 bits, or is in anything other than an EmbeddedControl, SystemMemory or SystemIO region
 - the RPM table is missing, defined more than once, the wrong length, or gives a speed outside 500–20000 RPM
 
 On failure, the disassembled DSDT is saved to `/tmp/galaxybook-fan-dsdt.dsl` so you can see why.
@@ -57,7 +57,7 @@ The module also checks itself at load time, and refuses to load unless both of t
 - the DMI product name
 - the DSDT's OEM ID, table ID and revision
 
-So after a **BIOS update** the fan sensor disappears, and dmesg tells you to re-run `install.sh`, instead of a moved EC field producing wrong readings.
+So after a **BIOS update** the fan sensor disappears, and dmesg tells you to re-run `install.sh`, instead of a changed `_FST` or RPM table producing wrong readings. At load it also checks that the field exists and can be read.
 
 ## Install
 

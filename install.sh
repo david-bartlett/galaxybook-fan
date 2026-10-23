@@ -238,7 +238,7 @@ dkms_remove_all() {
     local d v
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         v="$(basename "$d")"
-        [[ "$v" == "source" || "$v" == "*" ]] && continue
+        [[ -L "${d%/}" || "$v" == kernel-* || "$v" == "source" || "$v" == "*" ]] && continue
         info "Removing ${PKG_NAME}/${v} from DKMS (DKMS may rebuild the initramfs - this can take a minute)"
         dkms remove "${PKG_NAME}/${v}" --all || true
     done

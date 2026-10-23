@@ -86,6 +86,24 @@ sudo ./install.sh --test-native
 - Non-Samsung machines are always refused.
 - **Kernel 6.8 or newer.** The module builds cleanly against 6.8, 6.11, 6.14, 6.17 and 7.0.
 
+### Tested on
+
+All tests were on a Galaxy Book 5 Pro (940XHA, BIOS P10VAJ.390.260522.02, DSDT `SECCSD LH43STAR 0x01072009`), October 2026:
+
+| Distro | Kernel | Desktop | Secure Boot signing | `--check` | Install | `--test-native` | Login check | Uninstall |
+|---|---|---|---|---|---|---|---|---|
+| Fedora 45 | 7.2.12 | KDE Plasma | akmods key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Ubuntu 26.04.1 LTS | 7.0.0 | GNOME | Ubuntu shim key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Linux Mint 27 (beta) | 7.0.0 | Cinnamon | Ubuntu shim key (enrolled) | ✓ | ✓ | ✓ | ✓ | — |
+| MX Linux 25.2 (systemd boot) | 7.2.10 Liquorix | Xfce (session helper) | Secure Boot off | ✓ | ✓ | ✓ | ✓ after a reboot¹ | — |
+| CachyOS | 7.2.9 | KDE Plasma | Secure Boot off | ✓ | ✓ | ✓ | ✓ | — |
+
+`--test-native` passing means it correctly reported that the stock `acpi-fan` driver still can't read the fan, so the fix is needed. The firmware bug is the same on every distro.
+
+¹ On MX, a plain log-out and log-in doesn't re-run the login check while Xfce's Print Queue Applet (`system-config-printer`) keeps the old session open. This doesn't matter in practice, because the check only has work to do after a kernel or BIOS update, and those come with a reboot. Turning the applet off under Session and Startup → Application Autostart makes log-outs end cleanly.
+
+Not yet tested on real hardware: the "signing key not enrolled" path (the `mokutil --import` prompt and MokManager after the reboot), and Book 5 models other than the 940XHA.
+
 ## Install
 
 ```bash

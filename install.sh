@@ -232,12 +232,25 @@ EOF
 # ---------------------------------------------------------------------------
 # DKMS build + install
 # ---------------------------------------------------------------------------
+dkms_remove_all() {
+    # Every registered version, removed in the module/version form current
+    # DKMS expects. /var/lib/dkms/<pkg>/<version> holds one dir per version.
+    local d v
+    for d in /var/lib/dkms/"$PKG_NAME"/*/; do
+        v="$(basename "$d")"
+        [[ "$v" == "source" || "$v" == "*" ]] && continue
+        dkms remove "${PKG_NAME}/${v}" --all >/dev/null 2>&1 || true
+    done
+    # Anything DKMS couldn't remove (half-added tree, etc.)
+    rm -rf /var/lib/dkms/"$PKG_NAME"
+}
+
 install_module() {
     # Remove any previous registration of this package (any version)
-    if dkms status -m "$PKG_NAME" 2>/dev/null | grep -q .; then
+    if dkms status -m "$PKG_NAME" 2>/dev/null | grep -q . || [[ -d /var/lib/dkms/$PKG_NAME ]]; then
         info "Removing previous ${PKG_NAME} DKMS install"
         modprobe -r "$MOD_NAME" 2>/dev/null || true
-        dkms remove -m "$PKG_NAME" --all >/dev/null 2>&1 || true
+        dkms_remove_all
     fi
     rm -rf /usr/src/"${PKG_NAME}"-*
 

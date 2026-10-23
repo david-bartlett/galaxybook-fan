@@ -39,8 +39,15 @@ if lsmod | grep -q "^${MOD_NAME} "; then
     modprobe -r "$MOD_NAME" && ok "Unloaded ${MOD_NAME}" || fail "Couldn't unload ${MOD_NAME}"
 fi
 
-if command -v dkms >/dev/null 2>&1 && dkms status -m "$PKG_NAME" 2>/dev/null | grep -q .; then
-    dkms remove -m "$PKG_NAME" --all >/dev/null 2>&1 && ok "Removed from DKMS"
+if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
+    # Remove every registered version in the module/version form current DKMS expects
+    for d in /var/lib/dkms/"$PKG_NAME"/*/; do
+        v="$(basename "$d")"
+        [[ "$v" == "source" || "$v" == "*" ]] && continue
+        dkms remove "${PKG_NAME}/${v}" --all >/dev/null 2>&1 || true
+    done
+    rm -rf /var/lib/dkms/"$PKG_NAME"
+    ok "Removed from DKMS"
 fi
 rm -rf /usr/src/"${PKG_NAME}"-* && ok "Removed source from /usr/src"
 

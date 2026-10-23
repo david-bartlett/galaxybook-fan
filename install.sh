@@ -215,8 +215,9 @@ derive_config() {
 }
 
 # ---------------------------------------------------------------------------
-# Dependencies: dkms, make, gcc, headers for the running kernel, and
-# notify-send for the login check (libnotify-bin isn't always on Debian)
+# Dependencies: dkms, make, gcc, headers for the running kernel; mokutil for
+# Secure Boot signing; polkit and notify-send for the login check (both can be
+# missing on minimal Debian installs)
 # ---------------------------------------------------------------------------
 install_deps() {
     local kver pkgs=()
@@ -230,6 +231,8 @@ install_deps() {
             [[ -d /usr/src/kernels/${kver} ]] || pkgs+=("kernel-devel-${kver}")
             rpm -q dwarves >/dev/null 2>&1 || pkgs+=(dwarves)
             command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify)
+            command -v pkcheck >/dev/null 2>&1 || pkgs+=(polkit)
+            [[ -d /sys/firmware/efi ]] && ! command -v mokutil >/dev/null 2>&1 && pkgs+=(mokutil)
             if [[ ${#pkgs[@]} -gt 0 ]]; then
                 info "Installing: ${pkgs[*]}"
                 dnf install -y "${pkgs[@]}" || fail "Package install failed"
@@ -241,6 +244,8 @@ install_deps() {
             command -v gcc  >/dev/null 2>&1 || pkgs+=(gcc)
             [[ -d /lib/modules/${kver}/build ]] || pkgs+=("linux-headers-${kver}")
             command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify-bin)
+            command -v pkcheck >/dev/null 2>&1 || pkgs+=(polkitd)
+            [[ -d /sys/firmware/efi ]] && ! command -v mokutil >/dev/null 2>&1 && pkgs+=(mokutil)
             if [[ ${#pkgs[@]} -gt 0 ]]; then
                 info "Installing: ${pkgs[*]}"
                 apt-get update -qq
@@ -252,6 +257,8 @@ install_deps() {
             command -v make >/dev/null 2>&1 || pkgs+=(make)
             command -v gcc  >/dev/null 2>&1 || pkgs+=(gcc)
             command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify)
+            command -v pkcheck >/dev/null 2>&1 || pkgs+=(polkit)
+            [[ -d /sys/firmware/efi ]] && ! command -v mokutil >/dev/null 2>&1 && pkgs+=(mokutil)
             if [[ ! -d /lib/modules/${kver}/build ]]; then
                 local kpkg
                 kpkg="$(pacman -Qqo "/usr/lib/modules/${kver}/vmlinuz" 2>/dev/null || true)"
@@ -267,6 +274,8 @@ install_deps() {
     [[ -d /lib/modules/${kver}/build ]] || fail "Kernel headers for ${kver} not found"
     command -v notify-send >/dev/null 2>&1 \
         || warn "notify-send still missing - login-check messages will only go to the journal"
+    command -v pkcheck >/dev/null 2>&1 \
+        || warn "polkit still missing - the login check won't be able to start its monitor"
     ok "Build dependencies present"
 }
 
@@ -284,13 +293,27 @@ is_enrolled() {
     [[ "$out" == *"already enrolled"* ]]
 }
 
-setup_signing() {
+secure_boot_on() {
+    # Read the EFI variable directly so a missing mokutil can't make us think
+    # Secure Boot is off (and build an unsigned module that won't load).
+    # Layout: 4 bytes of attributes, then 1 data byte (1 = enabled).
+    local var=/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d0-aa0d-00e098032b8c
+    if [[ -r "$var" ]]; then
+        [[ "$(od -An -t u1 -j 4 -N 1 "$var" 2>/dev/null | tr -d ' ')" == "1" ]]
+        return
+    fi
     local sb=""
     command -v mokutil >/dev/null 2>&1 && sb="$(mokutil --sb-state 2>/dev/null || true)"
-    if [[ "$sb" != *"SecureBoot enabled"* ]]; then
+    [[ "$sb" == *"SecureBoot enabled"* ]]
+}
+
+setup_signing() {
+    if ! secure_boot_on; then
         info "Secure Boot is off - module signing not needed"
         return
     fi
+    command -v mokutil >/dev/null 2>&1 \
+        || fail "Secure Boot is on but mokutil isn't installed - it's needed to find your enrolled signing key"
     info "Secure Boot is on - checking for an enrolled signing key"
 
     # Already configured by the user / another fix?
@@ -504,6 +527,7 @@ StandardError=journal
 EOF
     systemctl daemon-reload
 
+    mkdir -p "$(dirname "$POLKIT_RULE")"
     cat > "$POLKIT_RULE" <<'EOF'
 polkit.addRule(function(action, subject) {
     if (action.id == "org.freedesktop.systemd1.manage-units" &&
@@ -562,8 +586,14 @@ EOF
     fi
     udir="$(getent passwd "$user" | cut -d: -f6)/.config/systemd/user"
 
+    if ! id -nG "$user" | tr ' ' '\n' | grep -qxE 'wheel|sudo'; then
+        warn "${user} isn't in the wheel or sudo group, so the login check can't start its"
+        warn "monitor without a password. Add them with: usermod -aG wheel ${user}  (sudo on Debian/Ubuntu)"
+    fi
+
+    # runuser (util-linux) rather than sudo, which minimal Debian installs lack
     _fan_user_systemctl() {
-        sudo -u "$user" \
+        runuser -u "$user" -- env \
             XDG_RUNTIME_DIR="/run/user/${uid}" \
             DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
             systemctl --user "$@"

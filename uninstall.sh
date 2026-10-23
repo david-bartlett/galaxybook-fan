@@ -85,7 +85,7 @@ done
 user="$(loginctl list-sessions --no-legend 2>/dev/null | awk '$4 == "seat0" {print $3}' | head -1)"
 uid="$(id -u "$user" 2>/dev/null)"
 if [[ -n "$user" && -n "$uid" ]]; then
-    sudo -u "$user" XDG_RUNTIME_DIR="/run/user/${uid}" \
+    runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/${uid}" \
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
         systemctl --user daemon-reload 2>/dev/null || true
 fi

@@ -61,7 +61,7 @@ So after a **BIOS update** the fan sensor disappears, and dmesg tells you to re-
 
 ## Is the fix still needed?
 
-The installer adds a login-time check, the same pattern as fingerprint-fix and fnkeys-fix-book5. Ten seconds after login, a user timer checks whether the kernel or BIOS version has changed since the last check, or whether the module isn't loaded. If so, it starts a root monitor service (allowed by a polkit rule), which works out what happened and notifies you:
+The installer adds a login-time check, the same pattern as fingerprint-fix-sdcp and fnkeys-fix-book5. Ten seconds after login, a user timer checks whether the kernel or BIOS version has changed since the last check, or whether the module isn't loaded. If so, it starts a root monitor service (allowed by a polkit rule), which works out what happened and notifies you:
 
 | What changed | What the monitor does | You'll be told |
 |---|---|---|

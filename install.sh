@@ -16,7 +16,7 @@
 # module's config header. The module also refuses to load if the DSDT later
 # changes (BIOS update) until this installer has been re-run.
 #
-# It also installs a login-time check (the same pattern as fingerprint-fix
+# It also installs a login-time check (the same pattern as fingerprint-fix-sdcp
 # and fnkeys-fix-book5): after a kernel or BIOS update it tests whether the
 # fix is still needed and notifies you if not, or if it needs re-running.
 #
@@ -675,7 +675,7 @@ EOF
 
 # ---------------------------------------------------------------------------
 # Login-time check: is the fix still needed / still active?
-# Same pattern as fingerprint-fix and fnkeys-fix-book5: a user timer fires
+# Same pattern as fingerprint-fix-sdcp and fnkeys-fix-book5: a user timer fires
 # 10s after login; if the kernel or BIOS version changed (or the module isn't
 # loaded) it starts a root monitor service (allowed by a polkit rule), which
 # writes a notification to /run for the user script to show with notify-send.

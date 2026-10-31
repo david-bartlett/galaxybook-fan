@@ -1,9 +1,10 @@
 # shellcheck shell=bash
 # =============================================================================
 # galaxybook-fan - which laptops it's for. The one place this list lives:
-# install.sh sources it, and check-galaxybook-fan.sh has a copy built in at
-# release time (tools/build-check-script.sh). The packages will use it too
-# (PLAN.md §10).
+# install.sh, DKMS's gen-config.sh, the packages' pre-install step and the
+# login monitor source it, and check-galaxybook-fan.sh has a copy built in at
+# release time (tools/build-check-script.sh). Also the DSDT-override check,
+# for the same reason: it has to reach all of those.
 #
 # BOOK5_MODELS     the Galaxy Book 5 series (same list as fnkeys-fix-book5).
 #                  The DSDT check still decides for each machine.
@@ -21,6 +22,24 @@ gbfan_model() {
     local m="${1^^}"
     printf '%s\n' "${m#NP}"
 }
+
+# Is this laptop booting with a replacement DSDT - an ACPI table override
+# loaded from the initramfs, such as the old fanspeed-fix-cpio? Then
+# /sys/firmware/acpi/tables/DSDT is that replacement (usually with _FST
+# already patched), not the laptop's own firmware, so nothing here can tell
+# what the firmware does: the parser would call it "already fixed". The
+# kernel logs "ACPI: Table Upgrade: override [DSDT-...]" at boot.
+# GBFAN_KLOG: a file to read instead of the kernel log, for testing.
+gbfan_dsdt_overridden() {
+    local log
+    if [[ -n "${GBFAN_KLOG:-}" ]]; then
+        log="$(cat "$GBFAN_KLOG" 2>/dev/null)"
+    else
+        log="$( { journalctl -k -b -o cat; dmesg; } 2>/dev/null )"
+    fi
+    [[ "$log" == *"Table Upgrade: override [DSDT"* ]]
+}
+GBFAN_OVERRIDE_MSG="this laptop boots with a replacement DSDT (an ACPI table override, such as the old fanspeed-fix-cpio), so its own firmware can't be read. Remove the override and reboot, then run: sudo galaxybook-fan rebuild"
 
 # gbfan_in_list MODEL LIST... - true if MODEL is one of LIST
 gbfan_in_list() {

@@ -29,7 +29,12 @@ set -uo pipefail
 _here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 for _d in "$_here" /usr/lib/galaxybook-fan /usr/local/lib/samsung-galaxybook/fan; do
     # shellcheck source=fanpaths.sh
-    [[ -f "$_d/fanpaths.sh" ]] && { source "$_d/fanpaths.sh"; break; }
+    [[ -f "$_d/fanpaths.sh" ]] && {
+        source "$_d/fanpaths.sh"
+        # shellcheck source=models.sh
+        [[ -f "$_d/models.sh" ]] && source "$_d/models.sh"
+        break
+    }
 done
 # Fallbacks, for an older install that has no fanpaths.sh yet
 MOD_NAME="${MOD_NAME:-galaxybook_fan}"
@@ -175,6 +180,15 @@ monitor() {
     [[ -f "$STATE_FILE" ]] && source "$STATE_FILE"
     cur_k="$(uname -r)"
     cur_b="$(cat /sys/class/dmi/id/bios_version 2>/dev/null)"
+
+    # 0. A DSDT override (e.g. the old fanspeed-fix-cpio) hides the firmware:
+    #    the module isn't built and the checks below would read the override.
+    #    Said at each login until it's sorted.
+    if declare -F gbfan_dsdt_overridden >/dev/null && gbfan_dsdt_overridden; then
+        notify_user dialog-warning "$TITLE" \
+            "This laptop boots with a replacement DSDT (an ACPI override such as the old fanspeed-fix-cpio), so galaxybook-fan can't read its firmware and isn't working. Remove the override and reboot, then run: sudo galaxybook-fan rebuild"
+        return
+    fi
 
     # 1. BIOS changed: look at the new firmware's _FST
     if [[ "$cur_b" != "$BIOS" ]]; then

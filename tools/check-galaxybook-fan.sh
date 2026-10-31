@@ -122,6 +122,13 @@ if [[ ${#missing[@]} -gt 0 ]]; then
 fi
 
 # --- 3. the firmware --------------------------------------------------------------
+if gbfan_dsdt_overridden; then
+    rule
+    bad "This laptop boots with a replacement DSDT: an ACPI table override, such"
+    bad "as the old fanspeed-fix-cpio. Its own firmware can't be checked while the"
+    bad "override is there. Remove the override and reboot, then run this again."
+    rule; exit 1
+fi
 WORK_DIR="$(mktemp -d)" || { bad "mktemp failed"; exit 2; }
 if [[ "${GBFAN_EMBEDDED:-0}" == 1 ]]; then
     PARSER_SRC="$WORK_DIR/dsdt-fan-config.py"

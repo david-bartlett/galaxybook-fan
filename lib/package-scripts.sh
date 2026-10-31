@@ -69,7 +69,7 @@ configure() {
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         old="$(basename "$d")"
         [[ "$old" =~ ^[0-9][0-9.]*$ && "$old" != "$v" ]] || continue
-        modprobe -r "$MOD_NAME" 2>/dev/null || true
+        gbfan_unload || true
         dkms remove "${PKG_NAME}/${old}" --all >/dev/null 2>&1 || true
     done
 
@@ -120,7 +120,7 @@ configure() {
 
 remove() {
     local dev name
-    modprobe -r "$MOD_NAME" 2>/dev/null || true
+    gbfan_unload || true
     trap gbfan_dkms_resume_initramfs EXIT
     gbfan_dkms_defer_initramfs >/dev/null
     gbfan_dkms_remove_all >/dev/null 2>&1 || true

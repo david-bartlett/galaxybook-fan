@@ -32,7 +32,7 @@ gbfan_remove_clone() {
     local keep="${GBFAN_KEEP_VERSION:-}"
 
     if [[ -d /sys/module/$MOD_NAME ]]; then
-        modprobe -r "$MOD_NAME" || { warn "Couldn't unload ${MOD_NAME}"; return 1; }
+        gbfan_unload || { warn "Couldn't unload ${MOD_NAME}"; return 1; }
         ok "Unloaded ${MOD_NAME}"
     fi
 

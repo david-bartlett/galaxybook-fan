@@ -15,7 +15,7 @@
 - The units, scripts and polkit rule now come from shared templates (`packaging/files/`), so `install.sh` and the packages install the same files; `install.sh`'s output is unchanged
 
 - **Switching to the package:** installing it over a copy made with `install.sh` removes that copy first, so there's no need to run `uninstall.sh` beforehand
-- The package's pre-install step runs the same removal steps as `uninstall.sh` (now shared, `lib/clone-remove.sh`), after the Galaxy Book 5 check, so a refused install still changes nothing. It says which folder the old copy came from; that folder isn't used by the package and can be kept or deleted. If `galaxybook_fan` can't be unloaded, nothing is changed and it asks you to close anything reading the fan or reboot. Arch will still need `sudo ./uninstall.sh` first: pacman stops before any script runs when files are already there
+- The package's pre-install step runs the same removal steps as `uninstall.sh` (now shared, `lib/clone-remove.sh`), after the Galaxy Book 5 check, so a refused install still changes nothing. It says which folder the old copy came from; that folder isn't used by the package and can be kept or deleted. If `galaxybook_fan` can't be unloaded, nothing is changed and it asks you to close anything reading the fan or reboot. The Arch package does the same just after installing
 - `uninstall.sh` works as before; it no longer prints systemd's errors when systemd isn't running
 
 - **Ubuntu, Mint, Debian and MX package:** galaxybook-fan can be built and installed as a `.deb` (`bash packaging/debian/build.sh`, then `sudo apt install ./packaging/out/galaxybook-fan_*_all.deb`)
@@ -24,7 +24,7 @@
 - `uninstall.sh` names apt and pacman as well as dnf when it finds the package installed
 
 - **Arch and CachyOS package:** galaxybook-fan can be built and installed with `cd packaging/arch && makepkg -si`
-- One `any` package: DKMS builds the module on the laptop, and Arch's DKMS hooks build it for every installed kernel with headers. The install names the headers package to add if the running kernel's are missing (e.g. `linux-cachyos-headers`). On anything but a Galaxy Book 5 it installs but doesn't build the module, and says why (`GALAXYBOOK_FAN_FORCE=1` builds anyway). Remove a copy installed with `install.sh` first (`sudo ./uninstall.sh`): pacman won't install over its files. `sudo pacman -R galaxybook-fan` removes everything
+- One `any` package: DKMS builds the module on the laptop, and Arch's DKMS hooks build it for every installed kernel with headers. The install names the headers package to add if the running kernel's are missing (e.g. `linux-cachyos-headers`). On anything but a Galaxy Book 5 it installs but doesn't build the module, and says why (`GALAXYBOOK_FAN_FORCE=1` builds anyway). Like the rpm and deb it replaces a copy installed with `install.sh` (just after installing, keeping the package's own files). `sudo pacman -R galaxybook-fan` removes everything
 
 ## 0.5.0 — 2026-10-31
 

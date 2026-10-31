@@ -7,9 +7,9 @@
 # - Galaxy Book 5 only: module/gen-config.sh refuses to build the module on
 #   anything else (the reason is printed here); GALAXYBOOK_FAN_FORCE=1 builds
 #   anyway, as with the rpm and deb.
-# - A copy installed with install.sh shares files with this package, so pacman
-#   stops before these scripts with "exists in filesystem": run
-#   'sudo ./uninstall.sh' from its folder first.
+# - A copy installed with install.sh: pacman runs nothing before unpacking, so
+#   post_install removes it afterwards, keeping what the package owns
+#   (package-scripts.sh replace-clone; the rpm and deb do it before unpacking).
 # Arch's own DKMS hooks also build the module for every installed kernel with
 # headers, and remove it, around these scripts.
 
@@ -32,17 +32,13 @@ _configure() {
 }
 
 post_install() {
+    bash "$_gbfan/package-scripts.sh" replace-clone 2>&1 | sed 's/^/==> /' || true
     _configure
-    # Only reached if pacman wasn't stopped by shared files (an older copy)
-    if [ -e /usr/local/sbin/galaxybook-fan ] || [ -e /usr/local/bin/samsung-galaxybook-fan-check.sh ] \
-            || [ -e /etc/systemd/system/galaxybook-acpi-fan-unbind.service ]; then
-        echo "==> WARNING: a copy of galaxybook-fan installed with install.sh is still here."
-        echo "    Remove the package, remove that copy from its folder, then install the package again:"
-        echo "      sudo pacman -R galaxybook-fan && sudo ./uninstall.sh"
-    fi
 }
 
+# Also on upgrade: a copy can have been put back with install.sh since
 post_upgrade() {
+    bash "$_gbfan/package-scripts.sh" replace-clone 2>&1 | sed 's/^/==> /' || true
     _configure
 }
 

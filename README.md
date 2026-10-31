@@ -154,11 +154,12 @@ This removes everything the installer added and rebinds `acpi-fan`. No reboot is
 
 | File | Purpose |
 |---|---|
-| `galaxybook_fan.c` | the module |
-| `galaxybook_fan_config.h` | default config (940XHA), so the module builds standalone; the installer replaces it in `/usr/src` |
-| `dsdt-fan-config.py` | derives and validates the config from a disassembled DSDT; `--status` reports whether `_FST` still has the bug |
-| `samsung-galaxybook-fan-check.sh` | the native test and the login-time monitor logic |
 | `install.sh` / `uninstall.sh` | as above |
-| `VERSION` | the release version (David's release tool keeps `dkms.conf` and `install.sh` in step with it) |
+| `module/galaxybook_fan.c` | the module |
+| `module/galaxybook_fan_config.h` | default config (940XHA), so the module builds standalone; the installer replaces it in `/usr/src` |
+| `module/Makefile`, `module/dkms.conf` | the module's build and DKMS definition |
+| `lib/dsdt-fan-config.py` | derives and validates the config from a disassembled DSDT; `--status` reports whether `_FST` still has the bug |
+| `lib/samsung-galaxybook-fan-check.sh` | the native test and the login-time monitor logic |
+| `VERSION` | the release version (David's release tool keeps `module/dkms.conf` and `install.sh` in step with it) |
 | `CHANGELOG.md` | what changed in each release |
 | `PLAN.md`, `AGENTS.md`, `handoff/` | how the project works and how to contribute (changes go in as pull requests) |

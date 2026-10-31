@@ -8,7 +8,7 @@ This is the handover for anyone (people or coding agents such as Codex) working 
 
 1. **Every change is a pull request.** Create a branch, commit, push the branch and open a PR against `main`. Never push to `main`, never merge, never force-push someone else's branch.
 2. **David tests every PR on his laptop before merging.** Say in the PR description what to test and how (§8). Say plainly what you could not test (anything needing the real hardware, Secure Boot, a kernel build or a real desktop session).
-3. **Never make a release.** Don't change `VERSION`, the version in `dkms.conf` or `PKG_VERSION` in `install.sh`; don't create tags (`v*`) or GitHub releases. David releases with his own tool (§7).
+3. **Never make a release.** Don't change `VERSION`, the version in `module/dkms.conf` or `PKG_VERSION` in `install.sh`; don't create tags (`v*`) or GitHub releases. David releases with his own tool (§7).
 4. **One topic per PR.** Before pushing more commits to an existing PR's branch, check it hasn't been merged already (`gh pr view N --json merged` or the REST API); if it has, start a new branch from `main`.
 5. **Every user-visible change gets a CHANGELOG line** under `## Unreleased` (§7.2), and a README update when the README describes the thing you changed.
 6. **Don't add files you didn't mean to.** Review `git status` before committing; don't use `git add -A` blindly. Build output (`*.o`, `*.ko`, `*.mod*`, `__pycache__`) and test scripts stay out of the repository.
@@ -53,16 +53,18 @@ Install is `sudo ./install.sh` from a clone (no packages yet; see §10). Re-runn
 
 ## 4. Repository map
 
+Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds is in `module/`, and the helpers `install.sh` uses and installs are in `lib/`.
+
 | File | Purpose |
 |---|---|
-| `galaxybook_fan.c` | The hwmon module. At load it checks the DMI product and the DSDT's OEM ID, table ID and revision against the config (refuses on a mismatch, i.e. after a BIOS update, unless `force=1`), then checks the field exists and reads. |
-| `galaxybook_fan_config.h` | Default config for the 940XHA so the module builds standalone. The installer replaces it in `/usr/src` with one generated for the running machine. |
-| `dsdt-fan-config.py` | Parses the disassembled DSDT: `--dsl … --product … --out config.h` writes the header; `--status` prints `broken`, `fixed` or `unknown`. Never guesses: anything outside the known `_FST` shape is an error (exit 1). |
-| `samsung-galaxybook-fan-check.sh` | `--test-native` (bind the stock `acpi-fan` briefly while the fan spins and see if it reads), `--monitor` (the root side of the login check), `--record-state [INSTALL_DIR]`. |
-| `install.sh` | `--check` (derive and show the config, install nothing), `--test-native`, `--force`. |
+| `install.sh` | `--check` (derive and show the config, install nothing), `--test-native`, `--force`. Finds the rest through `MODULE_SRC` (`module/`) and `LIB_SRC` (`lib/`). |
 | `uninstall.sh` | Removes everything `install.sh` added and rebinds `acpi-fan`. |
-| `Makefile`, `dkms.conf` | Kernel module build and DKMS definition. |
-| `VERSION` | The release version, `X.Y.Z`. The release tool keeps `PACKAGE_VERSION` in `dkms.conf` and `PKG_VERSION` in `install.sh` in step with it (§7.1). |
+| `module/galaxybook_fan.c` | The hwmon module. At load it checks the DMI product and the DSDT's OEM ID, table ID and revision against the config (refuses on a mismatch, i.e. after a BIOS update, unless `force=1`), then checks the field exists and reads. |
+| `module/galaxybook_fan_config.h` | Default config for the 940XHA so the module builds standalone. The installer replaces it in `/usr/src` with one generated for the running machine. |
+| `lib/dsdt-fan-config.py` | Parses the disassembled DSDT: `--dsl … --product … --out config.h` writes the header; `--status` prints `broken`, `fixed` or `unknown`. Never guesses: anything outside the known `_FST` shape is an error (exit 1). |
+| `lib/samsung-galaxybook-fan-check.sh` | `--test-native` (bind the stock `acpi-fan` briefly while the fan spins and see if it reads), `--monitor` (the root side of the login check), `--record-state [INSTALL_DIR]`. |
+| `module/Makefile`, `module/dkms.conf` | Kernel module build and DKMS definition. `install.sh` copies them, the `.c` and the generated config into `/usr/src/galaxybook-fan-<version>/`, flat. |
+| `VERSION` | The release version, `X.Y.Z`. The release tool keeps `PACKAGE_VERSION` in `module/dkms.conf` and `PKG_VERSION` in `install.sh` in step with it (§7.1). |
 | `CHANGELOG.md` | Release notes (§7.2). |
 | `PLAN.md`, `AGENTS.md`, `handoff/` | This file, the short rules for agents, and one note per PR. |
 | `.github/workflows/release.yml`, `.github/release-notes.sh`, `.github/release-install.md` | The release workflow and the release page's text (§7.1). |
@@ -96,7 +98,7 @@ Ten seconds after login a user timer checks whether the kernel or BIOS changed o
 
 ### 7.1 How David releases
 
-David releases with a release tool in his private repository `david-bartlett/samsung-galaxybook-dev-tools` (folder `galaxybook-fan-github`, a copy of the fingerprint-fix-sdcp one). Its Release button sets `VERSION` (and the version in `dkms.conf` and `install.sh`), turns `## Unreleased` into `## X.Y.Z — date`, commits, tags `vX.Y.Z` and pushes, then adds a fresh `## Unreleased`. The tag starts `.github/workflows/release.yml`, which checks that `VERSION`, `dkms.conf`, `install.sh` and the CHANGELOG all have the tag's version, then creates the GitHub release with notes from `.github/release-notes.sh`: the install steps (`.github/release-install.md`), *What's new* (the bold lines) and the whole section collapsed under *Full changelog*. There are no packages yet; users download the source code GitHub attaches to every release.
+David releases with a release tool in his private repository `david-bartlett/samsung-galaxybook-dev-tools` (folder `galaxybook-fan-github`, a copy of the fingerprint-fix-sdcp one). Its Release button sets `VERSION` (and the version in `module/dkms.conf` and `install.sh`), turns `## Unreleased` into `## X.Y.Z — date`, commits, tags `vX.Y.Z` and pushes, then adds a fresh `## Unreleased`. The tag starts `.github/workflows/release.yml`, which checks that `VERSION`, `module/dkms.conf`, `install.sh` and the CHANGELOG all have the tag's version, then creates the GitHub release with notes from `.github/release-notes.sh`: the install steps (`.github/release-install.md`), *What's new* (the bold lines) and the whole section collapsed under *Full changelog*. There are no packages yet; users download the source code GitHub attaches to every release.
 
 **Contributors never do any of this.** Versioning (for David's information): fixes → `x.y.Z`, features → `x.Y.0`, a change users must act on → `X.0.0`.
 
@@ -114,9 +116,9 @@ David releases with a release tool in his private repository `david-bartlett/sam
 
 ### 8.1 What you can do without the hardware
 
-- `bash -n install.sh uninstall.sh samsung-galaxybook-fan-check.sh`; `python3 -m py_compile dsdt-fan-config.py`.
+- `bash -n install.sh uninstall.sh lib/samsung-galaxybook-fan-check.sh`; `python3 -m py_compile lib/dsdt-fan-config.py`.
 - **Parser:** run `dsdt-fan-config.py` against DSL text (a saved 940XHA DSDT, or small hand-made DSL showing the broken, fixed and unknown `_FST` shapes). Keep test files **outside the repository**.
-- **Module:** `make KDIR=/lib/modules/<version>/build` builds against any installed headers; it can't be loaded meaningfully without the hardware.
+- **Module:** `make -C module KDIR=/lib/modules/<version>/build` builds against any installed headers; it can't be loaded meaningfully without the hardware.
 - Describe in the PR what you checked and what you couldn't.
 
 ### 8.2 What David tests (write the steps in the PR)

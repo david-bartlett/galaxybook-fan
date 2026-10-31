@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.8.5 — 2026-10-31
 
 - **Stays on screen on GNOME:** the new-version notification now stays until you close or click it, as it does on other desktops

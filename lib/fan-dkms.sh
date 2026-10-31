@@ -29,6 +29,44 @@ gbfan_unload() {
     [[ ! -d /sys/module/$MOD_NAME ]]
 }
 
+# The stock acpi-fan driver and the fan: unbound only while galaxybook_fan is
+# loaded and reading it, bound again otherwise. Where the stock driver works
+# (an earlier Galaxy Book, firmware that's fixed, a DSDT override) and our
+# module isn't loaded, unbinding it would leave no fan sensor at all.
+# galaxybook-acpi-fan-unbind.service follows the same rule at boot.
+gbfan_unbind_acpi_fan() {
+    local dev
+    [[ -d /sys/module/$MOD_NAME ]] || return 1
+    for dev in "$ACPI_FAN_DRV"/PNP0C0B:*; do
+        [[ -e "$dev" ]] || continue
+        echo "$(basename "$dev")" > "$ACPI_FAN_DRV/unbind" 2>/dev/null || true
+    done
+}
+gbfan_bind_acpi_fan() {
+    local dev name
+    for dev in /sys/bus/platform/devices/PNP0C0B:*; do
+        [[ -e "$dev" ]] || continue
+        name="$(basename "$dev")"
+        [[ -e "$ACPI_FAN_DRV/$name" ]] || echo "$name" > "$ACPI_FAN_DRV/bind" 2>/dev/null || true
+    done
+}
+
+# How to install the headers DKMS needs for KERNEL (empty if unknown): each
+# distro names them after the kernel; on Arch each kernel package records its
+# own name (linux, linux-lts, linux-cachyos, ...) in its module folder.
+gbfan_headers_cmd() {
+    local k="$1" base
+    if [[ -r "/usr/lib/modules/$k/pkgbase" ]] && command -v pacman >/dev/null 2>&1; then
+        base="$(cat "/usr/lib/modules/$k/pkgbase")"
+        echo "sudo pacman -S ${base}-headers"
+    elif command -v dpkg-query >/dev/null 2>&1; then
+        echo "sudo apt install linux-headers-$k"
+    elif command -v dnf >/dev/null 2>&1; then
+        echo "sudo dnf install kernel-devel-$k"
+    fi
+}
+gbfan_has_headers() { [[ -e "/lib/modules/$1/build" ]]; }
+
 # Some distros (Fedora) rebuild every kernel's initramfs after each DKMS
 # operation (post_transaction). galaxybook_fan is never in the initramfs, so
 # suspend that for our own DKMS steps; gbfan_dkms_resume_initramfs (run it from

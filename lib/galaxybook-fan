@@ -91,7 +91,7 @@ cmd_check() {
 
 cmd_rebuild() {
     need_root rebuild
-    local v k kernels=() failed=0 reason rpm
+    local v k kernels=() failed=0 built=0 reason rpm hcmd
     v="$(gbfan_dkms_version)" || fail "galaxybook-fan isn't registered with DKMS - install it first"
     # The running kernel, plus every other kernel it's built for that still has headers
     kernels+=("$(uname -r)")
@@ -104,8 +104,16 @@ cmd_rebuild() {
     gbfan_unload || true
     for k in "${kernels[@]}"; do
         info "Building galaxybook-fan ${v} for ${k} from this machine's firmware"
+        if ! gbfan_has_headers "$k"; then
+            warn "The kernel headers for ${k} aren't installed, so it can't be built."
+            hcmd="$(gbfan_headers_cmd "$k")"
+            [[ -n "$hcmd" ]] && warn "  Install them, then run this again: ${hcmd}"
+            failed=1
+            continue
+        fi
         if gbfan_dkms_rebuild_kernel "$v" "$k" >/tmp/galaxybook-fan-rebuild.log 2>&1; then
             ok "Built and installed for ${k}"
+            built=1
         else
             reason="$(gbfan_dkms_build_reason "$v" || true)"
             warn "Build for ${k} failed${reason:+: ${reason#galaxybook-fan: }}"
@@ -115,13 +123,20 @@ cmd_rebuild() {
     done
 
     if modprobe "$MOD_NAME" 2>/dev/null; then
+        # Ours reads the fan again: take it from acpi-fan (the unbind service
+        # skipped itself at boot while the module couldn't load)
+        systemctl restart "$UNBIND_SVC" >/dev/null 2>&1 || true
+        gbfan_unbind_acpi_fan || true
         sleep 1
         rpm="$(fan_rpm || true)"
         ok "Module loaded${rpm:+ - fan: ${rpm} RPM}"
         bash "$MONITOR_SCRIPT" --record-state "$(state_value INSTALL_DIR)" "$(state_value INSTALL_METHOD)" \
             || warn "Couldn't record the new state"
     else
-        warn "The module didn't load - see: sudo dmesg | grep galaxybook_fan"
+        [[ $built -eq 1 ]] && warn "The module didn't load - see: sudo dmesg | grep galaxybook_fan"
+        # Give the fan back to the stock driver meanwhile (it may work here)
+        systemctl stop "$UNBIND_SVC" >/dev/null 2>&1 || true
+        gbfan_bind_acpi_fan
         failed=1
     fi
     exit $failed

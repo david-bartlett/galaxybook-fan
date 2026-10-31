@@ -3,11 +3,16 @@
 # driver only produces AML errors and a dead fan sensor. galaxybook_fan reads
 # the EC directly instead. The fan has no ACPI control (_FPS/_FSL), so the
 # cooling device acpi-fan registers does nothing - unbinding it loses nothing.
+# Only while galaxybook_fan has loaded (after systemd-modules-load): where it
+# hasn't - not built, refused this firmware, a DSDT override, a laptop that
+# isn't a Book 5 - the stock driver keeps the fan, in case it works there.
 [Unit]
 Description=Unbind acpi-fan from Samsung Galaxy Book fan (broken _FST)
 DefaultDependencies=no
+After=systemd-modules-load.service
 Before=sysinit.target
 ConditionPathIsDirectory=/sys/bus/platform/drivers/acpi-fan
+ConditionPathIsDirectory=/sys/module/@MOD_NAME@
 
 [Service]
 Type=oneshot

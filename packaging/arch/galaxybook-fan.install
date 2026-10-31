@@ -11,22 +11,14 @@
 #   post_install removes it afterwards, keeping what the package owns
 #   (package-scripts.sh replace-clone; the rpm and deb do it before unpacking).
 # Arch's own DKMS hooks also build the module for every installed kernel with
-# headers, and remove it, around these scripts.
+# headers, and remove it, around these scripts. Missing headers for the
+# running kernel: package-scripts.sh names the package (<kernel>-headers).
 
 _gbfan=/usr/lib/galaxybook-fan
 
 _configure() {
     if [ "${GALAXYBOOK_FAN_FORCE:-0}" = 1 ]; then
         mkdir -p /etc/galaxybook-fan && touch /etc/galaxybook-fan/force
-    fi
-    # Kernel headers: each Arch kernel package names itself in its module folder
-    # (linux, linux-lts, linux-cachyos, …); its headers are <that>-headers
-    _k=$(uname -r)
-    if [ ! -e "/usr/lib/modules/$_k/build" ]; then
-        _base=$(cat "/usr/lib/modules/$_k/pkgbase" 2>/dev/null || echo linux)
-        echo "==> galaxybook-fan: the headers for the running kernel ($_k) aren't installed."
-        echo "    Install them and DKMS builds the module automatically:"
-        echo "      sudo pacman -S ${_base}-headers"
     fi
     bash "$_gbfan/package-scripts.sh" configure 2>&1 | sed 's/^/==> /' || true
 }

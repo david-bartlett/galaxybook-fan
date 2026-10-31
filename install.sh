@@ -207,6 +207,7 @@ trap cleanup EXIT
 
 derive_config() {
     local dsdt=/sys/firmware/acpi/tables/DSDT summary rc
+    gbfan_dsdt_overridden && fail "Not installed: ${GBFAN_OVERRIDE_MSG/sudo galaxybook-fan rebuild/sudo ./install.sh}"
     [[ -r "$dsdt" ]] || fail "Can't read ${dsdt}"
     [[ -f "$LIB_SRC/dsdt-fan-config.py" ]] || fail "dsdt-fan-config.py missing from ${LIB_SRC}"
 
@@ -600,12 +601,9 @@ install_unbind() {
         || fail "Couldn't enable $(basename "$UNBIND_SERVICE")"
     ok "Boot-time unbind: $(basename "$UNBIND_SERVICE") (enabled)"
 
-    local dev
-    for dev in "$ACPI_FAN_DRV"/PNP0C0B:*; do
-        [[ -e "$dev" ]] || continue
-        echo "$(basename "$dev")" > "$ACPI_FAN_DRV/unbind" 2>/dev/null \
-            && ok "Unbound acpi-fan from $(basename "$dev")"
-    done
+    # Unbinding now waits until the module has loaded (verify), and at boot
+    # the service only unbinds while it's loaded
+    true
 }
 
 # ---------------------------------------------------------------------------
@@ -704,6 +702,9 @@ verify() {
         return
     fi
     modprobe "$MOD_NAME" || fail "modprobe ${MOD_NAME} failed - check 'dmesg | tail'"
+    # Loaded: take the fan from acpi-fan now (the service does it at each boot)
+    systemctl restart "$(basename "$UNBIND_SERVICE")" >/dev/null 2>&1 || true
+    gbfan_unbind_acpi_fan && ok "Unbound acpi-fan (galaxybook_fan reads the fan)"
 
     local h name rpm=""
     for h in /sys/class/hwmon/hwmon*; do

@@ -9,7 +9,7 @@
 ## Unreleased
 
 - **What's new keeps Update now:** pressing *What's new* on the new-version notification opens the release page and leaves the notification there, so *Update now* is still one click away
-- Desktops that close a notification when one of its buttons is pressed (KDE) get it shown again, in place of the old one; GNOME keeps it open. *Update now* closes it as the update starts (also on GNOME, where it would otherwise stay); closing it yourself ends it too
+- After the page opens, the notification is shown again in place of the old one, so there's never two. *Update now* or closing it ends it
 
 ## 0.8.0 — 2026-10-31
 

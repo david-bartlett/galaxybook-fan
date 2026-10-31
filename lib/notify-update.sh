@@ -54,17 +54,6 @@ if command -v xdg-open >/dev/null 2>&1; then opener="xdg-open"
 elif command -v gio >/dev/null 2>&1; then opener="gio open"
 fi
 
-# Close a notification by its ID (the standard notification service)
-close_notification() {
-    if command -v gdbus >/dev/null 2>&1; then
-        gdbus call --session --dest org.freedesktop.Notifications \
-            --object-path /org/freedesktop/Notifications \
-            --method org.freedesktop.Notifications.CloseNotification "$1" >/dev/null 2>&1 && return
-    fi
-    busctl --user call org.freedesktop.Notifications /org/freedesktop/Notifications \
-        org.freedesktop.Notifications CloseNotification u "$1" >/dev/null 2>&1 || true
-}
-
 term="$(find_terminal)"
 if notify-send --help 2>&1 | grep -q -- '--action'; then
     actions=()
@@ -72,19 +61,16 @@ if notify-send --help 2>&1 | grep -q -- '--action'; then
     [[ -n "$term" && -x "$HERE/update-in-terminal.sh" ]] && actions+=(--action=update="Update now")
     # ...and "What's new" only where the link can be opened
     [[ -n "$url" && -n "$opener" ]] && actions+=(--action=whatsnew="What's new")
-    # "What's new" shouldn't take "Update now" away: ask the server to keep
-    # the notification when a button is pressed (the "resident" hint: GNOME
-    # does; KDE closes it anyway), and after opening the page show it again,
-    # replacing it by its ID where notify-send can, so there's never two.
-    # "Update now" closes it and starts the update; closing it ends this too.
-    # The resident hint only with an ID, so "Update now" can still close it.
-    idargs=(); keep=()
-    if notify-send --help 2>&1 | grep -q -- '--print-id'; then
-        idargs=(--print-id); keep=(--hint=boolean:resident:true)
-    fi
+    # "What's new" shouldn't take "Update now" away: after opening the page,
+    # show the notification again, replacing it by its ID where notify-send
+    # can, so there's never two. "Update now" or closing it ends this.
+    # (Not the "resident" hint: notify-send only reports a button once the
+    # notification has closed, and KDE keeps a resident one in its history,
+    # so the button never got through.)
+    idargs=(); notify-send --help 2>&1 | grep -q -- '--print-id' && idargs=(--print-id)
     id=""
     for (( n = 0; n < 20; n++ )); do
-        out="$(notify-send "${args[@]}" "${keep[@]}" "${idargs[@]}" \
+        out="$(notify-send "${args[@]}" "${idargs[@]}" \
             ${id:+--replace-id="$id"} "${actions[@]}" "$title" "$msg" 2>/dev/null)"
         if [[ ${#idargs[@]} -gt 0 ]]; then
             id="$(head -1 <<< "$out")"; [[ "$id" =~ ^[0-9]+$ ]] || id=""
@@ -94,8 +80,6 @@ if notify-send --help 2>&1 | grep -q -- '--action'; then
         fi
         case "$choice" in
             update)
-                # Gone once the update starts (it may have been kept open)
-                [[ -n "$id" ]] && close_notification "$id"
                 # $term is a command and its options, split on purpose
                 # shellcheck disable=SC2086
                 exec $term /bin/bash "$HERE/update-in-terminal.sh" ;;

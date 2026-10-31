@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Running the check:** the README and release page also show the `chmod +x` way, for running `check-galaxybook-fan.sh` with `./`
+- A downloaded file can't be run with `./` until it's made executable, so `./check-galaxybook-fan.sh` was refused; `sudo bash check-galaxybook-fan.sh` always works
+
 ## 0.4.0 — 2026-10-31
 
 - **Will it work on my laptop?** `check-galaxybook-fan.sh` checks your model and firmware before you install anything; it's attached to every release and linked at the top of the README

@@ -3,6 +3,8 @@
 # check-galaxybook-fan.sh - will galaxybook-fan work on this laptop?
 #
 #   sudo bash check-galaxybook-fan.sh
+#   (or: chmod +x check-galaxybook-fan.sh && sudo ./check-galaxybook-fan.sh -
+#   a downloaded file can't be run with ./ until it's made executable)
 #
 # Read-only: installs nothing and changes nothing, with or without the fix
 # installed. It checks the laptop model, reads this machine's own firmware

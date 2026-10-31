@@ -12,6 +12,7 @@
 - It used to be `extras/galaxybook-fan` in [samsung-galaxybook-fixes](https://github.com/david-bartlett/samsung-galaxybook-fixes), which now only has a README pointing here. Already installed from there? Run this repository's `install.sh` once, so the notifications after a BIOS or kernel update tell you to run `install.sh` and `uninstall.sh` in this folder instead of the old one
 - The version is now three numbers (`0.2.0`, was `0.2`), in a new `VERSION` file that the release tool keeps in step with `dkms.conf` and `install.sh`. Re-running `install.sh` replaces the old DKMS version, as before
 - `PLAN.md`, `AGENTS.md` and `handoff/` for contributors
+- Release pages: how to install from the source code, *What's new* and the full changelog, made by a release workflow when a version is tagged
 
 ## 0.2 — 2026-10-24
 

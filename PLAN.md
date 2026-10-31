@@ -65,6 +65,7 @@ Install is `sudo ./install.sh` from a clone (no packages yet; see §10). Re-runn
 | `VERSION` | The release version, `X.Y.Z`. The release tool keeps `PACKAGE_VERSION` in `dkms.conf` and `PKG_VERSION` in `install.sh` in step with it (§7.1). |
 | `CHANGELOG.md` | Release notes (§7.2). |
 | `PLAN.md`, `AGENTS.md`, `handoff/` | This file, the short rules for agents, and one note per PR. |
+| `.github/workflows/release.yml`, `.github/release-notes.sh`, `.github/release-install.md` | The release workflow and the release page's text (§7.1). |
 
 ## 5. How it works
 
@@ -95,7 +96,7 @@ Ten seconds after login a user timer checks whether the kernel or BIOS changed o
 
 ### 7.1 How David releases
 
-David releases with a release tool in his private repository `david-bartlett/samsung-galaxybook-dev-tools` (folder `galaxybook-fan-github`, a copy of the fingerprint-fix-sdcp one). Its Release button sets `VERSION` (and the version in `dkms.conf` and `install.sh`), turns `## Unreleased` into `## X.Y.Z — date`, commits, tags `vX.Y.Z` and pushes, then adds a fresh `## Unreleased`. A release workflow in `.github/workflows/` makes the GitHub release page from the CHANGELOG section.
+David releases with a release tool in his private repository `david-bartlett/samsung-galaxybook-dev-tools` (folder `galaxybook-fan-github`, a copy of the fingerprint-fix-sdcp one). Its Release button sets `VERSION` (and the version in `dkms.conf` and `install.sh`), turns `## Unreleased` into `## X.Y.Z — date`, commits, tags `vX.Y.Z` and pushes, then adds a fresh `## Unreleased`. The tag starts `.github/workflows/release.yml`, which checks that `VERSION`, `dkms.conf`, `install.sh` and the CHANGELOG all have the tag's version, then creates the GitHub release with notes from `.github/release-notes.sh`: the install steps (`.github/release-install.md`), *What's new* (the bold lines) and the whole section collapsed under *Full changelog*. There are no packages yet; users download the source code GitHub attaches to every release.
 
 **Contributors never do any of this.** Versioning (for David's information): fixes → `x.y.Z`, features → `x.Y.0`, a change users must act on → `X.0.0`.
 

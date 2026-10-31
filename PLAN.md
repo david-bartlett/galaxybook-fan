@@ -64,6 +64,7 @@ Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds 
 | `lib/dsdt-fan-config.py` | Parses the disassembled DSDT: `--dsl … --product … --out config.h` writes the header; `--status` prints `broken`, `fixed` or `unknown`. Never guesses: anything outside the known `_FST` shape is an error (exit 1). |
 | `lib/samsung-galaxybook-fan-check.sh` | `--test-native` (bind the stock `acpi-fan` briefly while the fan spins and see if it reads), `--monitor` (the root side of the login check), `--record-state [INSTALL_DIR]`. |
 | `module/Makefile`, `module/dkms.conf` | Kernel module build and DKMS definition. `install.sh` copies them, the `.c` and the generated config into `/usr/src/galaxybook-fan-<version>/`, flat. |
+| `LICENSE` | GNU GPL version 2, the licence the module already declares (`SPDX-License-Identifier: GPL-2.0`). |
 | `VERSION` | The release version, `X.Y.Z`. The release tool keeps `PACKAGE_VERSION` in `module/dkms.conf` and `PKG_VERSION` in `install.sh` in step with it (§7.1). |
 | `CHANGELOG.md` | Release notes (§7.2). |
 | `PLAN.md`, `AGENTS.md`, `handoff/` | This file, the short rules for agents, and one note per PR. |

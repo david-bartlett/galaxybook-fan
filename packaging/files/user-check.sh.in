@@ -1,0 +1,27 @@
+#!/bin/bash
+# Samsung Galaxy Book — fan speed fix user check (runs as user)
+# Started by @USER_CHECK_TIMER@ 10 seconds after
+# graphical-session.target is reached, so the desktop and notify-send are ready.
+# Starts the root monitor only when something changed that it should look at.
+STATE_FILE="@STATE_FILE@"
+STATUS_FILE="@STATUS_FILE@"
+
+[[ -f @MODLOAD_CONF@ ]] || exit 0
+
+KVER="" BIOS=""
+[[ -f "$STATE_FILE" ]] && { KVER="$(sed -n 's/^KVER=//p' "$STATE_FILE")"; BIOS="$(sed -n 's/^BIOS=//p' "$STATE_FILE")"; }
+CUR_BIOS="$(cat /sys/class/dmi/id/bios_version 2>/dev/null)"
+
+if [[ "$(uname -r)" == "$KVER" && "$CUR_BIOS" == "$BIOS" && -d /sys/module/@MOD_NAME@ ]]; then
+    exit 0
+fi
+
+# Type=oneshot: returns once the monitor has finished writing its status
+systemctl start @MONITOR_SVC@ || exit 0
+
+[[ -s "$STATUS_FILE" ]] || exit 0
+{ IFS= read -r ICON; IFS= read -r TITLE; IFS= read -r MSG; } < "$STATUS_FILE"
+[[ -n "$TITLE" ]] || exit 0
+
+notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i "${ICON:-dialog-information}" "$TITLE" "$MSG" \
+    || logger -t samsung-galaxybook-fan-user-check "notify-send failed: $TITLE: $MSG"

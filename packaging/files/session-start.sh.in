@@ -1,0 +1,14 @@
+#!/bin/bash
+# Samsung Galaxy Book — start graphical-session.target on desktops that don't.
+# Run from XDG autostart at login. Does nothing if the desktop has already
+# started the target itself (KDE Plasma, GNOME).
+systemctl --user is-active --quiet graphical-session.target && exit 0
+# Pass the session's display variables to the systemd user manager first, so
+# services that show notifications or tray icons can reach the desktop.
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd --all
+else
+    systemctl --user import-environment DISPLAY XAUTHORITY WAYLAND_DISPLAY \
+        XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null
+fi
+systemctl --user start @SESSION_TARGET_NAME@

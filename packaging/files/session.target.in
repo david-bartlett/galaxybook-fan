@@ -1,0 +1,8 @@
+[Unit]
+Description=Samsung Galaxy Book — graphical session (desktops without systemd session support)
+# Started at login by @SESSION_HELPER_SCRIPT@. Binding to
+# graphical-session.target activates it, so units WantedBy= it start as they
+# do on KDE Plasma and GNOME.
+BindsTo=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target

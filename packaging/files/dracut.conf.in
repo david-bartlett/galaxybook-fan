@@ -1,0 +1,3 @@
+# Written by @WRITTEN_BY@ - @MOD_NAME@ loads from modules-load.d
+# after boot and must never be in the initramfs.
+omit_drivers+=" @MOD_NAME@ "

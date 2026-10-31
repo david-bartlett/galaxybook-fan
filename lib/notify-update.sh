@@ -61,23 +61,16 @@ if notify-send --help 2>&1 | grep -q -- '--action'; then
     [[ -n "$term" && -x "$HERE/update-in-terminal.sh" ]] && actions+=(--action=update="Update now")
     # ...and "What's new" only where the link can be opened
     [[ -n "$url" && -n "$opener" ]] && actions+=(--action=whatsnew="What's new")
-    # "What's new" shouldn't take "Update now" away: after opening the page,
-    # show the notification again, replacing it by its ID where notify-send
-    # can, so there's never two. "Update now" or closing it ends this.
+    # "What's new" shouldn't take "Update now" away: desktops close a
+    # notification when one of its buttons is pressed, so after opening the
+    # page show it again - a new one, a moment later so it pops up after the
+    # browser window. "Update now" or closing it ends this.
     # (Not the "resident" hint: notify-send only reports a button once the
-    # notification has closed, and KDE keeps a resident one in its history,
-    # so the button never got through.)
-    idargs=(); notify-send --help 2>&1 | grep -q -- '--print-id' && idargs=(--print-id)
-    id=""
+    # notification has closed, and KDE kept a resident one, so the click
+    # never got through. Not --replace-id either: KDE then quietly updates
+    # the one already gone instead of showing it.)
     for (( n = 0; n < 20; n++ )); do
-        out="$(notify-send "${args[@]}" "${idargs[@]}" \
-            ${id:+--replace-id="$id"} "${actions[@]}" "$title" "$msg" 2>/dev/null)"
-        if [[ ${#idargs[@]} -gt 0 ]]; then
-            id="$(head -1 <<< "$out")"; [[ "$id" =~ ^[0-9]+$ ]] || id=""
-            choice="$(sed -n 2p <<< "$out")"
-        else
-            choice="$out"
-        fi
+        choice="$(notify-send "${args[@]}" "${actions[@]}" "$title" "$msg" 2>/dev/null)"
         case "$choice" in
             update)
                 # $term is a command and its options, split on purpose
@@ -86,7 +79,7 @@ if notify-send --help 2>&1 | grep -q -- '--action'; then
             whatsnew)
                 # shellcheck disable=SC2086
                 $opener "$url" >/dev/null 2>&1 &
-                ;;
+                sleep 2 ;;
             *)  break ;;                   # closed, or timed out
         esac
     done

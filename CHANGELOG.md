@@ -9,7 +9,7 @@
 ## Unreleased
 
 - **What's new keeps Update now:** pressing *What's new* on the new-version notification opens the release page and leaves the notification there, so *Update now* is still one click away
-- After the page opens, the notification is shown again in place of the old one, so there's never two. *Update now* or closing it ends it
+- Desktops close a notification when one of its buttons is pressed, so after the page opens it's shown again, a moment later so it appears after the browser window. *Update now* or closing it ends it
 
 ## 0.8.0 — 2026-10-31
 

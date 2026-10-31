@@ -28,50 +28,23 @@
 # ============================================================================
 set -uo pipefail
 
-PKG_NAME="galaxybook-fan"
 PKG_VERSION="0.4.0"   # keep in step with VERSION and module/dkms.conf (the release tool sets all three)
-MOD_NAME="galaxybook_fan"
-SRC_DIR="/usr/src/${PKG_NAME}-${PKG_VERSION}"
-MODLOAD_CONF="/etc/modules-load.d/${MOD_NAME}.conf"
-MODPROBE_CONF="/etc/modprobe.d/${MOD_NAME}.conf"
-UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"   # old versions only
-UNBIND_SERVICE="/etc/systemd/system/galaxybook-acpi-fan-unbind.service"
-DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
-# Temporary, while this script runs DKMS (see defer_initramfs) - sorts last
-DKMS_DEFER_CONF="/etc/dkms/framework.conf.d/zz-${PKG_NAME}-defer-initramfs.conf"
-# Keeps galaxybook_fan out of dracut initramfs images (see keep_out_of_initramfs)
-DRACUT_CONF="/etc/dracut.conf.d/${PKG_NAME}.conf"
-# Fedora: share the akmods key and DKMS config with Andy's fixes (same file,
-# same format as webcam-fix-book5), so there's only ever one key to enrol
-AKMODS_CERT="/etc/pki/akmods/certs/public_key.der"
-AKMODS_KEY="/etc/pki/akmods/private/private_key.priv"
-AKMODS_CONF="/etc/dkms/framework.conf.d/akmods-keys.conf"
-
-# Login-time "still needed?" check - names follow the other Galaxy Book fixes
-CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-check.sh"
-USER_CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-user-check.sh"
-PARSER_DIR="/usr/local/lib/samsung-galaxybook/fan"
-MONITOR_SVC="samsung-galaxybook-fan-monitor.service"
-USER_CHECK_SVC="samsung-galaxybook-fan-user-check.service"
-USER_CHECK_TIMER="samsung-galaxybook-fan-user-check.timer"
-POLKIT_RULE="/etc/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules"
-SESSION_HELPER_TARGET="/etc/systemd/user/samsung-galaxybook-session.target"
-SESSION_HELPER_SCRIPT="/usr/local/bin/samsung-galaxybook-session-start.sh"
-SESSION_HELPER_AUTOSTART="/etc/xdg/autostart/samsung-galaxybook-session.desktop"
-SESSION_HELPER_USERS="/etc/samsung-galaxybook/session-helper.d"
-ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
 
 # Oldest kernel the module has been build-tested against (6.8 to 7.0 all build
 # cleanly); anything able to run a Lunar Lake Book 5 is newer than this.
 MIN_KERNEL_MAJOR=6
 MIN_KERNEL_MINOR=8
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODULE_SRC="$SCRIPT_DIR/module"   # galaxybook_fan.c, Makefile, dkms.conf (what DKMS builds)
-LIB_SRC="$SCRIPT_DIR/lib"         # dsdt-fan-config.py, samsung-galaxybook-fan-check.sh, models.sh
-# Which laptops: BOOK5_MODELS (the Galaxy Book 5 series) and CONFIRMED_MODELS
-# (reported working). The DSDT check still decides for each machine.
-# shellcheck source=lib/models.sh
-source "$LIB_SRC/models.sh" || { echo "lib/models.sh missing from ${SCRIPT_DIR}" >&2; exit 1; }
+MODULE_SRC="$SCRIPT_DIR/module"   # galaxybook_fan.c, Makefile, dkms.conf, gen-config.sh (what DKMS builds)
+LIB_SRC="$SCRIPT_DIR/lib"         # the helpers below, the DSDT parser, the login check, the command
+# Names and paths (shared with uninstall.sh, the command and the login check),
+# which laptops (BOOK5_MODELS, CONFIRMED_MODELS) and the DKMS helpers
+GBFAN_LAYOUT=clone       # install.sh always installs the clone layout (fanpaths.sh)
+for _f in fanpaths.sh models.sh fan-dkms.sh; do
+    # shellcheck disable=SC1090
+    source "$LIB_SRC/$_f" || { echo "lib/$_f missing from ${SCRIPT_DIR}" >&2; exit 1; }
+done
+SRC_DIR="/usr/src/${PKG_NAME}-${PKG_VERSION}"
 FORCE=0
 CHECK_ONLY=0
 TEST_NATIVE=0
@@ -149,7 +122,7 @@ check_kernel() {
 }
 
 check_model() {
-    local vendor product model m
+    local vendor product model
     vendor="$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)"
     product="$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)"
 
@@ -238,9 +211,10 @@ derive_config() {
         fail "iasl couldn't disassemble the DSDT"
     fi
 
+    # Shown and checked here; DKMS writes the module's config itself, with the
+    # same parser, before every build (module/gen-config.sh)
     summary="$(python3 -I "$LIB_SRC/dsdt-fan-config.py" \
-        --dsl "$WORK_DIR/dsdt.dsl" --product "$PRODUCT" \
-        --out "$WORK_DIR/galaxybook_fan_config.h" 2>&1)"
+        --dsl "$WORK_DIR/dsdt.dsl" --product "$PRODUCT" 2>&1)"
     rc=$?
     if [[ $rc -ne 0 ]]; then
         echo "$summary" | sed 's/^/        /' >&2
@@ -509,41 +483,8 @@ setup_signing() {
 # ---------------------------------------------------------------------------
 # DKMS build + install
 # ---------------------------------------------------------------------------
-dkms_remove_all() {
-    # Every registered version, removed in the module/version form current
-    # DKMS expects. /var/lib/dkms/<pkg>/<version> holds one dir per version.
-    local d v
-    for d in /var/lib/dkms/"$PKG_NAME"/*/; do
-        v="$(basename "$d")"
-        [[ -L "${d%/}" || "$v" == kernel-* || "$v" == "source" || "$v" == "*" ]] && continue
-        info "Removing ${PKG_NAME}/${v} from DKMS"
-        dkms remove "${PKG_NAME}/${v}" --all || true
-    done
-    # Anything DKMS couldn't remove (half-added tree, etc.)
-    rm -rf /var/lib/dkms/"$PKG_NAME"
-}
+# gbfan_dkms_remove_all and gbfan_dkms_defer_initramfs are in lib/fan-dkms.sh
 
-# ---------------------------------------------------------------------------
-# Initramfs handling - same approach as fnkeys-fix-book5.
-# Some distros (Fedora) set post_transaction in DKMS's config to rebuild every
-# kernel's initramfs after each DKMS operation, which takes minutes. This
-# module is never in the initramfs (it loads later via modules-load.d), so
-# suspend that for this script's own DKMS steps; the EXIT trap removes the
-# drop-in again even if the script fails. DKMS's own setting is untouched.
-# ---------------------------------------------------------------------------
-defer_initramfs() {
-    if grep -qs '^[[:space:]]*post_transaction=' /etc/dkms/framework.conf \
-            || grep -rqs '^[[:space:]]*post_transaction=' /etc/dkms/framework.conf.d/; then
-        mkdir -p "$(dirname "$DKMS_DEFER_CONF")"
-        echo 'post_transaction=""' > "$DKMS_DEFER_CONF"
-        info "DKMS's initramfs rebuild suspended while installing (galaxybook_fan isn't in the initramfs)"
-    fi
-}
-
-# Tell dracut never to pack this module into an initramfs. Otherwise dracut's
-# host-only mode can include it if it's loaded when a new initramfs is built,
-# and then a later reinstall would leave a stale copy there - which is exactly
-# what deferring the rebuild above relies on not happening.
 keep_out_of_initramfs() {
     command -v dracut >/dev/null 2>&1 || return 0
     mkdir -p "$(dirname "$DRACUT_CONF")"
@@ -579,16 +520,27 @@ install_module() {
     if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
         info "Removing previous ${PKG_NAME} DKMS install"
         modprobe -r "$MOD_NAME" 2>/dev/null || true
-        dkms_remove_all
+        gbfan_dkms_remove_all
     fi
     rm -rf /usr/src/"${PKG_NAME}"-*
 
     mkdir -p "$SRC_DIR"
-    cp "$MODULE_SRC"/galaxybook_fan.c "$MODULE_SRC"/Makefile "$MODULE_SRC"/dkms.conf "$SRC_DIR"/ \
+    # No galaxybook_fan_config.h: DKMS's PRE_BUILD (gen-config.sh) writes it
+    # from this machine's DSDT before every build, with the parser and model
+    # list copied here - so a new kernel or 'galaxybook-fan rebuild' after a
+    # BIOS update always uses the current firmware
+    cp "$MODULE_SRC"/galaxybook_fan.c "$MODULE_SRC"/Makefile "$MODULE_SRC"/dkms.conf \
+       "$MODULE_SRC"/gen-config.sh "$LIB_SRC"/dsdt-fan-config.py "$LIB_SRC"/models.sh "$SRC_DIR"/ \
         || fail "Couldn't copy module source to ${SRC_DIR}"
-    # The machine-specific config replaces the repo's 940XHA default
-    cp "$WORK_DIR/galaxybook_fan_config.h" "$SRC_DIR"/ \
-        || fail "Couldn't copy the generated config to ${SRC_DIR}"
+    chmod 755 "$SRC_DIR/gen-config.sh"
+
+    # --force: let gen-config.sh build on this machine on later kernels too
+    if [[ $FORCE -eq 1 ]]; then
+        mkdir -p "$GBFAN_ETC" && touch "$FORCE_FLAG"
+        info "--force: recorded in ${FORCE_FLAG}, so DKMS builds here on later kernels too"
+    else
+        rm -f "$FORCE_FLAG"; rmdir "$GBFAN_ETC" 2>/dev/null || true
+    fi
 
     info "Building with DKMS (this takes a few seconds)"
     dkms add -m "$PKG_NAME" -v "$PKG_VERSION" >/dev/null || fail "dkms add failed"
@@ -600,6 +552,9 @@ install_module() {
         if [[ $MOK_PENDING -eq 1 && "$st" == *installed* ]]; then
             info "Module installed; it can't load until the signing key is enrolled (expected)"
         else
+            local reason
+            reason="$(gbfan_dkms_build_reason "$PKG_VERSION" || true)"
+            [[ -n "$reason" ]] && warn "${reason}"
             fail "dkms install failed - see /var/lib/dkms/${PKG_NAME}/${PKG_VERSION}/build/make.log"
         fi
     fi
@@ -727,9 +682,18 @@ SESSDESKTOPEOF
 install_monitor() {
     install -m 755 -o root -g root "$LIB_SRC/samsung-galaxybook-fan-check.sh" "$CHECK_SCRIPT" \
         || fail "Couldn't install ${CHECK_SCRIPT}"
-    mkdir -p "$PARSER_DIR"
-    install -m 644 -o root -g root "$LIB_SRC/dsdt-fan-config.py" "$PARSER_DIR/" \
-        || fail "Couldn't install the DSDT parser to ${PARSER_DIR}"
+    mkdir -p "$GBFAN_LIBDIR"
+    local f
+    for f in dsdt-fan-config.py fanpaths.sh models.sh fan-dkms.sh; do
+        install -m 644 -o root -g root "$LIB_SRC/$f" "$GBFAN_LIBDIR/" \
+            || fail "Couldn't install ${f} to ${GBFAN_LIBDIR}"
+    done
+    # The "will it work?" check, as one file (sudo galaxybook-fan check)
+    bash "$SCRIPT_DIR/tools/build-check-script.sh" "$GBFAN_LIBDIR/check-galaxybook-fan.sh" "$PKG_VERSION" >/dev/null \
+        || fail "Couldn't build check-galaxybook-fan.sh"
+    install -D -m 755 -o root -g root "$LIB_SRC/galaxybook-fan" "$GBFAN_CMD" \
+        || fail "Couldn't install ${GBFAN_CMD}"
+    ok "Command: galaxybook-fan (status, check, rebuild, test-native)"
 
     cat > "/etc/systemd/system/${MONITOR_SVC}" <<EOF
 [Unit]
@@ -791,7 +755,7 @@ EOF
     ok "Monitor: ${MONITOR_SVC} + polkit rule"
 
     # Record the kernel/BIOS this install was made for
-    "$CHECK_SCRIPT" --record-state "$SCRIPT_DIR" || warn "Couldn't record the install state"
+    "$CHECK_SCRIPT" --record-state "$SCRIPT_DIR" clone || warn "Couldn't record the install state"
 
     # User timer for the logged-in user
     local user uid udir
@@ -950,6 +914,11 @@ if [[ ! -d /run/systemd/system && $CHECK_ONLY -eq 0 && $TEST_NATIVE -eq 0 ]]; th
     fail "systemd is not running (e.g. MX Linux booted with SysVinit). galaxybook-fan needs systemd - reboot, choose the systemd boot option and run this installer again."
 fi
 
+# The rpm / deb / Arch package and install.sh never both install the fix
+if gbfan_package_installed && [[ $CHECK_ONLY -eq 0 && $TEST_NATIVE -eq 0 ]]; then
+    fail "The galaxybook-fan package is installed - update it with your package manager instead (or remove the package before using install.sh)."
+fi
+
 if [[ $TEST_NATIVE -eq 1 ]]; then
     [[ -x "$LIB_SRC/samsung-galaxybook-fan-check.sh" ]] || chmod +x "$LIB_SRC/samsung-galaxybook-fan-check.sh"
     info "Testing whether the stock acpi-fan driver can read the fan by itself."
@@ -979,7 +948,7 @@ fi
 
 install_deps
 setup_signing
-defer_initramfs
+gbfan_dkms_defer_initramfs
 keep_out_of_initramfs
 install_module
 refresh_initramfs_if_needed
@@ -1005,6 +974,7 @@ if [[ $MOK_PENDING -eq 1 ]]; then
 else
     ok "Done. Check with: sensors   (or Mission Center / System Monitor)"
     echo "    Expected values: ${EXPECTED_SPEEDS:-see above}"
-    echo "    After a BIOS update, re-run this installer - the module won't load until you do."
+    echo "    After a BIOS update: sudo galaxybook-fan rebuild   (the module won't load until you do)"
+    echo "    Any time: galaxybook-fan status"
 fi
 echo

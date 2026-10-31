@@ -12,20 +12,33 @@
 #       Run by samsung-galaxybook-fan-monitor.service (root) at login when
 #       the kernel or BIOS version changed, or the module isn't loaded.
 #       Decides what changed and writes a notification for the user check
-#       script to show. It never installs or removes anything itself.
+#       script to show. It never installs or removes anything itself; the
+#       notifications name the command to run (galaxybook-fan rebuild, …).
 #
-# Installed to /usr/local/bin by galaxybook-fan's install.sh; also run
-# straight from the repo by "install.sh --test-native".
+#   --record-state [INSTALL_DIR [METHOD]]
+#       Remember this kernel and BIOS (and where the fix was installed from:
+#       METHOD is "clone", the default, or "package").
+#
+# Installed by galaxybook-fan's install.sh (/usr/local/bin) or package
+# (/usr/lib/galaxybook-fan); also run straight from the repo by
+# "install.sh --test-native".
 # ============================================================================
 set -uo pipefail
 
-MOD_NAME="galaxybook_fan"
-ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
-STATE_DIR="/var/lib/samsung-galaxybook"
-STATE_FILE="${STATE_DIR}/fan-state"
-STATUS_DIR="/run/samsung-galaxybook"
-STATUS_FILE="${STATUS_DIR}/fan-status"
-PARSER="/usr/local/lib/samsung-galaxybook/fan/dsdt-fan-config.py"
+# Names and paths: the installed fanpaths.sh, or the clone's lib/ copy
+_here="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+for _d in "$_here" /usr/lib/galaxybook-fan /usr/local/lib/samsung-galaxybook/fan; do
+    # shellcheck source=fanpaths.sh
+    [[ -f "$_d/fanpaths.sh" ]] && { source "$_d/fanpaths.sh"; break; }
+done
+# Fallbacks, for an older install that has no fanpaths.sh yet
+MOD_NAME="${MOD_NAME:-galaxybook_fan}"
+ACPI_FAN_DRV="${ACPI_FAN_DRV:-/sys/bus/platform/drivers/acpi-fan}"
+STATE_DIR="${STATE_DIR:-/var/lib/samsung-galaxybook}"
+STATE_FILE="${STATE_FILE:-${STATE_DIR}/fan-state}"
+STATUS_DIR="${STATUS_DIR:-/run/samsung-galaxybook}"
+STATUS_FILE="${STATUS_FILE:-${STATUS_DIR}/fan-status}"
+PARSER="${PARSER:-/usr/local/lib/samsung-galaxybook/fan/dsdt-fan-config.py}"
 TITLE="Samsung Galaxy Book — Fan Speed Fix"
 TAG="samsung-galaxybook-fan-monitor"
 
@@ -139,20 +152,29 @@ record_state() {
         echo "KVER=$(uname -r)"
         echo "BIOS=$(cat /sys/class/dmi/id/bios_version 2>/dev/null)"
         echo "INSTALL_DIR=${INSTALL_DIR:-}"
+        echo "INSTALL_METHOD=${INSTALL_METHOD:-clone}"
     } > "$STATE_FILE.tmp" && chmod 644 "$STATE_FILE.tmp" && mv -f "$STATE_FILE.tmp" "$STATE_FILE"
 }
 
+# What to do to remove the fix, for how it was installed
+uninstall_hint() {
+    if [[ "${INSTALL_METHOD:-clone}" == package ]]; then
+        echo "Remove the galaxybook-fan package to uninstall it."
+    else
+        echo "Run 'sudo ./uninstall.sh' in ${INSTALL_DIR:-the galaxybook-fan folder} to remove it."
+    fi
+}
+
 monitor() {
-    local cur_k cur_b fst verdict where
+    local cur_k cur_b fst verdict
     rm -f "$STATUS_FILE"
     [[ -f "/etc/modules-load.d/${MOD_NAME}.conf" ]] || exit 0    # fix not installed
 
-    KVER="" BIOS="" INSTALL_DIR=""
+    KVER="" BIOS="" INSTALL_DIR="" INSTALL_METHOD=""
     # shellcheck disable=SC1090
     [[ -f "$STATE_FILE" ]] && source "$STATE_FILE"
     cur_k="$(uname -r)"
     cur_b="$(cat /sys/class/dmi/id/bios_version 2>/dev/null)"
-    where="${INSTALL_DIR:-extras/galaxybook-fan}"
 
     # 1. BIOS changed: look at the new firmware's _FST
     if [[ "$cur_b" != "$BIOS" ]]; then
@@ -161,7 +183,7 @@ monitor() {
         case "$fst" in
             fixed)
                 notify_user dialog-information "$TITLE" \
-                    "Your BIOS update ($cur_b) fixed Samsung's fan status method, so the fan speed should now work without this fix. Run 'sudo ./uninstall.sh' in $where to remove it."
+                    "Your BIOS update ($cur_b) fixed Samsung's fan status method, so the fan speed should now work without this fix. $(uninstall_hint)"
                 record_state ;;
             broken)
                 if [[ -d /sys/module/$MOD_NAME ]]; then
@@ -169,13 +191,13 @@ monitor() {
                     record_state
                 else
                     # The module refuses to load with a changed DSDT. Keep
-                    # reminding at each login until the installer is re-run.
+                    # reminding at each login until it's rebuilt.
                     notify_user dialog-warning "$TITLE" \
-                        "Your BIOS was updated ($cur_b), so the fan speed fix is paused until it's re-derived for the new firmware. Run 'sudo ./install.sh' in $where."
+                        "Your BIOS was updated ($cur_b), so the fan speed fix is paused until it's rebuilt for the new firmware. Run: sudo galaxybook-fan rebuild"
                 fi ;;
             *)
                 notify_user dialog-warning "$TITLE" \
-                    "Your BIOS update ($cur_b) changed the fan firmware in a way this fix doesn't recognise. Run 'sudo ./install.sh --test-native' in $where to see whether fan speed now works on its own."
+                    "Your BIOS update ($cur_b) changed the fan firmware in a way this fix doesn't recognise. Run 'sudo galaxybook-fan test-native' to see whether fan speed now works on its own."
                 record_state ;;
         esac
         return
@@ -184,7 +206,7 @@ monitor() {
     # 2. Module should be loaded on every kernel
     if [[ ! -d /sys/module/$MOD_NAME ]]; then
         notify_user dialog-error "$TITLE" \
-            "The fan speed fix isn't active on kernel $cur_k - the DKMS build may have failed, or (with Secure Boot) its signing key isn't enrolled. Run 'sudo ./install.sh' in $where."
+            "The fan speed fix isn't active on kernel $cur_k - the DKMS build may have failed, or (with Secure Boot) its signing key isn't enrolled. Run: sudo galaxybook-fan rebuild"
         return
     fi
 
@@ -195,7 +217,7 @@ monitor() {
         case "$verdict" in
             works)
                 notify_user dialog-information "$TITLE" \
-                    "Kernel $cur_k now reads the fan speed natively, so this fix is no longer needed. Run 'sudo ./uninstall.sh' in $where to remove it."
+                    "Kernel $cur_k now reads the fan speed natively, so this fix is no longer needed. $(uninstall_hint)"
                 record_state ;;
             broken|no-device)
                 record_state ;;
@@ -218,8 +240,8 @@ case "${1:-}" in
         native_test "$wait" ;;
     --record-state)
         [[ $EUID -eq 0 ]] || { echo "Run as root" >&2; exit 1; }
-        INSTALL_DIR="${2:-}" record_state ;;
+        INSTALL_DIR="${2:-}" INSTALL_METHOD="${3:-clone}" record_state ;;
     *)
-        echo "Usage: $0 --test-native [--wait SECS] | --monitor | --record-state [INSTALL_DIR]" >&2
+        echo "Usage: $0 --test-native [--wait SECS] | --monitor | --record-state [INSTALL_DIR [METHOD]]" >&2
         exit 2 ;;
 esac

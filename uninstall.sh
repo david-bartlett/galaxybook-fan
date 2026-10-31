@@ -10,30 +10,27 @@
 # ============================================================================
 set -uo pipefail
 
-PKG_NAME="galaxybook-fan"
-MOD_NAME="galaxybook_fan"
-MODLOAD_CONF="/etc/modules-load.d/${MOD_NAME}.conf"
-MODPROBE_CONF="/etc/modprobe.d/${MOD_NAME}.conf"
-UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"   # old versions only
-UNBIND_SERVICE="/etc/systemd/system/galaxybook-acpi-fan-unbind.service"
-DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
-ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
-CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-check.sh"
-USER_CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-user-check.sh"
-PARSER_DIR="/usr/local/lib/samsung-galaxybook/fan"
-MONITOR_SVC="samsung-galaxybook-fan-monitor.service"
-USER_CHECK_SVC="samsung-galaxybook-fan-user-check.service"
-USER_CHECK_TIMER="samsung-galaxybook-fan-user-check.timer"
-POLKIT_RULE="/etc/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Names and paths shared with install.sh (clone layout), and the DKMS helpers
+GBFAN_LAYOUT=clone
+for _f in fanpaths.sh fan-dkms.sh; do
+    # shellcheck disable=SC1090
+    source "$SCRIPT_DIR/lib/$_f" || { echo "lib/$_f missing from ${SCRIPT_DIR}" >&2; exit 1; }
+done
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
 info() { echo -e "${BLUE}[INFO]${NC}  $*"; }
 ok()   { echo -e "${GREEN}[ OK ]${NC}  $*"; }
 fail() { echo -e "${RED}[FAIL]${NC}  $*"; exit 1; }
+warn() { echo -e "\033[1;33m[WARN]${NC}  $*"; }
 
 if [[ $EUID -ne 0 ]]; then
     echo "Please run as root: sudo ./uninstall.sh"
     exit 1
+fi
+
+if gbfan_package_installed; then
+    fail "The galaxybook-fan package is installed - remove it with your package manager instead (e.g. sudo dnf remove galaxybook-fan)."
 fi
 
 echo
@@ -46,34 +43,23 @@ if [[ -d /sys/module/$MOD_NAME ]]; then
     modprobe -r "$MOD_NAME" && ok "Unloaded ${MOD_NAME}" || fail "Couldn't unload ${MOD_NAME}"
 fi
 
-# Same as install.sh / fnkeys-fix-book5: suspend DKMS's post_transaction
-# initramfs rebuild (Fedora runs dracut --regenerate-all there) for this
-# script's DKMS steps - galaxybook_fan is never in the initramfs. The trap
-# removes the drop-in again even if the script fails.
-DKMS_DEFER_CONF="/etc/dkms/framework.conf.d/zz-${PKG_NAME}-defer-initramfs.conf"
-trap 'rm -f "$DKMS_DEFER_CONF"' EXIT
-if grep -qs '^[[:space:]]*post_transaction=' /etc/dkms/framework.conf \
-        || grep -rqs '^[[:space:]]*post_transaction=' /etc/dkms/framework.conf.d/; then
-    mkdir -p "$(dirname "$DKMS_DEFER_CONF")"
-    echo 'post_transaction=""' > "$DKMS_DEFER_CONF"
-fi
+# Suspend DKMS's post_transaction initramfs rebuild (Fedora runs dracut
+# --regenerate-all there) for this script's DKMS steps - galaxybook_fan is
+# never in the initramfs. The trap puts it back even if the script fails.
+trap gbfan_dkms_resume_initramfs EXIT
+gbfan_dkms_defer_initramfs
 
 if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
-    # Remove every registered version in the module/version form current DKMS expects
-    for d in /var/lib/dkms/"$PKG_NAME"/*/; do
-        v="$(basename "$d")"
-        [[ -L "${d%/}" || "$v" == kernel-* || "$v" == "source" || "$v" == "*" ]] && continue
-        info "Removing ${PKG_NAME}/${v} from DKMS"
-        dkms remove "${PKG_NAME}/${v}" --all || true
-    done
-    rm -rf /var/lib/dkms/"$PKG_NAME"
+    gbfan_dkms_remove_all
     ok "Removed from DKMS"
 fi
 rm -rf /usr/src/"${PKG_NAME}"-* && ok "Removed source from /usr/src"
 
-for f in "$MODLOAD_CONF" "$MODPROBE_CONF" "$DKMS_SIGN_CONF" "/etc/dracut.conf.d/${PKG_NAME}.conf"; do
+for f in "$MODLOAD_CONF" "$MODPROBE_CONF" "$DKMS_SIGN_CONF" "$DRACUT_CONF" "$FORCE_FLAG"; do
     [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
 done
+rmdir "$GBFAN_ETC" 2>/dev/null || true
+[[ -f "$GBFAN_CMD" ]] && rm -f "$GBFAN_CMD" && ok "Removed the galaxybook-fan command"
 
 if [[ -f "$UNBIND_SERVICE" ]]; then
     systemctl disable "$(basename "$UNBIND_SERVICE")" >/dev/null 2>&1 || true
@@ -105,7 +91,7 @@ removed_monitor=0
 for f in "/etc/systemd/system/${MONITOR_SVC}" "$POLKIT_RULE" "$CHECK_SCRIPT" "$USER_CHECK_SCRIPT"; do
     [[ -f "$f" ]] && rm -f "$f" && removed_monitor=1
 done
-rm -rf "$PARSER_DIR"
+rm -rf "$GBFAN_LIBDIR"
 rmdir /usr/local/lib/samsung-galaxybook 2>/dev/null || true
 rm -f /var/lib/samsung-galaxybook/fan-state /run/samsung-galaxybook/fan-status
 systemctl daemon-reload
@@ -113,7 +99,6 @@ systemctl daemon-reload
 
 # Shared graphical session helper - only if this fix registered for it, and
 # only removed when no other fix still uses it
-SESSION_HELPER_USERS="/etc/samsung-galaxybook/session-helper.d"
 if [[ -f "$SESSION_HELPER_USERS/galaxybook-fan" ]]; then
     rm -f "$SESSION_HELPER_USERS/galaxybook-fan"
     _session_helper_in_use=false

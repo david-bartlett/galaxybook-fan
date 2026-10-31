@@ -3,7 +3,17 @@
 >
 > **Already installed?** Run the new version's `install.sh` the same way: it replaces the old version.
 
-## Install
+## 1. Check your laptop first
+
+Download **[check-galaxybook-fan.sh](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/check-galaxybook-fan.sh)** (also in the files below) and run it. It only reads, and installs nothing:
+
+```bash
+sudo bash check-galaxybook-fan.sh
+```
+
+It says whether galaxybook-fan will work on your laptop, and whether your model is already confirmed. If your model isn't confirmed yet, install the fix and run it again: it gives you a short report to post as a [Works on my model](https://github.com/david-bartlett/galaxybook-fan/issues/new?template=works_on.yml) issue.
+
+## 2. Install
 
 Download **Source code (tar.gz)** below, then in the folder you downloaded it to (usually Downloads):
 

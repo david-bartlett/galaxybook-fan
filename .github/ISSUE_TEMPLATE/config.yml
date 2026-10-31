@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Models already confirmed working
+    url: https://github.com/david-bartlett/galaxybook-fan#will-it-work-on-my-laptop
+    about: Check this list first. If your model is there, there's no need to report it. check-galaxybook-fan.sh tells you too.

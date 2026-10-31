@@ -1,0 +1,68 @@
+name: Bug report
+description: Something doesn't work — the check, installing, the fan speed, notifications after an update…
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. The details below help work out what's going on without a round of questions.
+        Please paste command output as text, not screenshots.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead? Include any error message exactly as shown.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it go wrong?
+      multiple: true
+      options:
+        - check-galaxybook-fan.sh
+        - Installing (install.sh or a package)
+        - Secure Boot / signing the module
+        - No fan speed, or a wrong one
+        - A notification after a kernel or BIOS update
+        - Uninstalling
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Laptop
+      description: The name and model number, from the sticker underneath or `cat /sys/class/dmi/id/product_name`.
+      placeholder: e.g. Galaxy Book 5 Pro 14" (940XHA)
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Distro and version
+      description: "`grep PRETTY_NAME /etc/os-release`, and the kernel (`uname -r`)."
+      placeholder: e.g. Ubuntu 26.04 LTS, kernel 7.0.0-14-generic
+    validations:
+      required: true
+
+  - type: textarea
+    id: check
+    attributes:
+      label: Output of check-galaxybook-fan.sh
+      description: "`sudo bash check-galaxybook-fan.sh` (from the [latest release](https://github.com/david-bartlett/galaxybook-fan/releases/latest)), all of it."
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Other output
+      description: "If it's about installing or the fan speed: the installer's output, and `sudo dmesg | grep -i galaxybook_fan`."
+      render: text

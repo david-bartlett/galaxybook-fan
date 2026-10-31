@@ -61,18 +61,17 @@ SESSION_HELPER_AUTOSTART="/etc/xdg/autostart/samsung-galaxybook-session.desktop"
 SESSION_HELPER_USERS="/etc/samsung-galaxybook/session-helper.d"
 ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
 
-# Galaxy Book 5 series - the same list as fnkeys-fix-book5. TESTED_MODELS
-# have been run on real hardware; the rest of the series is expected to share
-# the firmware bug, and the DSDT check decides for each machine anyway.
-BOOK5_MODELS=("940XHA" "960XHA" "960QHA" "750XHD" "754XHD" "750QHA" "754QHA")
-TESTED_MODELS=("940XHA")
 # Oldest kernel the module has been build-tested against (6.8 to 7.0 all build
 # cleanly); anything able to run a Lunar Lake Book 5 is newer than this.
 MIN_KERNEL_MAJOR=6
 MIN_KERNEL_MINOR=8
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_SRC="$SCRIPT_DIR/module"   # galaxybook_fan.c, Makefile, dkms.conf (what DKMS builds)
-LIB_SRC="$SCRIPT_DIR/lib"         # dsdt-fan-config.py, samsung-galaxybook-fan-check.sh
+LIB_SRC="$SCRIPT_DIR/lib"         # dsdt-fan-config.py, samsung-galaxybook-fan-check.sh, models.sh
+# Which laptops: BOOK5_MODELS (the Galaxy Book 5 series) and CONFIRMED_MODELS
+# (reported working). The DSDT check still decides for each machine.
+# shellcheck source=lib/models.sh
+source "$LIB_SRC/models.sh" || { echo "lib/models.sh missing from ${SCRIPT_DIR}" >&2; exit 1; }
 FORCE=0
 CHECK_ONLY=0
 TEST_NATIVE=0
@@ -161,21 +160,17 @@ check_model() {
     PRODUCT="$product"
 
     # Same normalisation as fnkeys-fix-book5: upper-case, drop a leading "NP"
-    model="${product^^}"; model="${model#NP}"
+    model="$(gbfan_model "$product")"
 
     BOOK5=0
-    for m in "${BOOK5_MODELS[@]}"; do
-        [[ "$model" == "$m" ]] && BOOK5=1
-    done
+    gbfan_in_list "$model" "${BOOK5_MODELS[@]}" && BOOK5=1
 
     if [[ $BOOK5 -eq 1 ]]; then
-        local tested=0
-        for m in "${TESTED_MODELS[@]}"; do [[ "$model" == "$m" ]] && tested=1; done
-        if [[ $tested -eq 1 ]]; then
-            ok "Model: ${product} (Galaxy Book 5, tested)"
+        if gbfan_in_list "$model" "${CONFIRMED_MODELS[@]}"; then
+            ok "Model: ${product} (Galaxy Book 5, confirmed working)"
         else
             ok "Model: ${product} (Galaxy Book 5)"
-            info "Not tested on this model yet - the DSDT check below confirms it has the same firmware bug"
+            info "Not confirmed on this model yet - the DSDT check below confirms it has the same firmware bug"
         fi
         return
     fi

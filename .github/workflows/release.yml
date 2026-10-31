@@ -1,6 +1,7 @@
 # Makes the GitHub release for a version, with the CHANGELOG.md section as its
-# notes (.github/release-notes.sh). galaxybook-fan has no packages yet: users
-# download the source code GitHub attaches to every release and run install.sh.
+# notes (.github/release-notes.sh), and attaches check-galaxybook-fan.sh (built
+# by tools/build-check-script.sh). No packages yet: users download the source
+# code GitHub attaches to every release and run install.sh.
 #
 # Runs when a tag v<VERSION> is pushed (David's release tool does this), or by
 # hand for an existing tag: Actions → Release → Run workflow.
@@ -42,15 +43,22 @@ jobs:
           grep -q "^## $version" CHANGELOG.md \
             || { echo "::error::CHANGELOG.md has no '## $version' section"; exit 1; }
 
+      - name: Build check-galaxybook-fan.sh
+        # One file with lib/models.sh and the DSDT parser built in, so users can
+        # check their laptop before installing (README, release page).
+        run: bash tools/build-check-script.sh check-galaxybook-fan.sh "${TAG#v}"
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${TAG#v}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; leaving it as it is."
+            echo "Release $TAG already exists; only (re)attaching check-galaxybook-fan.sh."
+            gh release upload "$TAG" check-galaxybook-fan.sh --clobber --repo "$GITHUB_REPOSITORY"
             exit 0
           fi
           bash .github/release-notes.sh "$version" > notes.md
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "galaxybook-fan $version" --notes-file notes.md
+            --title "galaxybook-fan $version" --notes-file notes.md \
+            check-galaxybook-fan.sh

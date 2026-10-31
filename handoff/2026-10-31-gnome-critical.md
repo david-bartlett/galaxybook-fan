@@ -1,6 +1,6 @@
 # GNOME: keep the new-version notification on screen
 
-PR #<n> · Claude · 2026-10-31
+PR #32 · Claude · 2026-10-31
 
 ## What changed
 - `lib/notify-update.sh`: on GNOME (`XDG_CURRENT_DESKTOP` has GNOME, not Budgie: `$gnome`) the notification gets `-u critical`; the GNOME click action (#27) uses the same test. Other desktops unchanged (`-t 0` only).

@@ -123,7 +123,9 @@ configure() {
     for k in $( { printf '%s\n' "${held[@]}"; gbfan_dkms_built_only "$v"; } | sort -u); do
         [[ "$k" == "$kver" ]] && continue
         gbfan_has_headers "$k" || continue
-        if gbfan_dkms_install "$v" "$k" >/dev/null 2>&1; then
+        gbfan_dkms_install "$v" "$k" >/dev/null 2>&1
+        # by what DKMS now says, not its exit status (see gbfan_dkms_install)
+        if gbfan_dkms_installed_for "$v" "$k"; then
             info "also installed for ${k}"
         else
             warn "couldn't install the module for ${k}: 'sudo galaxybook-fan rebuild' after booting it"

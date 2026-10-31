@@ -116,20 +116,30 @@ gbfan_dkms_forget() {
 
 # gbfan_dkms_install VERSION KERNEL - 'dkms install', its output on stdout.
 # If DKMS refuses because a galaxybook_fan module file no DKMS version owns
-# is already there ("already installed (unversioned module)", Debian 13's
-# DKMS: an old version DKMS couldn't remove, see gbfan_dkms_forget), that file
-# is an old copy of this module: remove it and try once more.
+# is already there ("Module <file> already installed (unversioned module)",
+# Debian 13's DKMS: an old version DKMS couldn't remove, see
+# gbfan_dkms_forget), that file is an old copy of this module: remove it and
+# try once more. Looked for in the output whatever DKMS returns: MX's dkms
+# wrapper adds every kernel to each install, refuses some and still returns 0
+# - so the files can be for other kernels too.
 gbfan_dkms_install() {
-    local v="$1" k="$2" out rc f
+    local v="$1" k="$2" out rc f removed=0
     out="$(dkms install -m "$PKG_NAME" -v "$v" -k "$k" 2>&1)"; rc=$?
-    if [[ $rc -ne 0 && "$out" == *"unversioned module"* ]]; then
-        for f in /lib/modules/"$k"/updates/dkms/"$MOD_NAME".ko* /lib/modules/"$k"/extra/"$MOD_NAME".ko*; do
-            [[ -f "$f" ]] && rm -f "$f"
-        done
+    while read -r f; do
+        # only this module's own file, in a kernel's module folder
+        [[ "$f" == /lib/modules/*/"$MOD_NAME".ko* && -f "$f" ]] || continue
+        rm -f "$f" && removed=1
+    done < <(sed -n -E 's#.*Module (/lib/modules/[^ ]+) already installed \(unversioned module\).*#\1#p' <<<"$out")
+    if (( removed )); then
         out="$(dkms install -m "$PKG_NAME" -v "$v" -k "$k" 2>&1)"; rc=$?
     fi
     [[ -n "$out" ]] && printf '%s\n' "$out"
     return $rc
+}
+
+# gbfan_dkms_installed_for VERSION KERNEL - is VERSION installed for KERNEL?
+gbfan_dkms_installed_for() {
+    dkms status -m "$PKG_NAME" -v "$1" -k "$2" 2>/dev/null | grep -q ': installed'
 }
 
 # Kernels VERSION is built for but not installed for (e.g. DKMS refused to

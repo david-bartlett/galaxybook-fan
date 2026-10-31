@@ -15,5 +15,5 @@ PR #5 · Claude · 2026-10-31
 - Not tested here: a real install and uninstall.
 
 ## For the next person
-- **The release tool must update `module/dkms.conf`**, not `dkms.conf`. This is a matching samsung-galaxybook-dev-tools PR; merge both before the next release. With the old tool, a release stops before changing anything (it can't find the version line).
+- **The release tool must update `module/dkms.conf`**, not `dkms.conf`. That is samsung-galaxybook-dev-tools PR #15; merge both before the next release. With the old tool, a release stops before changing anything (it can't find the version line).
 - No LICENSE file yet: David to choose (the module is marked GPL-2.0).

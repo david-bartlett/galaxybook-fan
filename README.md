@@ -159,3 +159,6 @@ This removes everything the installer added and rebinds `acpi-fan`. No reboot is
 | `dsdt-fan-config.py` | derives and validates the config from a disassembled DSDT; `--status` reports whether `_FST` still has the bug |
 | `samsung-galaxybook-fan-check.sh` | the native test and the login-time monitor logic |
 | `install.sh` / `uninstall.sh` | as above |
+| `VERSION` | the release version (David's release tool keeps `dkms.conf` and `install.sh` in step with it) |
+| `CHANGELOG.md` | what changed in each release |
+| `PLAN.md`, `AGENTS.md`, `handoff/` | how the project works and how to contribute (changes go in as pull requests) |

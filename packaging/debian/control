@@ -1,0 +1,29 @@
+Source: galaxybook-fan
+Section: admin
+Priority: optional
+Maintainer: David Bartlett <22402006+david-bartlett@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://github.com/david-bartlett/galaxybook-fan
+Rules-Requires-Root: no
+
+Package: galaxybook-fan
+Architecture: all
+Depends: ${misc:Depends},
+         dkms,
+         make,
+         gcc,
+         acpica-tools,
+         python3,
+         kmod,
+         systemd,
+         polkitd | policykit-1,
+         libnotify-bin
+Recommends: mokutil
+Description: Fan speed for the Samsung Galaxy Book 5 (DKMS module)
+ Samsung's fan status method (_FST) is broken on Linux, so the stock acpi-fan
+ driver can't read the fan. galaxybook_fan is a small DKMS hwmon module that
+ reads the same EC field and applies the firmware's own table. Its config is
+ made by DKMS from this laptop's DSDT before every build. Galaxy Book 5 only.
+ .
+ Command: galaxybook-fan status | check | rebuild | test-native

@@ -30,7 +30,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 if gbfan_package_installed; then
-    fail "The galaxybook-fan package is installed - remove it with your package manager instead (e.g. sudo dnf remove galaxybook-fan)."
+    fail "The galaxybook-fan package is installed - remove it with your package manager instead (sudo dnf remove, sudo apt remove or sudo pacman -R galaxybook-fan)."
 fi
 
 echo

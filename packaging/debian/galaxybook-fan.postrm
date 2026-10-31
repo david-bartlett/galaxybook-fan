@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+case "$1" in
+    remove|purge|abort-install|abort-upgrade)
+        systemctl daemon-reload >/dev/null 2>&1 || true
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

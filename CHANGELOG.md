@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.7.0 — 2026-10-31
 
 - **New versions:** galaxybook-fan tells you once when a newer release is out, and `sudo galaxybook-fan update` installs it
 - Looked for 30 seconds after login and hourly while you stay logged in, on GitHub at most once a day, waiting up to 2 minutes for the network at login; told once per version, and nothing is said when GitHub can't be reached. The notification has no buttons, so it's the same on GNOME and KDE: it gives the command and the release's link

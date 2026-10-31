@@ -42,6 +42,8 @@ Requires:       systemd
 Requires:       curl
 Recommends:     mokutil
 Recommends:     xdg-utils
+# The new-version notification's buttons on GNOME (lib/notify-dbus.py)
+Recommends:     python3-gobject
 
 %description
 Fan speed reporting for the Samsung Galaxy Book 5 on Linux. Samsung's fan

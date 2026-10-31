@@ -9,16 +9,24 @@
 # lib/update-in-terminal.sh) and "What's new" (URL: the release page, after
 # which the notification is shown again, so "Update now" is still there). It
 # waits for a click, so update-check.sh starts it on its own (systemd-run)
-# rather than waiting for it. Without notify-send --action, or on desktops
-# that don't show buttons (GNOME), it's the same text with the command and
-# the link in it. On GNOME, clicking the notification itself also opens the
-# release page (its "default" action; only there, so other desktops don't
-# draw it as a third button). Same idea as fingerprint-fix-sdcp's
-# notify-update.sh.
+# rather than waiting for it. Without buttons it's the same text, with the
+# command and the link in it. On GNOME it's critical (so it stays), shown by
+# notify-dbus.py (notify-send drops its buttons there), and clicking the
+# notification itself also opens the release page (its "default" action;
+# only there, so other desktops don't draw it as a third button). Same idea
+# as fingerprint-fix-sdcp's notify-update.sh.
 # =============================================================================
 title="${1:?Usage: $0 TITLE MESSAGE URL}"; msg="${2:-}"; url="${3:-}"
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 args=(-t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update)
+# GNOME (Ubuntu's is ubuntu:GNOME; not Budgie, budgie:GNOME): it ignores -t 0
+# and slides a normal notification into its list after a few seconds; only a
+# critical one stays on screen until it's closed or clicked (as
+# fingerprint-fix-sdcp's does). Other desktops keep -t 0 alone.
+desk="${XDG_CURRENT_DESKTOP,,}"
+gnome=0
+[[ "$desk" == *gnome* && "$desk" != *budgie* ]] && gnome=1
+(( gnome )) && args+=(-u critical)
 
 # The user's terminal: the desktop's default where it says, else the usual one
 # for this desktop, else any installed. Prints the command to start one with
@@ -58,22 +66,49 @@ elif command -v gio >/dev/null 2>&1; then opener="gio open"
 fi
 
 term="$(find_terminal)"
-if notify-send --help 2>&1 | grep -q -- '--action'; then
-    actions=()
-    # Only offer "Update now" where a terminal can be opened for it
-    [[ -n "$term" && -x "$HERE/update-in-terminal.sh" ]] && actions+=(--action=update="Update now")
-    # ...and "What's new" only where the link can be opened
-    [[ -n "$url" && -n "$opener" ]] && actions+=(--action=whatsnew="What's new")
-    # GNOME usually shows no buttons, but clicking the notification sends its
-    # "default" action: make that "What's new" too (not "Update now", so a
-    # stray click only opens a web page), and say so. Only on GNOME (Ubuntu's
-    # is ubuntu:GNOME; not Budgie, budgie:GNOME, which shows the buttons):
-    # some other desktops draw "default" as a button of its own.
-    desk="${XDG_CURRENT_DESKTOP,,}"
-    if [[ "$desk" == *gnome* && "$desk" != *budgie* && -n "$url" && -n "$opener" ]]; then
-        actions+=(--action=default="What's new")
-        msg+=$'\n\nClick this notification to see what\'s new.'
-    fi
+
+# The buttons, as KEY=LABEL
+acts=()
+# Only offer "Update now" where a terminal can be opened for it
+[[ -n "$term" && -x "$HERE/update-in-terminal.sh" ]] && acts+=("update=Update now")
+# ...and "What's new" only where the link can be opened
+[[ -n "$url" && -n "$opener" ]] && acts+=("whatsnew=What's new")
+# GNOME: clicking the notification itself sends its "default" action: make
+# that "What's new" too (not "Update now", so a stray click only opens a web
+# page), and say so. Only on GNOME ($gnome above): some other desktops draw
+# "default" as a button of its own.
+if (( gnome )) && [[ -n "$url" && -n "$opener" ]]; then
+    acts+=("default=What's new")
+fi
+
+# How to show it with buttons: notify-send --action, or on GNOME
+# notify-dbus.py, straight over D-Bus - there notify-send (0.8.8, Ubuntu
+# 26.04) says "Actions are not supported" and drops them, although GNOME
+# shows them when asked directly. 2 = can't (no PyGObject): plain instead.
+way=""
+if (( gnome )) && [[ -f "$HERE/notify-dbus.py" ]] && command -v python3 >/dev/null 2>&1 \
+        && python3 -c 'import gi' 2>/dev/null; then
+    way=dbus
+elif notify-send --help 2>&1 | grep -q -- '--action'; then
+    way=notify-send
+fi
+[[ " ${acts[*]} " == *" default="* && -n "$way" ]] && msg+=$'\n\nClick this notification to see what\'s new.'
+
+# Show it and print the button pressed (nothing if it was closed)
+show() {
+    local a pairs=() opts=()
+    case "$way" in
+        dbus)
+            for a in "${acts[@]}"; do pairs+=("${a%%=*}" "${a#*=}"); done
+            python3 -I "$HERE/notify-dbus.py" 2 \
+                "Samsung Galaxy Book Fixes" system-software-update "$title" "$msg" "${pairs[@]}" ;;
+        notify-send)
+            for a in "${acts[@]}"; do opts+=("--action=$a"); done
+            notify-send "${args[@]}" "${opts[@]}" "$title" "$msg" 2>/dev/null ;;
+    esac
+}
+
+if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
     # "What's new" shouldn't take "Update now" away: desktops close a
     # notification when one of its buttons is pressed, so after opening the
     # page show it again - a new one, a moment later so it pops up after the
@@ -83,7 +118,13 @@ if notify-send --help 2>&1 | grep -q -- '--action'; then
     # never got through. Not --replace-id either: KDE then quietly updates
     # the one already gone instead of showing it.)
     for (( n = 0; n < 20; n++ )); do
-        choice="$(notify-send "${args[@]}" "${actions[@]}" "$title" "$msg" 2>/dev/null)"
+        choice="$(show)"; rc=$?
+        if [[ $way == dbus && $rc -eq 2 ]]; then
+            # D-Bus didn't work after all: the plain notification, without
+            # the line about clicking it
+            notify-send "${args[@]}" "$title" "${msg%$'\n\nClick this notification'*}"
+            break
+        fi
         case "$choice" in
             update)
                 # $term is a command and its options, split on purpose

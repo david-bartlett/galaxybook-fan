@@ -9,6 +9,7 @@
 ## Unreleased
 
 - **Update now:** where the desktop shows notification buttons (KDE, Cinnamon, Xfce…), the new-version notification has **Update now**, which opens a terminal running `sudo galaxybook-fan update`, and **What's new**, which opens the release page
+- `galaxybook-fan updates check` (no sudo) looks for a new version straight away and, if there is one, shows the same notification
 - The terminal is the desktop's own (its default where set, e.g. Konsole on KDE, Ptyxis or GNOME Terminal on GNOME, xfce4-terminal on Xfce); it closes by itself after a successful update. GNOME shows the same text without buttons. The notification you see is drawn by the version you have, so the buttons appear from the release after this one
 
 - **No log-out needed:** installing or upgrading the package starts the new-version check straight away for everyone logged in, and removing it stops it

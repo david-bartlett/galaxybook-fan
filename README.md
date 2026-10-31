@@ -124,6 +124,7 @@ sudo galaxybook-fan rebuild      # after a BIOS update: read the new firmware, r
 sudo galaxybook-fan test-native  # can the stock driver read the fan by itself now?
 sudo galaxybook-fan update       # install the newest release's package
 galaxybook-fan updates off|on    # "new version" notifications (sudo for off/on)
+galaxybook-fan updates check     # look now, and show the notification if there's a new version
 ```
 
 ### New versions

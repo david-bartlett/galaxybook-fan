@@ -1,6 +1,6 @@
 # Package install wording
 
-PR #17 · Claude · 2026-10-31
+PR #16 · Claude · 2026-10-31
 
 ## What changed
 - `lib/package-scripts.sh configure`: the first line now reads "checking the module for KVER; DKMS builds it from this laptop's firmware if needed", because on a reinstall or upgrade the next line is "already built for KVER".

@@ -18,6 +18,11 @@
 - The package's pre-install step runs the same removal steps as `uninstall.sh` (now shared, `lib/clone-remove.sh`), after the Galaxy Book 5 check, so a refused install still changes nothing. It says which folder the old copy came from; that folder isn't used by the package and can be kept or deleted. If `galaxybook_fan` can't be unloaded, nothing is changed and it asks you to close anything reading the fan or reboot. Arch will still need `sudo ./uninstall.sh` first: pacman stops before any script runs when files are already there
 - `uninstall.sh` works as before; it no longer prints systemd's errors when systemd isn't running
 
+- **Ubuntu, Mint, Debian and MX package:** galaxybook-fan can be built and installed as a `.deb` (`bash packaging/debian/build.sh`, then `sudo apt install ./packaging/out/galaxybook-fan_*_all.deb`)
+- One `Architecture: all` deb for Ubuntu 24.04 and 26.04, Linux Mint, Debian 13 and MX Linux 25: DKMS builds the module on the laptop, as with the rpm. It does what the rpm does: Galaxy Book 5 only (`GALAXYBOOK_FAN_FORCE=1` overrides), replaces a copy installed with `install.sh`, never fails the install over a failed build, and `sudo apt remove galaxybook-fan` removes everything (`purge` also removes the autoload file)
+- Installing the deb again after `apt remove` (without purge) keeps its autoload file: the check for an `install.sh` copy now counts only files `install.sh` alone makes, so a removed deb's leftover file isn't taken for one
+- `uninstall.sh` names apt and pacman as well as dnf when it finds the package installed
+
 ## 0.5.0 — 2026-10-31
 
 - **`galaxybook-fan` command:** `galaxybook-fan status`, `sudo galaxybook-fan check`, `sudo galaxybook-fan rebuild` (after a BIOS update) and `sudo galaxybook-fan test-native`

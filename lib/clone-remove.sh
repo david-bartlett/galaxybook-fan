@@ -11,12 +11,13 @@
 # caller defines info, ok and warn.
 # =============================================================================
 
-# Is a copy installed with install.sh here? (any version: older ones had no
-# command, only the autoload file and DKMS registration)
+# Is a copy installed with install.sh here? Only files install.sh alone makes
+# count (every version had the unbind service or the older udev rule): the
+# autoload file can be a removed-but-not-purged deb's conffile, which this
+# must leave alone, or dpkg wouldn't put it back on a reinstall.
 gbfan_clone_installed() {
     [[ -e "$GBFAN_CMD" || -e "$CHECK_SCRIPT" || -e "$UNBIND_SERVICE" \
-        || -e "$UDEV_RULE" || -e "$MODLOAD_CONF" || -d /var/lib/dkms/$PKG_NAME ]] \
-        || compgen -G "/usr/src/${PKG_NAME}-*" >/dev/null
+        || -e "$UDEV_RULE" || -d "$GBFAN_LIBDIR" ]]
 }
 
 # Remove it all and give the fan back to acpi-fan. Returns 1, having changed

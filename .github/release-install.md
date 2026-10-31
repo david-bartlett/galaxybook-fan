@@ -27,6 +27,22 @@ DKMS builds the module on your laptop, from its own firmware, for every kernel w
 
 Then check: `galaxybook-fan status`, and `sensors` shows the fan's speed.
 
+<details>
+<summary>The galaxybook-fan command</summary>
+
+| Command | What it does |
+| --- | --- |
+| `galaxybook-fan status` | What's installed, which kernels, and the fan speed now |
+| `sudo galaxybook-fan check` | Will it work on this laptop? (read-only) |
+| `sudo galaxybook-fan rebuild` | After a BIOS update: read the new firmware and build the module again |
+| `sudo galaxybook-fan test-native` | Can the stock acpi-fan driver read the fan by itself now? (then the fix isn't needed) |
+| `sudo galaxybook-fan update` | Install the newest release's package |
+| `sudo galaxybook-fan updates on` / `off` | "New version" notifications on or off |
+| `galaxybook-fan updates status` | Are they on? (checked every 6 hours) |
+| `galaxybook-fan updates check` | Look now; if there's a new version, show the notification (no sudo) |
+
+</details>
+
 To remove it: `sudo dnf remove galaxybook-fan`, `sudo apt remove galaxybook-fan` or `sudo pacman -R galaxybook-fan`.
 
 <details>

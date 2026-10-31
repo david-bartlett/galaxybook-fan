@@ -29,7 +29,7 @@
 set -uo pipefail
 
 PKG_NAME="galaxybook-fan"
-PKG_VERSION="0.3.0"   # keep in step with VERSION and dkms.conf (the release tool sets all three)
+PKG_VERSION="0.3.0"   # keep in step with VERSION and module/dkms.conf (the release tool sets all three)
 MOD_NAME="galaxybook_fan"
 SRC_DIR="/usr/src/${PKG_NAME}-${PKG_VERSION}"
 MODLOAD_CONF="/etc/modules-load.d/${MOD_NAME}.conf"
@@ -71,6 +71,8 @@ TESTED_MODELS=("940XHA")
 MIN_KERNEL_MAJOR=6
 MIN_KERNEL_MINOR=8
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODULE_SRC="$SCRIPT_DIR/module"   # galaxybook_fan.c, Makefile, dkms.conf (what DKMS builds)
+LIB_SRC="$SCRIPT_DIR/lib"         # dsdt-fan-config.py, samsung-galaxybook-fan-check.sh
 FORCE=0
 CHECK_ONLY=0
 TEST_NATIVE=0
@@ -231,7 +233,7 @@ trap cleanup EXIT
 derive_config() {
     local dsdt=/sys/firmware/acpi/tables/DSDT summary rc
     [[ -r "$dsdt" ]] || fail "Can't read ${dsdt}"
-    [[ -f "$SCRIPT_DIR/dsdt-fan-config.py" ]] || fail "dsdt-fan-config.py missing from ${SCRIPT_DIR}"
+    [[ -f "$LIB_SRC/dsdt-fan-config.py" ]] || fail "dsdt-fan-config.py missing from ${LIB_SRC}"
 
     WORK_DIR="$(mktemp -d)" || fail "mktemp failed"
     cp "$dsdt" "$WORK_DIR/dsdt.dat" || fail "Couldn't copy the DSDT"
@@ -241,7 +243,7 @@ derive_config() {
         fail "iasl couldn't disassemble the DSDT"
     fi
 
-    summary="$(python3 -I "$SCRIPT_DIR/dsdt-fan-config.py" \
+    summary="$(python3 -I "$LIB_SRC/dsdt-fan-config.py" \
         --dsl "$WORK_DIR/dsdt.dsl" --product "$PRODUCT" \
         --out "$WORK_DIR/galaxybook_fan_config.h" 2>&1)"
     rc=$?
@@ -587,7 +589,7 @@ install_module() {
     rm -rf /usr/src/"${PKG_NAME}"-*
 
     mkdir -p "$SRC_DIR"
-    cp "$SCRIPT_DIR"/galaxybook_fan.c "$SCRIPT_DIR"/Makefile "$SCRIPT_DIR"/dkms.conf "$SRC_DIR"/ \
+    cp "$MODULE_SRC"/galaxybook_fan.c "$MODULE_SRC"/Makefile "$MODULE_SRC"/dkms.conf "$SRC_DIR"/ \
         || fail "Couldn't copy module source to ${SRC_DIR}"
     # The machine-specific config replaces the repo's 940XHA default
     cp "$WORK_DIR/galaxybook_fan_config.h" "$SRC_DIR"/ \
@@ -728,10 +730,10 @@ SESSDESKTOPEOF
 }
 
 install_monitor() {
-    install -m 755 -o root -g root "$SCRIPT_DIR/samsung-galaxybook-fan-check.sh" "$CHECK_SCRIPT" \
+    install -m 755 -o root -g root "$LIB_SRC/samsung-galaxybook-fan-check.sh" "$CHECK_SCRIPT" \
         || fail "Couldn't install ${CHECK_SCRIPT}"
     mkdir -p "$PARSER_DIR"
-    install -m 644 -o root -g root "$SCRIPT_DIR/dsdt-fan-config.py" "$PARSER_DIR/" \
+    install -m 644 -o root -g root "$LIB_SRC/dsdt-fan-config.py" "$PARSER_DIR/" \
         || fail "Couldn't install the DSDT parser to ${PARSER_DIR}"
 
     cat > "/etc/systemd/system/${MONITOR_SVC}" <<EOF
@@ -954,13 +956,13 @@ if [[ ! -d /run/systemd/system && $CHECK_ONLY -eq 0 && $TEST_NATIVE -eq 0 ]]; th
 fi
 
 if [[ $TEST_NATIVE -eq 1 ]]; then
-    [[ -x "$SCRIPT_DIR/samsung-galaxybook-fan-check.sh" ]] || chmod +x "$SCRIPT_DIR/samsung-galaxybook-fan-check.sh"
+    [[ -x "$LIB_SRC/samsung-galaxybook-fan-check.sh" ]] || chmod +x "$LIB_SRC/samsung-galaxybook-fan-check.sh"
     info "Testing whether the stock acpi-fan driver can read the fan by itself."
     if [[ -d /sys/module/$MOD_NAME ]]; then
         info "The test needs the fan spinning - waiting up to 2 minutes."
         info "If it's quiet, load the CPU in another terminal, e.g.: timeout 180 openssl speed -multi \$(nproc) rsa4096"
     fi
-    case "$("$SCRIPT_DIR/samsung-galaxybook-fan-check.sh" --test-native --wait 120)" in
+    case "$("$LIB_SRC/samsung-galaxybook-fan-check.sh" --test-native --wait 120)" in
         works)     ok "The stock driver reads the fan speed - this fix is no longer needed (sudo ./uninstall.sh)" ;;
         broken)    ok "The stock driver still can't read the fan speed - keep this fix" ;;
         fan-off)   warn "The fan wasn't spinning, so the test proved nothing - load the CPU and try again" ;;

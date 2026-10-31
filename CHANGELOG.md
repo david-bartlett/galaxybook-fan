@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Tidier repository:** the module's files are in `module/` and the installer's helpers in `lib/`; `install.sh` and `uninstall.sh` stay at the top
+- `module/`: `galaxybook_fan.c`, `galaxybook_fan_config.h`, `Makefile`, `dkms.conf`. `lib/`: `dsdt-fan-config.py`, `samsung-galaxybook-fan-check.sh`. Nothing changes in what gets installed or where, so there's no need to reinstall
+
 ## 0.3.0 — 2026-10-31
 
 - **Own repository:** galaxybook-fan has moved out of samsung-galaxybook-fixes into its own repository, with its full history

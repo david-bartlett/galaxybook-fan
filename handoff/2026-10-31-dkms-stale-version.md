@@ -1,6 +1,6 @@
 # Old DKMS version left after a deb upgrade
 
-PR #<n> · Claude · 2026-10-31
+PR #29 · Claude · 2026-10-31
 
 ## What changed
 - `lib/fan-dkms.sh`: `gbfan_dkms_forget VERSION` deletes `/var/lib/dkms/galaxybook-fan/VERSION` and the `kernel-*` links into it, when `dkms remove` couldn't. `gbfan_dkms_version` now returns the installed `VERSION` when DKMS has it, else the newest registered (`sort -V`), not the first directory.

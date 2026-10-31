@@ -2,6 +2,24 @@
 
 Fan speed reporting for Samsung Galaxy Book laptops on Linux, without a DSDT override.
 
+## Will it work on my laptop?
+
+Download **[check-galaxybook-fan.sh](https://github.com/david-bartlett/galaxybook-fan/releases/latest/download/check-galaxybook-fan.sh)** and run it. It only reads, and installs or changes nothing:
+
+```bash
+sudo bash check-galaxybook-fan.sh
+```
+
+It checks your model and reads your laptop's own firmware the same way the installer does, then says whether galaxybook-fan will work. If your model isn't confirmed yet, install the fix and run the check again: when the fan speed shows, it gives you a short report to post as a **[Works on my model](https://github.com/david-bartlett/galaxybook-fan/issues/new?template=works_on.yml)** issue, so your model can be added below.
+
+**Confirmed working:**
+
+| Model | Laptop |
+|---|---|
+| `940XHA` | Galaxy Book 5 Pro 14" |
+
+Not confirmed yet, but expected to work (the check tells you): `960XHA`, `960QHA`, `750XHD`, `754XHD`, `750QHA`, `754QHA`.
+
 ## The problem
 
 Samsung's fan `_FST` method (e.g. `\_SB.PC00.LPCB.FAN0._FST`) does:
@@ -155,6 +173,8 @@ This removes everything the installer added and rebinds `acpi-fan`. No reboot is
 | File | Purpose |
 |---|---|
 | `install.sh` / `uninstall.sh` | as above |
+| `tools/check-galaxybook-fan.sh` | the read-only "will it work on my laptop?" check; each release attaches a single-file copy built by `tools/build-check-script.sh` |
+| `lib/models.sh` | the Galaxy Book 5 models, and the ones confirmed working |
 | `LICENSE` | GPL-2.0, the same licence as the module |
 | `module/galaxybook_fan.c` | the module |
 | `module/galaxybook_fan_config.h` | default config (940XHA), so the module builds standalone; the installer replaces it in `/usr/src` |

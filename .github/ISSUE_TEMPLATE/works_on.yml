@@ -1,0 +1,55 @@
+name: Works on my model
+description: galaxybook-fan works on a Galaxy Book 5 model that isn't confirmed yet.
+title: "[Works]: "
+labels: ["works-on"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks — reports like this are how the list of confirmed models grows.
+
+        **Is your model already confirmed?** Check the [list in the README](https://github.com/david-bartlett/galaxybook-fan#will-it-work-on-my-laptop), or just run `sudo bash check-galaxybook-fan.sh`: it says so. If it's there, there's no need to report it.
+
+  - type: checkboxes
+    id: first
+    attributes:
+      label: Before you post
+      options:
+        - label: My model isn't in the confirmed list (check-galaxybook-fan.sh didn't say it's confirmed).
+          required: true
+        - label: galaxybook-fan is installed and `sensors` shows the fan speed.
+          required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Laptop
+      description: The name and model number, from the sticker underneath or `cat /sys/class/dmi/id/product_name`.
+      placeholder: e.g. Galaxy Book 5 360 15" (750QHA)
+    validations:
+      required: true
+
+  - type: textarea
+    id: report
+    attributes:
+      label: The report from check-galaxybook-fan.sh
+      description: Run `sudo bash check-galaxybook-fan.sh` with the fix installed and the fan spinning, and paste the block it prints.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - install.sh from the release's source code or a clone
+        - A package (rpm / deb / Arch)
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything you had to do differently?
+      description: Secure Boot key enrolment, extra packages, anything that didn't work, or anything else worth knowing for people with the same laptop.

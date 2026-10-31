@@ -15,7 +15,8 @@ PR #17 · Claude · 2026-10-31
   - New and `main`'s `uninstall.sh` on it: same output (less two systemd errors) and nothing left; run again with nothing installed: fine.
   - rpm on a non-Samsung: refused, copy untouched. With `GALAXYBOOK_FAN_FORCE=1`: copy removed (folder named from the state file), package installed, `INSTALL_METHOD=package`, nothing of the copy left. Upgrade to release 2: no removal step. `rpm -e`: clean.
   - Module that can't be unloaded (a built-in module's name swapped in): exit 1, copy untouched, no force flag.
-  - `bash -n` and shellcheck on the scripts and the built pre-install step; rpm doesn't expand macros in `%(cat …)` output (checked: `${d%/}` and `%{name}` come through as written).
+  - `bash -n` and shellcheck on the scripts and the built pre-install step.
+- **Fedora's rpmbuild hung** reading the spec when the new pre-install text was put in with `%(cat …)` (fine with rpm 4.18 here). Now `build.sh` writes it to a file with every `%` doubled and the spec reads it with `%pre -p /bin/bash -f`, the usual way; the built rpm's scriptlet is identical to `pre-script.sh`'s output.
 - Not tested: on Fedora with the real module loaded, Secure Boot, systemd and a logged-in user.
 
 ## For the next person

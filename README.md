@@ -155,6 +155,7 @@ This removes everything the installer added and rebinds `acpi-fan`. No reboot is
 | File | Purpose |
 |---|---|
 | `install.sh` / `uninstall.sh` | as above |
+| `LICENSE` | GPL-2.0, the same licence as the module |
 | `module/galaxybook_fan.c` | the module |
 | `module/galaxybook_fan_config.h` | default config (940XHA), so the module builds standalone; the installer replaces it in `/usr/src` |
 | `module/Makefile`, `module/dkms.conf` | the module's build and DKMS definition |

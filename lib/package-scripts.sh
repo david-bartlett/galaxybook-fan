@@ -68,7 +68,7 @@ configure() {
     done
 
     [[ -d /var/lib/dkms/$PKG_NAME/$v ]] || dkms add -m "$PKG_NAME" -v "$v" >/dev/null 2>&1 || true
-    info "building the module for ${kver} from this laptop's firmware (DKMS)"
+    info "checking the module for ${kver}; DKMS builds it from this laptop's firmware if needed"
     if dkms install -m "$PKG_NAME" -v "$v" -k "$kver" >"$GBFAN_LOG" 2>&1; then
         if grep -q 'already installed' "$GBFAN_LOG"; then
             info "already built for ${kver}"

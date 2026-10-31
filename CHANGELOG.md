@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- **New versions:** galaxybook-fan tells you once when a newer release is out, and `sudo galaxybook-fan update` installs it
+- Looked for 30 seconds after login and hourly while you stay logged in, on GitHub at most once a day, waiting up to 2 minutes for the network at login; told once per version, and nothing is said when GitHub can't be reached. The notification has no buttons, so it's the same on GNOME and KDE: it gives the command and the release's link
+- `sudo galaxybook-fan update` downloads your distro's package from the newest release, checks it against the release's `SHA256SUMS` and installs it with `dnf`, `apt` or `pacman` (which ask first, as usual). A copy installed with `install.sh` is told how to update it instead
+- `sudo galaxybook-fan updates off` / `on` turns the notifications off and on; `galaxybook-fan status` shows which. The packages now need `curl`
+
 ## 0.6.2 — 2026-10-31
 
 - **Safer when the module isn't loaded:** the stock `acpi-fan` driver is only switched off while galaxybook-fan's module is loaded and reading the fan

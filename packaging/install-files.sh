@@ -33,9 +33,9 @@ install -Dm755 "$REPO/module/gen-config.sh" "$D$SRC/gen-config.sh"
 
 # ── The library folder, the command and the package's own scripts ─────────────
 install -Dm644 -t "$D$GBFAN_LIBDIR" "$REPO/lib/fanpaths.sh" "$REPO/lib/models.sh" \
-    "$REPO/lib/fan-dkms.sh" "$REPO/lib/clone-remove.sh" "$REPO/lib/dsdt-fan-config.py" "$REPO/VERSION"
+    "$REPO/lib/fan-dkms.sh" "$REPO/lib/clone-remove.sh" "$REPO/lib/update.sh" "$REPO/lib/dsdt-fan-config.py" "$REPO/VERSION"
 install -Dm755 -t "$D$GBFAN_LIBDIR" "$REPO/lib/samsung-galaxybook-fan-check.sh" \
-    "$REPO/lib/galaxybook-fan" "$REPO/lib/package-scripts.sh"
+    "$REPO/lib/galaxybook-fan" "$REPO/lib/package-scripts.sh" "$REPO/lib/update-check.sh"
 bash "$REPO/tools/build-check-script.sh" "$D$GBFAN_LIBDIR/check-galaxybook-fan.sh" "$VERSION" >/dev/null
 install -d "$D$(dirname "$GBFAN_CMD")"
 ln -sfn "$GBFAN_LIBDIR/galaxybook-fan" "$D$GBFAN_CMD"
@@ -46,6 +46,8 @@ put monitor.service.in            "$SYSTEM_UNIT_DIR/$MONITOR_SVC"
 put user-check.sh.in              "$USER_CHECK_SCRIPT" 755
 put user-check.service.in         "$USER_UNIT_DIR/$USER_CHECK_SVC"
 put user-check.timer.in           "$USER_UNIT_DIR/$USER_CHECK_TIMER"
+put update-check.service.in       "$USER_UNIT_DIR/$UPDATE_CHECK_SVC"
+put update-check.timer.in         "$USER_UNIT_DIR/$UPDATE_CHECK_TIMER"
 put polkit-monitor.rules.in       "$POLKIT_RULE"
 # Starts graphical-session.target on desktops that don't (Xfce), so the login
 # check runs there too; does nothing on KDE Plasma and GNOME.

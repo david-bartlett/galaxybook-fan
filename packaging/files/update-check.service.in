@@ -1,0 +1,13 @@
+# Written by @WRITTEN_BY@.
+[Unit]
+Description=galaxybook-fan - look for a new release
+# Started by @UPDATE_CHECK_TIMER@; no [Install] section on purpose.
+# Not while the fix isn't installed, or 'galaxybook-fan updates off' is set.
+ConditionPathExists=@MODLOAD_CONF@
+ConditionPathExists=!@UPDATES_OFF@
+
+[Service]
+Type=oneshot
+# Tries for about 2 minutes while the network comes up after login.
+TimeoutStartSec=5min
+ExecStart=/bin/bash @UPDATE_CHECK_SCRIPT@

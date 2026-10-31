@@ -8,6 +8,7 @@
 %global libdir_gb  %{_prefix}/lib/galaxybook-fan
 %global unbind_svc galaxybook-acpi-fan-unbind.service
 %global user_timer samsung-galaxybook-fan-user-check.timer
+%global update_timer galaxybook-fan-update-check.timer
 %{!?_unitdir:       %global _unitdir       %{_prefix}/lib/systemd/system}
 %{!?_userunitdir:   %global _userunitdir   %{_prefix}/lib/systemd/user}
 %{!?_presetdir:     %global _presetdir     %{_prefix}/lib/systemd/system-preset}
@@ -38,6 +39,7 @@ Requires:       kmod
 Requires:       polkit
 Requires:       libnotify
 Requires:       systemd
+Requires:       curl
 Recommends:     mokutil
 
 %description
@@ -57,7 +59,7 @@ Command: galaxybook-fan status | check | rebuild | test-native
 bash packaging/install-files.sh %{buildroot}
 install -d %{buildroot}%{_presetdir} %{buildroot}%{_userpresetdir}
 echo "enable %{unbind_svc}" > %{buildroot}%{_presetdir}/80-%{name}.preset
-echo "enable %{user_timer}" > %{buildroot}%{_userpresetdir}/80-%{name}.preset
+printf 'enable %%s\nenable %%s\n' %{user_timer} %{update_timer} > %{buildroot}%{_userpresetdir}/80-%{name}.preset
 
 # Bash: the removal of an install.sh copy is the same code uninstall.sh runs.
 # build.sh writes it (first install only) with every % doubled, as -f expands
@@ -84,6 +86,8 @@ systemctl daemon-reload >/dev/null 2>&1 || :
 %{_unitdir}/%{unbind_svc}
 %{_unitdir}/samsung-galaxybook-fan-monitor.service
 %{_userunitdir}/samsung-galaxybook-fan-user-check.service
+%{_userunitdir}/galaxybook-fan-update-check.service
+%{_userunitdir}/%{update_timer}
 %{_userunitdir}/%{user_timer}
 %{_userunitdir}/galaxybook-fan-session.target
 %{_presetdir}/80-%{name}.preset

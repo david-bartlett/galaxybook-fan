@@ -629,7 +629,7 @@ install_monitor() {
         || fail "Couldn't install ${CHECK_SCRIPT}"
     mkdir -p "$GBFAN_LIBDIR"
     local f
-    for f in dsdt-fan-config.py fanpaths.sh models.sh fan-dkms.sh; do
+    for f in dsdt-fan-config.py fanpaths.sh models.sh fan-dkms.sh update.sh; do
         install -m 644 -o root -g root "$LIB_SRC/$f" "$GBFAN_LIBDIR/" \
             || fail "Couldn't install ${f} to ${GBFAN_LIBDIR}"
     done
@@ -638,7 +638,11 @@ install_monitor() {
         || fail "Couldn't build check-galaxybook-fan.sh"
     install -D -m 755 -o root -g root "$LIB_SRC/galaxybook-fan" "$GBFAN_CMD" \
         || fail "Couldn't install ${GBFAN_CMD}"
-    ok "Command: galaxybook-fan (status, check, rebuild, test-native)"
+    # The version, and the "new version" check (lib/update.sh, update-check.sh)
+    echo "$PKG_VERSION" > "$GBFAN_LIBDIR/VERSION"
+    install -m 755 -o root -g root "$LIB_SRC/update-check.sh" "$UPDATE_CHECK_SCRIPT" \
+        || fail "Couldn't install ${UPDATE_CHECK_SCRIPT}"
+    ok "Command: galaxybook-fan (status, check, rebuild, test-native, update)"
 
     put_rendered monitor.service.in "$SYSTEM_UNIT_DIR/$MONITOR_SVC"
     systemctl daemon-reload
@@ -677,11 +681,16 @@ install_monitor() {
     mkdir -p "$udir"
     put_rendered user-check.service.in "${udir}/${USER_CHECK_SVC}"
     put_rendered user-check.timer.in "${udir}/${USER_CHECK_TIMER}"
+    put_rendered update-check.service.in "${udir}/${UPDATE_CHECK_SVC}"
+    put_rendered update-check.timer.in "${udir}/${UPDATE_CHECK_TIMER}"
     chown -R "${user}:$(id -gn "$user")" "$(dirname "$udir")"
     _fan_user_systemctl daemon-reload 2>/dev/null || true
     _fan_user_systemctl enable "${USER_CHECK_TIMER}" >/dev/null 2>&1 \
         && ok "Login check timer enabled for ${user}" \
         || warn "systemctl --user enable failed for ${USER_CHECK_TIMER}"
+    _fan_user_systemctl enable "${UPDATE_CHECK_TIMER}" >/dev/null 2>&1 \
+        && ok "New-version check enabled for ${user} (sudo galaxybook-fan updates off to turn it off)" \
+        || warn "systemctl --user enable failed for ${UPDATE_CHECK_TIMER}"
 
     # Desktops that don't start graphical-session.target (e.g. Xfce) need the
     # shared helper, or the timer is enabled but never runs.

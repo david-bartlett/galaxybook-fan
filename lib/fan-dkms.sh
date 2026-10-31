@@ -123,7 +123,7 @@ gbfan_dkms_forget() {
 # wrapper adds every kernel to each install, refuses some and still returns 0
 # - so the files can be for other kernels too.
 gbfan_dkms_install() {
-    local v="$1" k="$2" out rc f removed=0
+    local v="$1" k="$2" out rc f dk removed=0
     out="$(dkms install -m "$PKG_NAME" -v "$v" -k "$k" 2>&1)"; rc=$?
     while read -r f; do
         # only this module's own file, in a kernel's module folder
@@ -133,6 +133,15 @@ gbfan_dkms_install() {
     if (( removed )); then
         out="$(dkms install -m "$PKG_NAME" -v "$v" -k "$k" 2>&1)"; rc=$?
     fi
+    # Older DKMS (3.0: Mint 22, Ubuntu 24.04) instead keeps an old version's
+    # file it takes for the same module ("exactly matches ... will not
+    # replace": galaxybook_fan has no version of its own) and marks the new
+    # one installed, so 'dkms status' says "Diff between built and installed
+    # module". Put the new file in place for each such kernel with --force.
+    while read -r dk; do
+        out+=$'\n'"$(dkms install --force -m "$PKG_NAME" -v "$v" -k "$dk" 2>&1)" || rc=$?
+    done < <(dkms status -m "$PKG_NAME" -v "$v" 2>/dev/null \
+        | sed -n -E 's#^[^,]*, *([^,]*), .*Diff between built and installed.*#\1#p' | sort -u)
     [[ -n "$out" ]] && printf '%s\n' "$out"
     return $rc
 }

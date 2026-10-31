@@ -22,7 +22,7 @@ mkdir -p "$TOP/SOURCES"
 # Source tarball: the files git knows about (tracked or new), as they are now
 ( cd "$REPO" && git ls-files -co --exclude-standard -z \
     | tar --null -T - --transform "s,^,galaxybook-fan-${VERSION}/," -czf "$TOP/SOURCES/galaxybook-fan-${VERSION}.tar.gz" )
-bash "$REPO/packaging/render.sh" package pkg-pre.sh.in > "$TOP/SOURCES/pre.sh"
+bash "$REPO/packaging/pre-script.sh" > "$TOP/SOURCES/pre.sh"
 
 # shellcheck disable=SC2086  # RPMBUILD_OPTS: extra rpmbuild options, word-split on purpose
 rpmbuild -bb ${RPMBUILD_OPTS:-} --define "_topdir $TOP" \

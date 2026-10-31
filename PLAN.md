@@ -64,9 +64,10 @@ Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds 
 | `lib/galaxybook-fan` | The command: `status`, `check` (runs the installed `check-galaxybook-fan.sh`), `rebuild` (DKMS remove + install for the running kernel and every other kernel it's built for that has headers, so `gen-config.sh` reads the firmware again; then reloads and records the state), `test-native`. |
 | `lib/fanpaths.sh` | **All names and paths**, for the `clone` layout (install.sh: `/usr/local`) and the `package` layout (`/usr`). Sourced by `install.sh`, `uninstall.sh`, the command and the login check. `gbfan_package_installed` (rpm/dpkg/pacman). |
 | `lib/package-scripts.sh` | What every package format runs: `configure` after install/upgrade, `remove` before removal (never on upgrade). See `packaging/README.md`. |
-| `packaging/` | `files/*.in` (units, scripts, polkit rule, session helper, dracut, autoload) **shared by `install.sh` and the packages**, filled in by `render.sh clone|package`; `install-files.sh` (a package's files, every format); `files/pkg-pre.sh.in` (the Book 5 check before the first install); `rpm/` (spec, `build.sh`). |
+| `packaging/` | `files/*.in` (units, scripts, polkit rule, session helper, dracut, autoload) **shared by `install.sh` and the packages**, filled in by `render.sh clone|package`; `install-files.sh` (a package's files, every format); `pre-script.sh` (the pre-install step: the Book 5 check in `files/pkg-pre.sh.in`, then removing an `install.sh` copy, with `lib/fanpaths.sh`, `lib/fan-dkms.sh` and `lib/clone-remove.sh` built in; bash); `rpm/` (spec, `build.sh`). |
 | `lib/fan-dkms.sh` | DKMS steps shared by `install.sh`, `uninstall.sh` and the command: remove all versions, defer/resume the initramfs rebuild, version and kernel list, the build-failure reason from `make.log`, rebuild one kernel. |
-| `uninstall.sh` | Removes everything `install.sh` added and rebinds `acpi-fan`. |
+| `uninstall.sh` | Removes everything `install.sh` added and rebinds `acpi-fan`, with `lib/clone-remove.sh`. |
+| `lib/clone-remove.sh` | **The removal steps for a copy installed with `install.sh`** (`gbfan_remove_clone`, `gbfan_clone_installed`), shared by `uninstall.sh` and the packages' pre-install step, which removes such a copy before installing. Change removal here, not in `uninstall.sh`. |
 | `module/galaxybook_fan.c` | The hwmon module. At load it checks the DMI product and the DSDT's OEM ID, table ID and revision against the config (refuses on a mismatch, i.e. after a BIOS update, unless `force=1`), then checks the field exists and reads. |
 | `module/galaxybook_fan_config.h` | Default config for the 940XHA so the module builds standalone. The installer replaces it in `/usr/src` with one generated for the running machine. |
 | `lib/dsdt-fan-config.py` | Parses the disassembled DSDT: `--dsl … --product … --out config.h` writes the header; `--status` prints `broken`, `fixed` or `unknown`. Never guesses: anything outside the known `_FST` shape is an error (exit 1). |
@@ -200,14 +201,14 @@ Also:
   - **Arch:** pacman ignores the exit status of `.install` scripts, so `pre_install` can only warn. The real gate there is `gen-config.sh`, which also checks the model: the module never builds on anything but a Book 5, whatever the format, and `post_install` says why it wasn't built.
 - **Check before relying on it:** what each package manager does when the DKMS build fails during install (it must give a clear message, not leave apt or dnf half-configured). The build itself fails cleanly with `gen-config.sh`'s reason (step 1).
 - **Removal only, not upgrade:** tidy-up in rpm `%preun`/`%postun` when `$1 == 0`, deb `prerm remove`/`postrm purge`, Arch `pre_remove`. Never fail a removal.
-- **Clone install and package detect each other**, so the two are never installed together.
+- **Clone install and package are never installed together.** `install.sh` and `uninstall.sh` refuse while the package is installed. The rpm's `%pre` and the deb's `preinst` (first install only) **remove an `install.sh` copy** with `uninstall.sh`'s own steps (`lib/clone-remove.sh`, built in by `packaging/pre-script.sh`), after the Book 5 check, and carry on, as fingerprint-fix-sdcp's packages do. Arch can't: pacman checks for existing files before any script runs, so the Arch README and release page say `sudo ./uninstall.sh` first, and `post_install` warns if a copy is found.
 
 ### 10.3 Steps (one PR each)
 
 1. ✅ **Preparation:** `PRE_BUILD` config generation (`module/gen-config.sh`), the shared paths file (`lib/fanpaths.sh`) and DKMS helpers (`lib/fan-dkms.sh`), the `galaxybook-fan` command, notifications that know the install method. `install.sh` keeps working throughout. Checked: DKMS 3.0 ignores the `PRE_BUILD` exit status, hence the `#error` header.
 2. ✅ **`packaging/` shared files:** units, polkit rule, scripts as templates (`packaging/files/*.in`, `render.sh`, `install-files.sh`), as in fingerprint-fix-sdcp. `install.sh` renders the same templates (`put_rendered`). The package's session helper has its own names (`galaxybook-fan-session.*`), so it never owns a file fingerprint-fix-sdcp's package or a clone install also writes (deb and pacman refuse two packages owning one file).
-3. ✅ **rpm** (`packaging/rpm/`: spec, `build.sh`). `noarch`; `%pre` = `pkg-pre.sh.in`; `%post` / `%preun` call `lib/package-scripts.sh`.
-4. **deb** (`packaging/debian/`: control, rules, maintainer scripts, `build.sh`).
+3. ✅ **rpm** (`packaging/rpm/`: spec, `build.sh`). `noarch`; `%pre -p /bin/bash` = `packaging/pre-script.sh` (removes an `install.sh` copy since PR #17); `%post` / `%preun` call `lib/package-scripts.sh`.
+4. **deb** (`packaging/debian/`: control, rules, maintainer scripts, `build.sh`). `preinst install` = `packaging/pre-script.sh` (`#!/bin/bash`).
 5. **Arch** (`packaging/arch/`: `PKGBUILD`, `galaxybook-fan.install`; CI builds the `.pkg.tar.zst`).
 6. **Release workflow:** build all three, attach them, and change the release page to a per-distro download-and-install table.
 

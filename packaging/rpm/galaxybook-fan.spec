@@ -1,6 +1,6 @@
 # galaxybook-fan - rpm (Fedora). Built by packaging/rpm/build.sh, which passes
-# gbver (VERSION), rel (Release) and prescript (packaging/files/pkg-pre.sh.in,
-# rendered with the Book 5 model list).
+# gbver (VERSION), rel (Release) and prescript (packaging/pre-script.sh's
+# output: the Book 5 check, and replacing a copy installed with install.sh).
 %{!?gbver:     %global gbver 0}
 %{!?rel:       %global rel 1}
 %{!?prescript: %global prescript /dev/null}
@@ -57,7 +57,9 @@ install -d %{buildroot}%{_presetdir} %{buildroot}%{_userpresetdir}
 echo "enable %{unbind_svc}" > %{buildroot}%{_presetdir}/80-%{name}.preset
 echo "enable %{user_timer}" > %{buildroot}%{_userpresetdir}/80-%{name}.preset
 
-%pre
+# Bash: the removal of an install.sh copy is the same code uninstall.sh runs.
+# Built in with %(cat), which rpm doesn't expand macros in.
+%pre -p /bin/bash
 if [ "$1" -eq 1 ]; then
 %(cat %{prescript})
 fi

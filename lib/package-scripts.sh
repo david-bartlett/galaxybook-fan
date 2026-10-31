@@ -51,7 +51,7 @@ dkms_cert() {
 }
 
 configure() {
-    local v kver reason rpm d old
+    local v kver reason rpm d old dev
     v="$(tr -d '[:space:]' < "$GBFAN_LIBDIR/VERSION")"
     kver="$(uname -r)"
     GBFAN_LOG="$(mktemp)"       # global: the EXIT trap runs after this function returns
@@ -83,8 +83,16 @@ configure() {
     fi
 
     systemctl daemon-reload >/dev/null 2>&1 || true
-    systemctl enable --now "$UNBIND_SVC" >/dev/null 2>&1 || true
+    systemctl enable "$UNBIND_SVC" >/dev/null 2>&1 || true
+    # restart, not enable --now: the unit stays active after it has run
+    # (RemainAfterExit), so a copy left active by install.sh would never re-run
+    systemctl restart "$UNBIND_SVC" >/dev/null 2>&1 || true
     systemctl --global enable "$USER_CHECK_TIMER" >/dev/null 2>&1 || true
+    # and unbind straight away in case systemd isn't running
+    for dev in "$ACPI_FAN_DRV"/PNP0C0B:*; do
+        [[ -e "$dev" ]] || continue
+        echo "$(basename "$dev")" > "$ACPI_FAN_DRV/unbind" 2>/dev/null || true
+    done
 
     if modprobe "$MOD_NAME" 2>/dev/null; then
         sleep 1

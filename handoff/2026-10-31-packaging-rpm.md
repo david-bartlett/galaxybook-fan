@@ -13,6 +13,10 @@ PR #15 · Claude · 2026-10-31
 - **Found and fixed:** an apostrophe inside `${…:-…}` in the pre-install check broke bash (Fedora's `/bin/sh`) but not dash (where it was first tested): every Fedora install would have failed. Templates are now checked with both shells; AGENTS.md says so.
 - Not tested: on Fedora itself (dnf, Fedora's DKMS and kernel-install hook, Secure Boot with the akmods key), the login check from the package's user units, the session helper on Xfce.
 
+## Fedora test (David)
+- `dnf install` worked: the module was built, installed and loaded; `status`, `check` and `rebuild` work; both units are enabled. Signed with the akmods key (`fedora_…`), set up earlier by `install.sh`.
+- **Found and fixed:** `sensors` showed two fans (`acpi_fan` and `galaxybook_fan`). The unbind unit is `RemainAfterExit=yes`; `uninstall.sh` only disabled and removed it, so systemd still had it active, and the package's `enable --now` did nothing. Now `configure` runs `systemctl restart` on it and also unbinds directly (like `install.sh`), and `uninstall.sh` uses `disable --now`. Only someone switching from `install.sh` to the package without a reboot hits this.
+
 ## For the next person
 - Step 4 (deb) and 5 (Arch) reuse `install-files.sh`, `package-scripts.sh` and `pkg-pre.sh.in`. pacman ignores `.install` exit codes, so on Arch `gen-config.sh` is the real gate.
 - Fedora's DKMS key: unless akmods' `akmods-keys.conf` is set up (install.sh does that), DKMS uses its own `/var/lib/dkms/mok.pub`, which may not be enrolled; the package then prints the `mokutil --import` command.

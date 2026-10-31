@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.8.5 — 2026-10-31
 
 - **Stays on screen on GNOME:** the new-version notification now stays until you close or click it, as it does on other desktops
 - GNOME ignores "keep it open" for normal notifications and moves them to its list after a few seconds, so on GNOME (only) it's sent as critical, like fingerprint-fix-sdcp's. Hover over it to see the whole text and the buttons

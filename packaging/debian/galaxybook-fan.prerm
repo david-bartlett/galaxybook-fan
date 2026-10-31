@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+if [ "$1" = remove ]; then
+    # Removal only, never an upgrade: module out of DKMS, units off, the fan
+    # back to acpi-fan, state and force flag gone.
+    bash /usr/lib/galaxybook-fan/package-scripts.sh remove || true
+fi
+
+#DEBHELPER#
+exit 0

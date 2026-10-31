@@ -1,0 +1,11 @@
+#!/bin/bash
+# galaxybook-fan - before the package is unpacked. On a first install (also
+# after a remove without purge): the Galaxy Book 5 check, then removing a copy
+# installed with install.sh. build.sh puts packaging/pre-script.sh's output at
+# the line below. Bash: the removal is the same code uninstall.sh runs.
+if [ "$1" = install ]; then
+#@PRE_SCRIPT@
+fi
+
+#DEBHELPER#
+exit 0

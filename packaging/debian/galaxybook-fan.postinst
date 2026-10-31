@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+if [ "$1" = configure ]; then
+    # DKMS build for the running kernel, units, module load, state - the same
+    # for every package format. Never fails the install: a failed build says
+    # why, and 'sudo galaxybook-fan rebuild' builds it once sorted.
+    bash /usr/lib/galaxybook-fan/package-scripts.sh configure || true
+fi
+
+#DEBHELPER#
+exit 0

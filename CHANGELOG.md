@@ -25,6 +25,7 @@
 
 - **Arch and CachyOS package:** galaxybook-fan can be built and installed with `cd packaging/arch && makepkg -si`
 - One `any` package: DKMS builds the module on the laptop, and Arch's DKMS hooks build it for every installed kernel with headers. The install names the headers package to add if the running kernel's are missing (e.g. `linux-cachyos-headers`). On anything but a Galaxy Book 5 it installs but doesn't build the module, and says why (`GALAXYBOOK_FAN_FORCE=1` builds anyway). Remove a copy installed with `install.sh` first (`sudo ./uninstall.sh`): pacman won't install over its module source (an older copy is removed just after installing). `sudo pacman -R galaxybook-fan` removes everything
+- Removing the package or running `uninstall.sh` unloads the module even when its file has already gone (`rmmod` when `modprobe -r` can't find it): on Arch, the DKMS hook deletes the file before the package's removal step, so `galaxybook_fan` stayed loaded and `sensors` showed both fans until a reboot
 
 ## 0.5.0 — 2026-10-31
 

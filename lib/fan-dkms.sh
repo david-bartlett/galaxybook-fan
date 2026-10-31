@@ -19,6 +19,16 @@ gbfan_dkms_remove_all() {
     rm -rf /var/lib/dkms/"$PKG_NAME"
 }
 
+# Unload galaxybook_fan if it's loaded. modprobe -r looks the module up in
+# the kernel's module index, so it fails once the module's file is gone -
+# Arch's DKMS hook removes it from DKMS before the package's own removal step
+# runs - while rmmod only needs the loaded module. Returns 1 if it stays loaded.
+gbfan_unload() {
+    [[ -d /sys/module/$MOD_NAME ]] || return 0
+    modprobe -r "$MOD_NAME" 2>/dev/null || rmmod "$MOD_NAME" 2>/dev/null
+    [[ ! -d /sys/module/$MOD_NAME ]]
+}
+
 # Some distros (Fedora) rebuild every kernel's initramfs after each DKMS
 # operation (post_transaction). galaxybook_fan is never in the initramfs, so
 # suspend that for our own DKMS steps; gbfan_dkms_resume_initramfs (run it from

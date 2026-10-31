@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.8.4 — 2026-10-31
 
 - **The new module is really installed:** on Mint 22 and Ubuntu 24.04, an upgrade could leave the old version's module file in place, so `dkms status` said *Diff between built and installed module*
 - That DKMS keeps a file it takes for the same module and marks the new version installed anyway. The install (and `galaxybook-fan rebuild`) now spots that warning and installs the new module over it

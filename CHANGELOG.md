@@ -23,6 +23,9 @@
 - Installing the deb again after `apt remove` (without purge) keeps its autoload file: the check for an `install.sh` copy now counts only files `install.sh` alone makes, so a removed deb's leftover file isn't taken for one
 - `uninstall.sh` names apt and pacman as well as dnf when it finds the package installed
 
+- **Arch and CachyOS package:** galaxybook-fan can be built and installed with `cd packaging/arch && makepkg -si`
+- One `any` package: DKMS builds the module on the laptop, and Arch's DKMS hooks build it for every installed kernel with headers. The install names the headers package to add if the running kernel's are missing (e.g. `linux-cachyos-headers`). On anything but a Galaxy Book 5 it installs but doesn't build the module, and says why (`GALAXYBOOK_FAN_FORCE=1` builds anyway). Remove a copy installed with `install.sh` first (`sudo ./uninstall.sh`): pacman won't install over its files. `sudo pacman -R galaxybook-fan` removes everything
+
 ## 0.5.0 — 2026-10-31
 
 - **`galaxybook-fan` command:** `galaxybook-fan status`, `sudo galaxybook-fan check`, `sudo galaxybook-fan rebuild` (after a BIOS update) and `sudo galaxybook-fan test-native`

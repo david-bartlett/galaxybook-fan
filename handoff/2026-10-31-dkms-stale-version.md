@@ -8,11 +8,11 @@ PR #29 · Claude · 2026-10-31
 - PLAN.md §7 (packages), CHANGELOG.
 
 ## Why
-- David upgraded 0.7.0 → 0.8.1 on Mint 22.3 (deb, from the file manager): `galaxybook-fan status` said "Version 0.7.0, built for: no kernel yet"; `dkms status` said `Could not locate dkms.conf … 0.7.0/source/dkms.conf`. dpkg removes the old package's files (its `/usr/src` copy) before the new `postinst`, and DKMS 3.0 can't remove a version without its source. The 0.8.1 module was built and loaded all along.
+- David upgraded 0.7.0 → 0.8.1 on Mint 22.3 (deb, from the file manager): `galaxybook-fan status` said "Version 0.7.0, built for: no kernel yet"; `dkms status` said `Could not locate dkms.conf … 0.7.0/source/dkms.conf`. dpkg removes the old package's files (its `/usr/src` copy) before the new `postinst`, and DKMS can't remove a version without its source. Ubuntu 26.04 did the same. The 0.8.1 module was built and loaded all along.
 
 ## Tested
 - Here on a fake `/var/lib/dkms` tree (0.7.0 and 0.8.1, a kernel link each): the version picked is 0.8.1 with and without `VERSION`; forgetting 0.7.0 leaves 0.8.1 and its link. `bash -n`, shellcheck (no new warnings).
-- Not tested here: a real apt upgrade (David's Mint is in exactly the broken state).
+- David: the PR's deb (`apt install --reinstall`) fixed it on Mint 22.3 and Ubuntu 26.04.
 
 ## For the next person
 - rpm runs the new `%post` before removing the old files, so Fedora doesn't hit this; pacman removes first but its DKMS hook handles it.

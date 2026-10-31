@@ -55,7 +55,7 @@ gbfan_remove_clone() {
         [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
     done
     if [[ -z "$keep" ]]; then
-        for f in "$MODLOAD_CONF" "$FORCE_FLAG"; do
+        for f in "$MODLOAD_CONF" "$FORCE_FLAG" "${UPDATES_OFF:-}"; do
             [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
         done
         rmdir "$GBFAN_ETC" 2>/dev/null || true
@@ -81,7 +81,10 @@ gbfan_remove_clone() {
     for home in /home/*/; do
         udir="${home}.config/systemd/user"
         rm -f "${udir}/${USER_CHECK_TIMER}" "${udir}/${USER_CHECK_SVC}" \
-              "${udir}/graphical-session.target.wants/${USER_CHECK_TIMER}"
+              "${udir}/graphical-session.target.wants/${USER_CHECK_TIMER}" \
+              "${udir}/${UPDATE_CHECK_TIMER:-galaxybook-fan-update-check.timer}" \
+              "${udir}/${UPDATE_CHECK_SVC:-galaxybook-fan-update-check.service}" \
+              "${udir}/graphical-session.target.wants/${UPDATE_CHECK_TIMER:-galaxybook-fan-update-check.timer}"
     done
     user="$(loginctl list-sessions --no-legend 2>/dev/null | awk '$4 == "seat0" {print $3}' | head -1)"
     uid="$(id -u "$user" 2>/dev/null)"

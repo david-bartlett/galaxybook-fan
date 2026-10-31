@@ -18,7 +18,8 @@ Depends: ${misc:Depends},
          kmod,
          systemd,
          polkitd | policykit-1,
-         libnotify-bin
+         libnotify-bin,
+         curl
 Recommends: mokutil
 Description: Fan speed for the Samsung Galaxy Book 5 (DKMS module)
  Samsung's fan status method (_FST) is broken on Linux, so the stock acpi-fan

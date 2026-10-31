@@ -521,7 +521,7 @@ install_module() {
     # Remove any previous registration of this package (any version)
     if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
         info "Removing previous ${PKG_NAME} DKMS install"
-        modprobe -r "$MOD_NAME" 2>/dev/null || true
+        gbfan_unload || true
         gbfan_dkms_remove_all
     fi
     rm -rf /usr/src/"${PKG_NAME}"-*

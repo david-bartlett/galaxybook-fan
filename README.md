@@ -125,7 +125,7 @@ Fedora 45, Ubuntu 26.04, Linux Mint 22.3, MX Linux 25.3 and CachyOS, on a Galaxy
 <details>
 <summary>Test results per distro</summary>
 
-Install, the check and the `galaxybook-fan` command were tested on 31 October 2026 with the current version. `--test-native`, the login check and uninstall were tested on 23 October 2026 with 0.2 (the same code for those parts).
+Install, the check and the `galaxybook-fan` command were tested on 31 October 2026 with the current version. `--test-native`, the login check and uninstall were last tested on 23 October 2026 with 0.2; they've changed a little since (shared paths, the notifications now name `galaxybook-fan rebuild`), so they'll be tested again before the first packaged release.
 
 | Distro | Kernel | Desktop | Secure Boot signing | Check | Install | `galaxybook-fan` status / rebuild | `--test-native` | Login check | Uninstall |
 |---|---|---|---|---|---|---|---|---|---|

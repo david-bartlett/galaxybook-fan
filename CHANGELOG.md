@@ -11,6 +11,7 @@
 - **Fedora package:** galaxybook-fan can be built and installed as an rpm (`bash packaging/rpm/build.sh`, then `sudo dnf install ./packaging/out/galaxybook-fan-*.noarch.rpm`)
 - One `noarch` rpm for Fedora 44 and 45: DKMS builds the module on the laptop, as with `install.sh`. It refuses anything that isn't a Galaxy Book 5 (`GALAXYBOOK_FAN_FORCE=1` overrides) and a laptop that still has a copy installed with `install.sh`. A failed build doesn't fail the install: it says why, and `sudo galaxybook-fan rebuild` builds it once sorted. With Secure Boot on and the key not enrolled, it gives the `mokutil` command. `sudo dnf remove galaxybook-fan` removes everything
 - Moving from an `install.sh` copy to the package hides the stock `acpi_fan` sensor straight away: the package re-runs the unbind service instead of only enabling it, and `uninstall.sh` now stops the service as well as removing it (it stayed "active", so the package's install didn't re-run it and `sensors` showed two fans until a reboot)
+- The package's install output starts with "checking the module for …", then says whether DKMS built it or it was already built (it used to say "building" even when nothing needed building)
 - The units, scripts and polkit rule now come from shared templates (`packaging/files/`), so `install.sh` and the packages install the same files; `install.sh`'s output is unchanged
 
 ## 0.5.0 — 2026-10-31

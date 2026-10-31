@@ -1,6 +1,6 @@
 # Install over an old module file DKMS keeps (Diff between built and installed)
 
-PR #<n> · Claude · 2026-10-31
+PR #31 · Claude · 2026-10-31
 
 ## What changed
 - `lib/fan-dkms.sh` `gbfan_dkms_install`: after installing, every kernel whose `dkms status` line says *Diff between built and installed module* gets `dkms install --force`. Used by `package-scripts.sh configure` and `galaxybook-fan rebuild`.

@@ -13,6 +13,8 @@
 %{!?_presetdir:     %global _presetdir     %{_prefix}/lib/systemd/system-preset}
 %{!?_userpresetdir: %global _userpresetdir %{_prefix}/lib/systemd/user-preset}
 %global debug_package %{nil}
+# No %changelog (CHANGELOG.md is the record): don't take the build date from it
+%global source_date_epoch_from_changelog 0
 
 Name:           galaxybook-fan
 Version:        %{gbver}

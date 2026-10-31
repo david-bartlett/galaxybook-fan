@@ -18,7 +18,9 @@
 
 Name:           galaxybook-fan
 Version:        %{gbver}
-Release:        %{rel}%{?dist}
+# No %{?dist}: noarch with nothing tied to a Fedora release, so one file
+# (galaxybook-fan-X.Y.Z-N.noarch.rpm) serves Fedora 44 and 45
+Release:        %{rel}
 Summary:        Fan speed for the Samsung Galaxy Book 5 (DKMS module)
 License:        GPL-2.0-only
 URL:            https://github.com/david-bartlett/galaxybook-fan

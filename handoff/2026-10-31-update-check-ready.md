@@ -1,6 +1,6 @@
 # New-version check: every 6 hours, complete releases only
 
-PR (this one) · Claude · 2026-10-31
+PR #28 · Claude · 2026-10-31
 
 ## What changed
 - `lib/update-check.sh`: GitHub at most every 6 hours (`GBFAN_UPDATE_EVERY` default 21600, was 86400). A newer release is announced only if `gbfan_release_ready` says its files are attached; if not, `last-update-check` isn't written, so the next hourly run looks again. Already-told versions are skipped before that request.
@@ -17,4 +17,4 @@ PR (this one) · Claude · 2026-10-31
 - Not tested: a real release with the draft step (the next release is the first). Check on its run that the release only appears at the end, marked Latest.
 
 ## For the next person
-- fingerprint-fix-sdcp has a similar updater; David asked whether it needs the same.
+- fingerprint-fix-sdcp got the same fix (draft releases, wait for SHA256SUMS) in its PR #122.

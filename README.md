@@ -115,17 +115,23 @@ Nothing is installed or removed automatically: the notifications tell you what t
 
 ### The `galaxybook-fan` command
 
-Installed with the fix:
+Installed with the fix; `galaxybook-fan --help` shows the same list.
 
-```bash
-galaxybook-fan status            # what's installed, which kernels, the fan speed now
-sudo galaxybook-fan check        # will it work on this laptop? (read-only)
-sudo galaxybook-fan rebuild      # after a BIOS update: read the new firmware, rebuild the module
-sudo galaxybook-fan test-native  # can the stock driver read the fan by itself now?
-sudo galaxybook-fan update       # install the newest release's package
-galaxybook-fan updates off|on    # "new version" notifications (sudo for off/on)
-galaxybook-fan updates check     # look now, and show the notification if there's a new version
-```
+<details>
+<summary>All the commands</summary>
+
+| Command | What it does |
+| --- | --- |
+| `galaxybook-fan status` | What's installed, which kernels, and the fan speed now |
+| `sudo galaxybook-fan check` | Will it work on this laptop? (read-only) |
+| `sudo galaxybook-fan rebuild` | After a BIOS update: read the new firmware and build the module again |
+| `sudo galaxybook-fan test-native` | Can the stock acpi-fan driver read the fan by itself now? (then the fix isn't needed) |
+| `sudo galaxybook-fan update` | Install the newest release's package |
+| `sudo galaxybook-fan updates on` / `off` | "New version" notifications on or off |
+| `galaxybook-fan updates status` | Are they on? (checked every 6 hours) |
+| `galaxybook-fan updates check` | Look now; if there's a new version, show the notification (no sudo) |
+
+</details>
 
 ### New versions
 

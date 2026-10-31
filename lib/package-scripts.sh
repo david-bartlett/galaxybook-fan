@@ -98,7 +98,7 @@ configure() {
 
     [[ -d /var/lib/dkms/$PKG_NAME/$v ]] || dkms add -m "$PKG_NAME" -v "$v" >/dev/null 2>&1 || true
     info "checking the module for ${kver}; DKMS builds it from this laptop's firmware if needed"
-    if dkms install -m "$PKG_NAME" -v "$v" -k "$kver" >"$GBFAN_LOG" 2>&1; then
+    if gbfan_dkms_install "$v" "$kver" >"$GBFAN_LOG" 2>&1; then
         if grep -q 'already installed' "$GBFAN_LOG"; then
             info "already built for ${kver}"
         else
@@ -115,13 +115,15 @@ configure() {
         [[ -z "$reason" ]] && tail -5 "$GBFAN_LOG" >&2
         warn "the package is installed; see 'galaxybook-fan status', and 'sudo galaxybook-fan rebuild' once it's sorted"
     fi
-    # Other kernels an old, forgotten version was installed for: the new
-    # version there too, where their headers are (else their old module stays
-    # until 'sudo galaxybook-fan rebuild' or that kernel's next update)
-    for k in $(printf '%s\n' "${held[@]}" | sort -u); do
+    # Other kernels an old, forgotten version was installed for, and any the
+    # new version is built for but not installed for (DKMS refused, over an
+    # old version's file): install it there too, where their headers are
+    # (else their old module stays until that kernel's next update, or
+    # 'sudo galaxybook-fan rebuild' after booting it)
+    for k in $( { printf '%s\n' "${held[@]}"; gbfan_dkms_built_only "$v"; } | sort -u); do
         [[ "$k" == "$kver" ]] && continue
         gbfan_has_headers "$k" || continue
-        if dkms install -m "$PKG_NAME" -v "$v" -k "$k" >/dev/null 2>&1; then
+        if gbfan_dkms_install "$v" "$k" >/dev/null 2>&1; then
             info "also installed for ${k}"
         else
             warn "couldn't install the module for ${k}: 'sudo galaxybook-fan rebuild' after booting it"

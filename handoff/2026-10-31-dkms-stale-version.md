@@ -13,6 +13,7 @@ PR #29 · Claude · 2026-10-31
 ## Tested
 - Here on a fake `/var/lib/dkms` tree (0.7.0 and 0.8.1, a kernel link each): the version picked is 0.8.1 with and without `VERSION`; forgetting 0.7.0 leaves 0.8.1 and its link. `bash -n`, shellcheck (no new warnings).
 - MX (Debian 13's DKMS) had a stuck **0.5.0** from an earlier upgrade, with kernel links for 7.2.10 and 7.2.6, so 0.7.0 was only *built* for those. Tested here on a copy of that tree: forgetting 0.5.0 prints both kernels and keeps 0.7.0's link.
+- MX, first try of this PR (a real 0.7.0 → 0.8.1 upgrade): the leftovers went, but Debian 13's DKMS refused every install: *Module …/updates/dkms/galaxybook_fan.ko.zst already installed (unversioned module), override by specifying --force*. The forgotten versions' module files were still there. Added `gbfan_dkms_install` (removes our module file on that error and retries once; `configure` and `gbfan_dkms_rebuild_kernel`) and `gbfan_dkms_built_only` (kernels the new version is built but not installed for, also installed by `configure`). Tested with a stand-in `dkms`.
 - David: the PR's deb (`apt install --reinstall`) fixed it on Mint 22.3 and Ubuntu 26.04.
 
 ## For the next person

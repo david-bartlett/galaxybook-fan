@@ -1,6 +1,6 @@
 # Release workflow
 
-PR #2 · Claude · 2026-10-31
+PR #3 · Claude · 2026-10-31 (first opened as #2, which was merged into the project-docs branch instead of main)
 
 ## What changed
 - `.github/workflows/release.yml`: on a `v*` tag (or run by hand for a tag) it checks `VERSION`, `dkms.conf`, `install.sh` and `CHANGELOG.md` all have the tag's version, then creates the GitHub release.

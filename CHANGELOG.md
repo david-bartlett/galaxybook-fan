@@ -8,6 +8,13 @@
 
 ## Unreleased
 
+- **Quicker to hear about a fix:** the new-version check asks GitHub every 6 hours instead of once a day, so an urgent release is noticed the same day
+- Still one notification per version, however often it looks
+
+- **Only complete releases are announced:** a new release is only announced once its packages and `SHA256SUMS` are attached, so `sudo galaxybook-fan update` can always install it
+- The release workflow now creates each release as a draft, attaches the files and only then publishes it, so a release never appears without them
+- The check also looks for this system's package in the release's `SHA256SUMS`; if it isn't there yet it says nothing and looks again an hour later. `galaxybook-fan updates check` says the release isn't ready yet instead of announcing it
+
 - **Upgrading the deb:** the old version no longer lingers in DKMS after a deb upgrade, and `galaxybook-fan status` shows the version you have
 - apt deletes the old version's source before the new package sets itself up, and DKMS (seen on Mint 22 and Ubuntu 26.04) then couldn't remove the old version, so `dkms status` showed *Could not locate dkms.conf* and `galaxybook-fan status` said the old version, built for no kernel. The upgrade now removes what's left of it, which also tidies a copy upgraded before this
 - Other kernels the old version was still installed for (MX had two) get the new version too, where their headers are installed

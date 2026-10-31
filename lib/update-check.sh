@@ -3,13 +3,15 @@
 # galaxybook-fan - "a new version is out" (runs as the user, from
 # galaxybook-fan-update-check.timer: 30 s after login, then hourly)
 #
-# Goes to GitHub at most once a day, and tells once per version. At login the
-# network may not be up yet, so it tries for about 2 minutes; if GitHub still
-# can't be reached it says nothing and records nothing, and the next hourly
-# run tries again. The service doesn't start at all while
+# Goes to GitHub at most every 6 hours, and tells once per version. At login
+# the network may not be up yet, so it tries for about 2 minutes; if GitHub
+# still can't be reached it says nothing and records nothing, and the next
+# hourly run tries again. The same if the new release's files aren't attached
+# yet (gbfan_release_ready): it's only announced once they're there, so
+# 'galaxybook-fan update' can install it. The service doesn't start at all while
 # 'galaxybook-fan updates off' is set or the fix isn't installed.
 #
-# GBFAN_UPDATE_EVERY (seconds, default a day) and GBFAN_UPDATE_TRIES /
+# GBFAN_UPDATE_EVERY (seconds, default 6 hours) and GBFAN_UPDATE_TRIES /
 # GBFAN_UPDATE_WAIT (attempts, seconds between them) are for testing.
 # =============================================================================
 set -uo pipefail
@@ -27,7 +29,7 @@ mkdir -p "$dir" 2>/dev/null || exit 0
 now="$(date +%s)"
 last="$(cat "$dir/last-update-check" 2>/dev/null || echo 0)"
 [[ "$last" =~ ^[0-9]+$ ]] || last=0
-(( now - last < ${GBFAN_UPDATE_EVERY:-86400} )) && exit 0
+(( now - last < ${GBFAN_UPDATE_EVERY:-21600} )) && exit 0
 
 cur="$(gbfan_installed_version)" || exit 0
 latest=""
@@ -37,10 +39,13 @@ for (( i = 1; i <= ${GBFAN_UPDATE_TRIES:-8}; i++ )); do
     (( i < ${GBFAN_UPDATE_TRIES:-8} )) && sleep "${GBFAN_UPDATE_WAIT:-15}"
 done
 [[ -n "$latest" ]] || exit 0                  # not reached: the next run tries again
-date +%s > "$dir/last-update-check"
-
-gbfan_version_newer "$cur" "$latest" || exit 0
-[[ "$(cat "$dir/notified-version" 2>/dev/null)" == "$latest" ]] && exit 0
+stamp() { date +%s > "$dir/last-update-check"; }
+gbfan_version_newer "$cur" "$latest" || { stamp; exit 0; }
+[[ "$(cat "$dir/notified-version" 2>/dev/null)" == "$latest" ]] && { stamp; exit 0; }
+# A release whose files aren't attached yet: not recorded, so the next
+# hourly run looks again
+gbfan_release_ready "$latest" || exit 0
+stamp
 # The notification, with buttons where the desktop shows them (lib/update.sh)
 gbfan_update_notify "$cur" "$latest" && gbfan_update_mark_told "$latest"
 exit 0

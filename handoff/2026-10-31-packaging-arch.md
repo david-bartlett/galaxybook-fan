@@ -8,12 +8,13 @@ PR #19 · Claude · 2026-10-31
 - `packaging/arch/README.md`, `.gitignore` (makepkg's `src/`, `pkg/`, `*.pkg.tar.*`), `packaging/README.md`, PLAN.md (step 5 ✅), CHANGELOG.
 
 ## Decisions
-- No takeover of an install.sh copy: both own `/etc/modules-load.d/galaxybook_fan.conf` and `/usr/src/galaxybook-fan-<ver>/`, so pacman stops with "exists in filesystem" before any script. The README says `sudo ./uninstall.sh` first (as fingerprint-fix-sdcp); `post_install` warns if a copy is somehow still there.
+- **Replaces an install.sh copy after unpacking.** I expected pacman to refuse over the copy's files ("exists in filesystem"), as fingerprint-fix-sdcp's README says; on David's CachyOS it installed over it instead (first version of this PR only warned). pacman runs nothing before unpacking, so `post_install` / `post_upgrade` run `package-scripts.sh replace-clone`: `gbfan_remove_clone` with `GBFAN_KEEP_VERSION`, which keeps what the package now owns or uses (its `/usr/src/galaxybook-fan-<ver>`, the autoload file, force flag, state) and doesn't rebind acpi-fan; other versions' `/usr/src` folders go. `lib/clone-remove.sh` is now shipped in the package's library folder for this.
+- `uninstall.sh` now names each removed `/usr/src` folder ("Removed /usr/src/galaxybook-fan-0.5.0") instead of "Removed source from /usr/src".
 - No Book 5 refusal: pacman ignores `.install` exit codes. `gen-config.sh` refuses the build and `configure` prints its reason.
 - Arch's dkms package has pacman hooks (install on `usr/src/*/dkms.conf` and new headers, remove before removal): they build for the other kernels; `configure` builds the running one first and copes with the hook having already removed it on removal.
 
 ## Tested
-- Here (Ubuntu 24.04, Debian's pacman/makepkg): `makepkg -d` builds `galaxybook-fan-0.5.0-1-any.pkg.tar.zst`; contents match the rpm and deb, with `.INSTALL`; `.install` functions run against a stub `package-scripts.sh` (headers hint, force flag); `bash -n`, shellcheck.
+- Here (Ubuntu 24.04, Debian's pacman/makepkg): `makepkg -d` builds the package; contents match the rpm and deb, with `.INSTALL` and `backup`. pacman's install simulated by unpacking it over a simulated install.sh copy and running `post_install`: the copy's files all removed, the package's kept (6 files in `/usr/src`, autoload, state now `package`); an older copy's `/usr/src/galaxybook-fan-0.4.0` removed. `uninstall.sh` and the deb's takeover re-run: unchanged. `bash -n`, shellcheck.
 - Not tested: installing with pacman on Arch/CachyOS, the DKMS hooks, CachyOS kernels.
 
 ## For the next person

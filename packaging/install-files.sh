@@ -33,7 +33,7 @@ install -Dm755 "$REPO/module/gen-config.sh" "$D$SRC/gen-config.sh"
 
 # ── The library folder, the command and the package's own scripts ─────────────
 install -Dm644 -t "$D$GBFAN_LIBDIR" "$REPO/lib/fanpaths.sh" "$REPO/lib/models.sh" \
-    "$REPO/lib/fan-dkms.sh" "$REPO/lib/dsdt-fan-config.py" "$REPO/VERSION"
+    "$REPO/lib/fan-dkms.sh" "$REPO/lib/clone-remove.sh" "$REPO/lib/dsdt-fan-config.py" "$REPO/VERSION"
 install -Dm755 -t "$D$GBFAN_LIBDIR" "$REPO/lib/samsung-galaxybook-fan-check.sh" \
     "$REPO/lib/galaxybook-fan" "$REPO/lib/package-scripts.sh"
 bash "$REPO/tools/build-check-script.sh" "$D$GBFAN_LIBDIR/check-galaxybook-fan.sh" "$VERSION" >/dev/null

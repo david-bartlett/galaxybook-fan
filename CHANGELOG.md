@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.5.0 — 2026-10-31
 
 - **`galaxybook-fan` command:** `galaxybook-fan status`, `sudo galaxybook-fan check`, `sudo galaxybook-fan rebuild` (after a BIOS update) and `sudo galaxybook-fan test-native`
 - After a BIOS update you no longer need the folder you installed from: the notification says to run `sudo galaxybook-fan rebuild`, which rebuilds the module for the new firmware on every kernel it's built for. `status` shows the version, kernels, how it was installed and the fan speed now

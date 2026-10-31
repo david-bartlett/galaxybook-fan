@@ -31,7 +31,7 @@ Makes **fan speed reporting** work on Linux on the **Samsung Galaxy Book 5** ser
 
 ## 3. Install method and where things live
 
-Install is `sudo ./install.sh` from a clone (no packages yet; see §10). Re-running it over an existing install is fine. `sudo ./uninstall.sh` removes everything it added.
+Install is `sudo ./install.sh` from a clone (no packages yet; see the plan in §10). Re-running it over an existing install is fine. `sudo ./uninstall.sh` removes everything it added.
 
 | What | Where |
 |---|---|
@@ -150,9 +150,49 @@ Give him a short numbered list of what to run and what he should see (and `sudo 
 
 ---
 
-## 10. Ideas not done yet (ask David before starting)
+## 10. Packaging plan (agreed 2026-10-31, in progress)
+
+Goal: rpm, deb and Arch packages attached to each release, like fingerprint-fix-sdcp. `install.sh` stays for other distros and for testing. Same distros as fingerprint-fix-sdcp: **Fedora 44/45, Ubuntu 24.04/26.04, Linux Mint, Debian 13, MX Linux 25, Arch / CachyOS**. galaxybook-fan already runs on all of them with `install.sh`.
+
+### 10.1 One architecture-independent package per format
+
+The package ships source, scripts and units; DKMS compiles the module on the user's machine. So there's one package per format, not one per distro release:
+
+| Format | Package | Architecture | Release files |
+| --- | --- | --- | --- |
+| rpm | `galaxybook-fan` | `noarch` | one `.rpm` for Fedora 44 and 45 |
+| deb | `galaxybook-fan` | `all` | one `.deb` for Ubuntu, Mint, Debian, MX |
+| Arch | `galaxybook-fan` | `any` | `PKGBUILD`, `galaxybook-fan.install` **and** a prebuilt `.pkg.tar.zst` (fine here, unlike fingerprint-fix-sdcp's driver, because nothing in it links against system libraries) |
+
+License `GPL-2.0-only`. Dependencies: `dkms`, the `iasl` tools (`acpica-tools` / `acpica-tools` / `acpica`), `python3`, polkit, `notify-send` (`libnotify` / `libnotify-bin`), and kernel headers (Fedora `kernel-devel-matched`; Ubuntu/Debian through `dkms`'s recommends; Arch: depends on the kernel, so the `.install` checks for headers and says which package to add).
+
+### 10.2 What `install.sh` does interactively, and how packages do it
+
+1. **Config from this machine's DSDT → DKMS `PRE_BUILD`.** `module/dkms.conf` gets `PRE_BUILD="gen-config.sh"`: on every DKMS build (install, each new kernel) it reads `/sys/firmware/acpi/tables/DSDT`, runs `iasl -d` and `dsdt-fan-config.py`, and writes `galaxybook_fan_config.h` in the build folder. One code path for `install.sh` and the packages. On an unsupported machine the build fails with the reason. The module's load-time DMI/DSDT checks stay as the safety net.
+2. **Secure Boot → no prompts in packages.** Sign with whatever key DKMS is configured for (Fedora akmods key, Ubuntu shim key, DKMS's own). If it isn't enrolled, say so and give the exact `mokutil --import` command. `install.sh` keeps offering to import it interactively.
+3. **"Re-run install.sh" after a BIOS update → a `galaxybook-fan` command.** `galaxybook-fan check` (as `install.sh --check`), `galaxybook-fan rebuild` (re-runs the DKMS build for the new firmware), `galaxybook-fan test-native`, `galaxybook-fan status`. The login check records how the fix was installed and names the right command in its notifications: `sudo galaxybook-fan rebuild` for a package install, `sudo ./install.sh` in its folder for a clone install.
+
+Also:
+- **Galaxy Book 5 only (David's rule):** the packages install only on a Samsung whose DMI product is in the Book 5 list (`940XHA`, `960XHA`, `960QHA`, `750XHD`, `754XHD`, `750QHA`, `754QHA`, with or without `NP`; the same list and normalisation as `install.sh`). One list, in one shared file, used by `install.sh`, the scriptlets and `gen-config.sh`; Book 6 is added there later.
+  - **rpm `%pre` and deb `preinst`** refuse anything else (exit 1, with the reason), so nothing is installed. `GALAXYBOOK_FAN_FORCE=1` overrides, like `install.sh --force` (same idea as fingerprint-fix-sdcp's `FPRINT_SDCP_FORCE`).
+  - **Arch:** pacman ignores the exit status of `.install` scripts, so `pre_install` can only warn. The real gate there is `gen-config.sh`, which also checks the model: the module never builds on anything but a Book 5, whatever the format, and `post_install` says why it wasn't built.
+- **Check before relying on it:** what each package manager does when the DKMS build fails during install (it must give a clear message, not leave apt or dnf half-configured).
+- **Removal only, not upgrade:** tidy-up in rpm `%preun`/`%postun` when `$1 == 0`, deb `prerm remove`/`postrm purge`, Arch `pre_remove`. Never fail a removal.
+- **Clone install and package detect each other**, so the two are never installed together.
+
+### 10.3 Steps (one PR each)
+
+1. **Preparation:** `PRE_BUILD` config generation, a shared paths file (clone vs package layout, like fingerprint-fix-sdcp's `lib/fixpaths.sh`), the `galaxybook-fan` command, notifications that know the install method. `install.sh` keeps working throughout.
+2. **`packaging/` shared files:** units, polkit rule, scripts as templates (`packaging/files/*.in`, `render.sh`, `install-files.sh`), as in fingerprint-fix-sdcp.
+3. **rpm** (`packaging/rpm/`: spec, `build.sh`).
+4. **deb** (`packaging/debian/`: control, rules, maintainer scripts, `build.sh`).
+5. **Arch** (`packaging/arch/`: `PKGBUILD`, `galaxybook-fan.install`; CI builds the `.pkg.tar.zst`).
+6. **Release workflow:** build all three, attach them, and change the release page to a per-distro download-and-install table.
+
+David tests each step on his laptop's distros before merging; the first packaged release follows step 6.
+
+## 11. Ideas not done yet (ask David before starting)
 
 - **Galaxy Book 6:** support it if its firmware has the same `_FST` bug (add its models after checking a real DSDT). The repository name is kept generic for this.
-- **Packages:** rpm, deb and a PKGBUILD attached to each release (as fingerprint-fix-sdcp does), instead of installing from a clone.
 - **Going public:** when David is happy, make the repository public and add a branch ruleset on `main` (block force pushes, restrict deletions, optionally require a PR with 0 approvals).
 - Testing the "signing key not enrolled" path and Book 5 models other than the 940XHA on real hardware.

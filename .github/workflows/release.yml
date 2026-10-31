@@ -1,0 +1,56 @@
+# Makes the GitHub release for a version, with the CHANGELOG.md section as its
+# notes (.github/release-notes.sh). galaxybook-fan has no packages yet: users
+# download the source code GitHub attaches to every release and run install.sh.
+#
+# Runs when a tag v<VERSION> is pushed (David's release tool does this), or by
+# hand for an existing tag: Actions → Release → Run workflow.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.3.0"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Check the version matches
+        run: |
+          version="${TAG#v}"
+          [[ "$(tr -d '[:space:]' < VERSION)" == "$version" ]] \
+            || { echo "::error::VERSION is $(cat VERSION), the tag is $TAG"; exit 1; }
+          grep -qx "PACKAGE_VERSION=\"$version\"" dkms.conf \
+            || { echo "::error::dkms.conf's PACKAGE_VERSION isn't $version"; exit 1; }
+          grep -q "^PKG_VERSION=\"$version\"" install.sh \
+            || { echo "::error::install.sh's PKG_VERSION isn't $version"; exit 1; }
+          grep -q "^## $version" CHANGELOG.md \
+            || { echo "::error::CHANGELOG.md has no '## $version' section"; exit 1; }
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${TAG#v}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; leaving it as it is."
+            exit 0
+          fi
+          bash .github/release-notes.sh "$version" > notes.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "galaxybook-fan $version" --notes-file notes.md

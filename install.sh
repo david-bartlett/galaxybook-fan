@@ -29,7 +29,7 @@
 set -uo pipefail
 
 PKG_NAME="galaxybook-fan"
-PKG_VERSION="0.3.0"   # keep in step with VERSION and module/dkms.conf (the release tool sets all three)
+PKG_VERSION="0.4.0"   # keep in step with VERSION and module/dkms.conf (the release tool sets all three)
 MOD_NAME="galaxybook_fan"
 SRC_DIR="/usr/src/${PKG_NAME}-${PKG_VERSION}"
 MODLOAD_CONF="/etc/modules-load.d/${MOD_NAME}.conf"

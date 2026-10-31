@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.4.0 — 2026-10-31
 
 - **Will it work on my laptop?** `check-galaxybook-fan.sh` checks your model and firmware before you install anything; it's attached to every release and linked at the top of the README
 - Read-only, one file: run `sudo bash check-galaxybook-fan.sh`. It makes the same firmware checks as the installer and says whether galaxybook-fan will work, and whether your model is already confirmed. On a model that isn't confirmed yet, with the fix installed and the fan spinning, it prints a short report to post as a *Works on my model* issue

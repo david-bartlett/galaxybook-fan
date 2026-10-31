@@ -38,6 +38,7 @@ Requires:       kmod
 Requires:       polkit
 Requires:       libnotify
 Requires:       systemd
+Requires:       curl
 Recommends:     mokutil
 
 %description

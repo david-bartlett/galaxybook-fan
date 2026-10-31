@@ -138,7 +138,7 @@ remove() {
     # Give the fan back to the stock acpi-fan driver
     gbfan_bind_acpi_fan
 
-    rm -f "$STATE_FILE" "$STATUS_FILE" "$FORCE_FLAG"
+    rm -f "$STATE_FILE" "$STATUS_FILE" "$FORCE_FLAG" "$UPDATES_OFF"
     rmdir "$GBFAN_ETC" "$STATE_DIR" 2>/dev/null || true
     return 0
 }

@@ -75,6 +75,8 @@ AKMODS_CONF="/etc/dkms/framework.conf.d/akmods-keys.conf"
 # model that isn't in the Book 5 list, or firmware that already looks fixed
 GBFAN_ETC="/etc/galaxybook-fan"
 FORCE_FLAG="$GBFAN_ETC/force"
+# 'sudo galaxybook-fan updates off' leaves this: no "new version" notifications
+UPDATES_OFF="$GBFAN_ETC/no-update-check"
 
 # Login check
 MONITOR_SVC="samsung-galaxybook-fan-monitor.service"

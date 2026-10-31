@@ -10,6 +10,9 @@
 #   sudo galaxybook-fan test-native
 #                                 can the stock acpi-fan driver read the fan
 #                                 by itself now? (then the fix isn't needed)
+#   sudo galaxybook-fan update    install the newest release's package
+#   galaxybook-fan updates on|off|status
+#                                 "new version" notifications (on: daily)
 # =============================================================================
 set -uo pipefail
 
@@ -23,6 +26,8 @@ done
 source "$LIBDIR/fanpaths.sh"
 # shellcheck source=fan-dkms.sh
 source "$LIBDIR/fan-dkms.sh"
+# shellcheck source=update.sh
+[[ -f "$LIBDIR/update.sh" ]] && source "$LIBDIR/update.sh"
 
 # Installed copies, or the clone's when run from lib/ before installing
 MONITOR_SCRIPT="$CHECK_SCRIPT"
@@ -80,6 +85,7 @@ cmd_status() {
             && info "The BIOS changed since the last check ($rec_b) - run: sudo galaxybook-fan rebuild"
     fi
     [[ -n "$rec_k" ]] && info "Last checked at login: kernel ${rec_k}, BIOS ${rec_b}"
+    declare -F gbfan_latest_version >/dev/null && cmd_updates status
     exit 0
 }
 
@@ -157,11 +163,94 @@ cmd_test_native() {
     esac
 }
 
+# The package format this was installed with: rpm, deb or arch (empty if
+# none: an install.sh copy)
+package_format() {
+    if command -v rpm >/dev/null 2>&1 && rpm -q "$PKG_NAME" >/dev/null 2>&1; then echo rpm
+    elif command -v dpkg-query >/dev/null 2>&1 \
+            && [[ "$(dpkg-query -W -f='${db:Status-Status}' "$PKG_NAME" 2>/dev/null)" == installed ]]; then echo deb
+    elif command -v pacman >/dev/null 2>&1 && pacman -Q "$PKG_NAME" >/dev/null 2>&1; then echo arch
+    fi
+}
+
+# Download the newest release's package for this system, check it against the
+# release's SHA256SUMS, and install it with the system's package manager
+# (which asks before installing, as usual)
+cmd_update() {
+    need_root update
+    local cur latest fmt pattern name dir rc
+    declare -F gbfan_latest_version >/dev/null || fail "update.sh is missing - reinstall galaxybook-fan"
+    cur="$(gbfan_installed_version)" \
+        || fail "Can't tell which version is installed - is galaxybook-fan installed? ('galaxybook-fan status')"
+    latest="$(gbfan_latest_version)" \
+        || fail "Couldn't find the newest release on GitHub (no network, or the repository isn't public yet)"
+    if ! gbfan_version_newer "$cur" "$latest"; then
+        ok "galaxybook-fan ${cur} is up to date (newest release: ${latest})"
+        exit 0
+    fi
+    info "galaxybook-fan ${latest} is available (you have ${cur}): $(gbfan_release_url "$latest")"
+
+    fmt="$(package_format)"
+    if [[ -z "$fmt" ]]; then
+        info "This copy was installed with install.sh, so update it the same way:"
+        info "  $(gbfan_update_hint)"
+        exit 0
+    fi
+    case "$fmt" in
+        rpm)  pattern="^galaxybook-fan-${latest//./\\.}-[0-9]+\\.noarch\\.rpm\$" ;;
+        deb)  pattern="^galaxybook-fan_${latest//./\\.}-[0-9]+_all\\.deb\$" ;;
+        arch) pattern="^galaxybook-fan-${latest//./\\.}-[0-9]+-any\\.pkg\\.tar\\.zst\$" ;;
+    esac
+
+    # World-readable folder: apt reads the file as its own _apt user
+    dir="$(mktemp -d)" || fail "mktemp failed"
+    chmod 755 "$dir"
+    trap 'rm -rf "$dir"' EXIT
+    curl -fsSL --max-time 60 -o "$dir/SHA256SUMS" \
+        "$GBFAN_REPO_URL/releases/download/v${latest}/SHA256SUMS" \
+        || fail "Couldn't download the release's SHA256SUMS"
+    name="$(awk '{print $2}' "$dir/SHA256SUMS" | sed 's/^\*//' | grep -E "$pattern" | sort -V | tail -1)"
+    [[ -n "$name" ]] || fail "The ${latest} release has no ${fmt} package"
+    info "Downloading ${name}"
+    curl -fsSL --max-time 300 -o "$dir/$name" "$GBFAN_REPO_URL/releases/download/v${latest}/${name}" \
+        || fail "Couldn't download ${name}"
+    ( cd "$dir" && grep -E "[[:space:]]\*?${name//./\\.}\$" SHA256SUMS | sha256sum -c --quiet - ) >/dev/null 2>&1 \
+        || fail "${name} doesn't match the release's SHA256SUMS - not installed"
+    ok "Checksum matches the release's SHA256SUMS"
+    chmod 644 "$dir/$name"
+
+    case "$fmt" in
+        rpm)  dnf install "$dir/$name" ;;
+        deb)  apt install "$dir/$name" ;;
+        arch) pacman -U "$dir/$name" ;;
+    esac
+    rc=$?
+    [[ $rc -eq 0 ]] && ok "galaxybook-fan ${latest} installed - 'galaxybook-fan status' shows it"
+    exit $rc
+}
+
+cmd_updates() {
+    case "${1:-status}" in
+        off) need_root "updates off"
+             mkdir -p "$GBFAN_ETC" && touch "$UPDATES_OFF" \
+                 && ok "No more \"new version\" notifications. Turn them back on: sudo galaxybook-fan updates on" ;;
+        on)  need_root "updates on"
+             rm -f "$UPDATES_OFF"; rmdir "$GBFAN_ETC" 2>/dev/null || true
+             ok "\"New version\" notifications are on: at most once a day, once per version" ;;
+        status)
+             if [[ -e "$UPDATES_OFF" ]]; then info "\"New version\" notifications: off (sudo galaxybook-fan updates on)"
+             else info "\"New version\" notifications: on, checked at most once a day (sudo galaxybook-fan updates off)"; fi ;;
+        *)   echo "Usage: galaxybook-fan updates on|off|status" >&2; exit 2 ;;
+    esac
+}
+
 case "${1:-}" in
     status)      cmd_status ;;
+    update)      cmd_update ;;
+    updates)     cmd_updates "${2:-}" ;;
     check)       cmd_check ;;
     rebuild)     cmd_rebuild ;;
     test-native) cmd_test_native ;;
-    -h|--help|help|"") sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [[ -n "${1:-}" ]]; exit $? ;;
+    -h|--help|help|"") sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [[ -n "${1:-}" ]]; exit $? ;;
     *) echo "Unknown command: $1 (see galaxybook-fan --help)" >&2; exit 2 ;;
 esac

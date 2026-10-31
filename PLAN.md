@@ -51,6 +51,10 @@ Install is a package from the release (rpm, deb or Arch, §10), or `sudo ./insta
 | Polkit rule (lets `wheel`/`sudo` users start the monitor) | `/etc/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules` |
 | State (kernel, BIOS, install folder and method at last check) | `/var/lib/samsung-galaxybook/fan-state` (`KVER`, `BIOS`, `INSTALL_DIR`, `INSTALL_METHOD` = `clone` or `package`) |
 | Notification for the user check | `/run/samsung-galaxybook/fan-status` |
+| New-version check: script, user timer and service (30 s after login, then hourly; GitHub at most once a day) | `update-check.sh` and `update.sh` in the library folder; `galaxybook-fan-update-check.{timer,service}` in `/usr/lib/systemd/user/` (packages, enabled for every user) or `~/.config/systemd/user/` (`install.sh`, for the user it ran for). **A newly installed user timer starts at the user's next login**, not in a session that's already running |
+| New-version check's off switch (`galaxybook-fan updates off`) | `/etc/galaxybook-fan/no-update-check` |
+| New-version check's state, per user | `~/.local/state/galaxybook-fan/last-update-check` (when GitHub last answered), `notified-version` (told once per version) |
+| Installed version, for the check | `VERSION` in the library folder (packages; `install.sh` writes it too) |
 | Shared graphical session helper (Xfce etc.; shared with other Galaxy Book fixes) | `/etc/systemd/user/samsung-galaxybook-session.target`, `/usr/local/bin/samsung-galaxybook-session-start.sh`, `/etc/xdg/autostart/samsung-galaxybook-session.desktop`, `/etc/samsung-galaxybook/session-helper.d/` |
 
 ## 4. Repository map
@@ -182,7 +186,7 @@ For a PR that changes packaging, he can also test the packages the PR's workflow
 - **Never put a ready-made config header in `/usr/src`.** `module/galaxybook_fan_config.h` (940XHA) is only for building by hand from the repository; DKMS must always get its header from `gen-config.sh`, which fails the build with an `#error` rather than build for the wrong machine.
 - **`acpi-fan` is only unbound while `galaxybook_fan` is loaded** (the unit's `ConditionPathIsDirectory=/sys/module/galaxybook_fan`, after `systemd-modules-load`; `gbfan_unbind_acpi_fan`). Where our module isn't loaded, the stock driver may well work (an earlier Galaxy Book, fixed firmware, a DSDT override), and unbinding it would leave no fan sensor at all. Keep it that way.
 - **A DSDT override hides the firmware:** with one, `/sys/firmware/acpi/tables/DSDT` is the override. Everything that reads the DSDT checks `gbfan_dsdt_overridden` first and says to remove it.
-- **Updates are never installed by themselves:** the login check only notifies; `sudo galaxybook-fan update` installs, through the package manager (which asks), and only a file whose checksum matches the release's `SHA256SUMS`. That protects against a broken download, not against a compromised GitHub account (see the release-tag ruleset in §11).
+- **Updates are never installed by themselves:** the update check (`galaxybook-fan-update-check.timer`) only notifies; `sudo galaxybook-fan update` installs, through the package manager (which asks), and only a file whose checksum matches the release's `SHA256SUMS`. That protects against a broken download, not against a compromised GitHub account (see the release-tag ruleset in §11).
 - **Keep the module's load-time DMI and DSDT checks.** They are what makes a BIOS update pause the fix instead of reporting nonsense.
 - **Nothing in the boot chain:** no DSDT override, no initrd change, so a BIOS update can never make the laptop unbootable. Keep it that way; the module loads from `modules-load.d` after boot.
 - **Secure Boot keys:** never generate a second key when one is configured; Fedora shares one akmods key with Andy's fixes (`akmods-keys.conf` is shared and never removed). Check that the module really was signed.

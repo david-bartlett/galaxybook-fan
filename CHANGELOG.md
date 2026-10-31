@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.6.2 — 2026-10-31
 
 - **Safer when the module isn't loaded:** the stock `acpi-fan` driver is only switched off while galaxybook-fan's module is loaded and reading the fan
 - At boot, `galaxybook-acpi-fan-unbind.service` now runs after the module has loaded, and only if it has. The packages, `install.sh` and `galaxybook-fan rebuild` do the same, and give the fan back to `acpi-fan` when the module doesn't load. Before, it was switched off whatever happened, so where the stock driver works (the Arch package on an earlier Galaxy Book, where pacman can't refuse to install; the old DSDT override; firmware that's fixed) there was no fan sensor at all

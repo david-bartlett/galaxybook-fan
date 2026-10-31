@@ -8,6 +8,13 @@
 
 ## Unreleased
 
+- **Quicker to hear about a fix:** the new-version check asks GitHub every 6 hours instead of once a day, so an urgent release is noticed the same day
+- Still one notification per version, however often it looks
+
+- **Only complete releases are announced:** a new release is only announced once its packages and `SHA256SUMS` are attached, so `sudo galaxybook-fan update` can always install it
+- The release workflow now creates each release as a draft, attaches the files and only then publishes it, so a release never appears without them
+- The check also looks for this system's package in the release's `SHA256SUMS`; if it isn't there yet it says nothing and looks again an hour later. `galaxybook-fan updates check` says the release isn't ready yet instead of announcing it
+
 ## 0.8.1 — 2026-10-31
 
 - **What's new keeps Update now:** pressing *What's new* on the new-version notification opens the release page and leaves the notification there, so *Update now* is still one click away

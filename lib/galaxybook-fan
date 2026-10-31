@@ -166,16 +166,6 @@ cmd_test_native() {
     esac
 }
 
-# The package format this was installed with: rpm, deb or arch (empty if
-# none: an install.sh copy)
-package_format() {
-    if command -v rpm >/dev/null 2>&1 && rpm -q "$PKG_NAME" >/dev/null 2>&1; then echo rpm
-    elif command -v dpkg-query >/dev/null 2>&1 \
-            && [[ "$(dpkg-query -W -f='${db:Status-Status}' "$PKG_NAME" 2>/dev/null)" == installed ]]; then echo deb
-    elif command -v pacman >/dev/null 2>&1 && pacman -Q "$PKG_NAME" >/dev/null 2>&1; then echo arch
-    fi
-}
-
 # Download the newest release's package for this system, check it against the
 # release's SHA256SUMS, and install it with the system's package manager
 # (which asks before installing, as usual)
@@ -193,17 +183,13 @@ cmd_update() {
     fi
     info "galaxybook-fan ${latest} is available (you have ${cur}): $(gbfan_release_url "$latest")"
 
-    fmt="$(package_format)"
+    fmt="$(gbfan_package_format)"
     if [[ -z "$fmt" ]]; then
         info "This copy was installed with install.sh, so update it the same way:"
         info "  $(gbfan_update_hint)"
         exit 0
     fi
-    case "$fmt" in
-        rpm)  pattern="^galaxybook-fan-${latest//./\\.}-[0-9]+\\.noarch\\.rpm\$" ;;
-        deb)  pattern="^galaxybook-fan_${latest//./\\.}-[0-9]+_all\\.deb\$" ;;
-        arch) pattern="^galaxybook-fan-${latest//./\\.}-[0-9]+-any\\.pkg\\.tar\\.zst\$" ;;
-    esac
+    pattern="$(gbfan_package_pattern "$latest" "$fmt")"
 
     # World-readable folder: apt reads the file as its own _apt user
     dir="$(mktemp -d)" || fail "mktemp failed"
@@ -211,7 +197,7 @@ cmd_update() {
     trap 'rm -rf "$dir"' EXIT
     curl -fsSL --max-time 60 -o "$dir/SHA256SUMS" \
         "$GBFAN_REPO_URL/releases/download/v${latest}/SHA256SUMS" \
-        || fail "Couldn't download the release's SHA256SUMS"
+        || fail "Couldn't download the release's SHA256SUMS (if ${latest} has only just been released, its files may not be attached yet: try again in a few minutes)"
     name="$(awk '{print $2}' "$dir/SHA256SUMS" | sed 's/^\*//' | grep -E "$pattern" | sort -V | tail -1)"
     [[ -n "$name" ]] || fail "The ${latest} release has no ${fmt} package"
     info "Downloading ${name}"
@@ -239,10 +225,10 @@ cmd_updates() {
                  && ok "No more \"new version\" notifications. Turn them back on: sudo galaxybook-fan updates on" ;;
         on)  need_root "updates on"
              rm -f "$UPDATES_OFF"; rmdir "$GBFAN_ETC" 2>/dev/null || true
-             ok "\"New version\" notifications are on: at most once a day, once per version" ;;
+             ok "\"New version\" notifications are on: GitHub asked at most every 6 hours, told once per version" ;;
         status)
              if [[ -e "$UPDATES_OFF" ]]; then info "\"New version\" notifications: off (sudo galaxybook-fan updates on)"
-             else info "\"New version\" notifications: on, checked at most once a day (sudo galaxybook-fan updates off)"; fi ;;
+             else info "\"New version\" notifications: on, GitHub asked at most every 6 hours (sudo galaxybook-fan updates off)"; fi ;;
         check)
              # As the user: a notification sent as root wouldn't reach their desktop
              [[ $EUID -ne 0 ]] || fail "Run it without sudo, so the notification reaches your desktop: galaxybook-fan updates check"
@@ -252,6 +238,10 @@ cmd_updates() {
                  || fail "Couldn't find the newest release on GitHub (no network?)"
              if ! gbfan_version_newer "$cur" "$latest"; then
                  ok "galaxybook-fan ${cur} is up to date (newest release: ${latest})"
+                 return 0
+             fi
+             if ! gbfan_release_ready "$latest"; then
+                 info "galaxybook-fan ${latest} is being released - its files aren't attached yet, try again in a few minutes"
                  return 0
              fi
              info "galaxybook-fan ${latest} is available (you have ${cur}): $(gbfan_release_url "$latest")"

@@ -1,6 +1,6 @@
 # Written by @WRITTEN_BY@.
 [Unit]
-Description=galaxybook-fan - look for a new release (30 s after login, then hourly; GitHub at most once a day)
+Description=galaxybook-fan - look for a new release (30 s after login, then hourly; GitHub at most every 6 hours)
 # PartOf stops the timer at logout so it re-arms on the next login.
 PartOf=graphical-session.target
 After=graphical-session.target

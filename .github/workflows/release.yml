@@ -9,8 +9,8 @@
 # the laptop, so nothing in them depends on the release they were built on.
 #
 # - A tag v<VERSION> (David's release tool pushes it): checks the versions,
-#   builds, creates the release with the CHANGELOG.md section as its notes
-#   (.github/release-notes.sh) and attaches the files.
+#   builds, creates the release as a draft with the CHANGELOG.md section as
+#   its notes (.github/release-notes.sh), attaches the files and publishes it.
 # - Actions -> Release -> Run workflow with an existing tag: the same, and
 #   re-attaches the files if the release exists.
 # - A pull request: builds the packages only, as artifacts on the run's page
@@ -185,6 +185,10 @@ jobs:
           cd dist
           sha256sum -- * > SHA256SUMS
           cat SHA256SUMS
+      # A new release is made as a draft, the files attached, and only then
+      # published: drafts are hidden from releases/latest (what the new-version
+      # check asks) and from the releases page, so a release never appears
+      # without its packages and SHA256SUMS
       - name: Create the release if needed, and attach the files
         env:
           GH_TOKEN: ${{ github.token }}
@@ -194,8 +198,15 @@ jobs:
             echo "Release $TAG exists: (re)attaching the files"
           else
             bash .github/release-notes.sh "$version" > notes.md
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
               --title "galaxybook-fan $version" --notes-file notes.md
           fi
           ls -l dist
           gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          # Publish it if it's still a draft (made above, or by a run that
+          # stopped before this): --latest so releases/latest points to it.
+          # One already published is left as it is, so re-attaching an older
+          # release's files never makes it the latest.
+          if [[ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)" == true ]]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          fi

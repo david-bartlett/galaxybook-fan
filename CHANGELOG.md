@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **README:** installing from the release's packages now comes straight after the check, and the rest is up to date with the packages
+- What the packages do is described where it differs from `install.sh` (the DSDT check, Secure Boot, the initramfs, removal), the *Tested on* table has a column for the package tested on each distro, and *Files* lists the packaging scripts and is collapsed
+
 ## 0.6.1 — 2026-10-31
 
 - **Fedora package:** galaxybook-fan can be built and installed as an rpm (`bash packaging/rpm/build.sh`, then `sudo dnf install ./packaging/out/galaxybook-fan-*.noarch.rpm`)

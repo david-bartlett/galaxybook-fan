@@ -26,7 +26,7 @@ Makes **fan speed reporting** work on Linux on the **Samsung Galaxy Book 5** ser
 - `galaxybook_fan` is a small **DKMS hwmon module** that reads the same EC field `_FST` reads (e.g. `H_EC.FANS`) through ACPI by name, then applies `_FST`'s level remap and RPM table (`FANT`) itself. Only the broken lookup is bypassed.
 - **Nothing is hard-coded per model.** The installer disassembles the machine's own DSDT; `dsdt-fan-config.py` derives and validates the field, remap and table, and writes `galaxybook_fan_config.h` before DKMS builds the module.
 - **Supported:** Galaxy Book 5 models `940XHA`, `960XHA`, `960QHA`, `750XHD`, `754XHD`, `750QHA`, `754QHA` (with or without an `NP` prefix; same list as fnkeys-fix-book5). Tested on the 940XHA only. Other Samsung models are refused (earlier Galaxy Books already work with the stock driver); `--force` overrides. Non-Samsung machines are always refused. Kernel 6.8 or newer.
-- **Distros:** anything with `dnf`, `apt` or `pacman`. Tested on Fedora 45, Ubuntu 26.04, Linux Mint 27, MX Linux 25 and CachyOS.
+- **Distros:** packages for Fedora 44/45, Ubuntu 24.04/26.04, Mint, Debian 13, MX 25 and Arch/CachyOS; `install.sh` for anything with `dnf`, `apt` or `pacman`. Tested on Fedora 45, Ubuntu 26.04, Linux Mint 22.3, MX Linux 25.3 and CachyOS.
 - **Repository:** private for now; David makes it public when it's ready for other people. It was `extras/galaxybook-fan` in `david-bartlett/samsung-galaxybook-fixes` until October 2026 (history moved with it; the old folder is tagged `galaxybook-fan-final` there).
 
 ## 3. Install method and where things live

@@ -69,7 +69,24 @@ VENDOR="$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)"
 PRODUCT="$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)"
 BIOS="$(cat /sys/class/dmi/id/bios_version 2>/dev/null || true)"
 MODEL="$(gbfan_model "$PRODUCT")"
-DISTRO="$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-unknown}")"
+# The distro's name. Some distros keep their base's name in os-release (MX
+# Linux says "Debian GNU/Linux 13 (trixie)"), but their own in lsb-release:
+# when the two IDs differ, show "MX 25.1 Infinity (based on Debian …)".
+distro_name() {
+    local pretty id lsb_id lsb_desc
+    pretty="$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-}")"
+    id="$(. /etc/os-release 2>/dev/null && echo "${ID:-}")"
+    if [[ -r /etc/lsb-release ]]; then
+        lsb_id="$(sed -n 's/^DISTRIB_ID=//p' /etc/lsb-release | tr -d '"' | head -1)"
+        lsb_desc="$(sed -n 's/^DISTRIB_DESCRIPTION=//p' /etc/lsb-release | tr -d '"' | head -1)"
+        if [[ -n "$lsb_id" && -n "$lsb_desc" && "${lsb_id,,}" != "${id,,}" ]]; then
+            echo "${lsb_desc}${pretty:+ (based on ${pretty})}"
+            return
+        fi
+    fi
+    echo "${pretty:-unknown}"
+}
+DISTRO="$(distro_name)"
 KERNEL="$(uname -r)"
 
 info "Laptop: ${VENDOR:-unknown} ${PRODUCT:-unknown} (BIOS ${BIOS:-unknown})"

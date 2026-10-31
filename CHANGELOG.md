@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.6.1 — 2026-10-31
 
 - **Fedora package:** galaxybook-fan can be built and installed as an rpm (`bash packaging/rpm/build.sh`, then `sudo dnf install ./packaging/out/galaxybook-fan-*.noarch.rpm`)

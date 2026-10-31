@@ -56,7 +56,8 @@ gbfan_release_url() { echo "$GBFAN_REPO_URL/releases/tag/v$1"; }
 
 # The notification's title and text (CURRENT LATEST), shared by the hourly
 # check and 'galaxybook-fan updates check'. The command and the link are in
-# the text on every desktop (GNOME shows no buttons), each on its own line so
+# the text on every desktop (GNOME shows no buttons; a click there opens the
+# release page, notify-update.sh), each on its own line so
 # they don't run together when wrapped.
 gbfan_update_title() { echo "galaxybook-fan $2 is available"; }
 gbfan_update_text() {

@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.8.2 — 2026-10-31
 
 - **Quicker to hear about a fix:** the new-version check asks GitHub every 6 hours instead of once a day, so an urgent release is noticed the same day

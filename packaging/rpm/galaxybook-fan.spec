@@ -41,6 +41,7 @@ Requires:       libnotify
 Requires:       systemd
 Requires:       curl
 Recommends:     mokutil
+Recommends:     xdg-utils
 
 %description
 Fan speed reporting for the Samsung Galaxy Book 5 on Linux. Samsung's fan

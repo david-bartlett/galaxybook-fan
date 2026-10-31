@@ -47,19 +47,28 @@ find_terminal() {
     done
 }
 
+# How to open the release page: xdg-open (xdg-utils), else GNOME's gio
+opener=""
+if command -v xdg-open >/dev/null 2>&1; then opener="xdg-open"
+elif command -v gio >/dev/null 2>&1; then opener="gio open"
+fi
+
 term="$(find_terminal)"
 if notify-send --help 2>&1 | grep -q -- '--action'; then
     actions=()
     # Only offer "Update now" where a terminal can be opened for it
     [[ -n "$term" && -x "$HERE/update-in-terminal.sh" ]] && actions+=(--action=update="Update now")
-    [[ -n "$url" ]] && actions+=(--action=whatsnew="What's new")
+    # ...and "What's new" only where the link can be opened
+    [[ -n "$url" && -n "$opener" ]] && actions+=(--action=whatsnew="What's new")
     choice="$(notify-send "${args[@]}" "${actions[@]}" "$title" "$msg" 2>/dev/null)"
     case "$choice" in
         update)
             # $term is a command and its options, split on purpose
             # shellcheck disable=SC2086
             exec $term /bin/bash "$HERE/update-in-terminal.sh" ;;
-        whatsnew) exec xdg-open "$url" ;;
+        whatsnew)
+            # shellcheck disable=SC2086
+            exec $opener "$url" ;;
     esac
 else
     notify-send "${args[@]}" "$title" "$msg"

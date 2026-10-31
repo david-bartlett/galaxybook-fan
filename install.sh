@@ -629,7 +629,7 @@ install_monitor() {
         || fail "Couldn't install ${CHECK_SCRIPT}"
     mkdir -p "$GBFAN_LIBDIR"
     local f
-    for f in dsdt-fan-config.py fanpaths.sh models.sh fan-dkms.sh; do
+    for f in dsdt-fan-config.py fanpaths.sh models.sh fan-dkms.sh update.sh; do
         install -m 644 -o root -g root "$LIB_SRC/$f" "$GBFAN_LIBDIR/" \
             || fail "Couldn't install ${f} to ${GBFAN_LIBDIR}"
     done
@@ -638,7 +638,9 @@ install_monitor() {
         || fail "Couldn't build check-galaxybook-fan.sh"
     install -D -m 755 -o root -g root "$LIB_SRC/galaxybook-fan" "$GBFAN_CMD" \
         || fail "Couldn't install ${GBFAN_CMD}"
-    ok "Command: galaxybook-fan (status, check, rebuild, test-native)"
+    # The version, for the "new version" check (lib/update.sh)
+    echo "$PKG_VERSION" > "$GBFAN_LIBDIR/VERSION"
+    ok "Command: galaxybook-fan (status, check, rebuild, test-native, update)"
 
     put_rendered monitor.service.in "$SYSTEM_UNIT_DIR/$MONITOR_SVC"
     systemctl daemon-reload

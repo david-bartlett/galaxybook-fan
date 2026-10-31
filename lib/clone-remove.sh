@@ -55,7 +55,7 @@ gbfan_remove_clone() {
         [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
     done
     if [[ -z "$keep" ]]; then
-        for f in "$MODLOAD_CONF" "$FORCE_FLAG"; do
+        for f in "$MODLOAD_CONF" "$FORCE_FLAG" "${UPDATES_OFF:-}"; do
             [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
         done
         rmdir "$GBFAN_ETC" 2>/dev/null || true

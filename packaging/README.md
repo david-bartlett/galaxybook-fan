@@ -9,6 +9,7 @@ Each format is **one package, architecture-independent**: it ships the module's 
 | `files/` + `render.sh` | the units, scripts, polkit rule, session helper, dracut and autoload files, **shared with `install.sh`**: `bash packaging/render.sh clone|package FILE` fills in the paths from `lib/fanpaths.sh` |
 | `pre-script.sh` | builds the step run before the first install (rpm `%pre`, deb `preinst`; bash): the "Galaxy Book 5 only" check (`files/pkg-pre.sh.in`, model list from `lib/models.sh`), then removing a copy installed with `install.sh` (`../lib/clone-remove.sh`, the same steps as `uninstall.sh`) |
 | `install-files.sh` | puts the package's files in a staging folder (every format) |
+| `../lib/update.sh` | is there a newer release (the login check's notification, `galaxybook-fan update`); release file names are what `update` looks for |
 | `../lib/package-scripts.sh` | `configure` after install/upgrade, `remove` before removal (every format); `replace-clone` (Arch, after unpacking) |
 | `rpm/` | `galaxybook-fan.spec` and `build.sh` |
 | `arch/` | `PKGBUILD` and `galaxybook-fan.install` (pacman's install scripts); see `arch/README.md` |

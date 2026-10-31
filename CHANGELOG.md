@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- **What's new keeps Update now:** pressing *What's new* on the new-version notification opens the release page and leaves the notification there, so *Update now* is still one click away
+- Desktops close a notification when one of its buttons is pressed, so after the page opens it's shown again, a moment later so it appears after the browser window. *Update now* or closing it ends it
+
+- **Click it on GNOME:** GNOME usually shows no buttons, so clicking the new-version notification itself opens the release page, and the notification says so
+- Only on GNOME (including Ubuntu's), so KDE, Cinnamon, MATE and Xfce keep just their two buttons. A click opens *What's new*, not *Update now*, so a stray one never opens a terminal asking for your password
+
 ## 0.8.0 — 2026-10-31
 
 - **Update now:** where the desktop shows notification buttons (KDE, Cinnamon, Xfce…), the new-version notification has **Update now**, which opens a terminal running `sudo galaxybook-fan update`, and **What's new**, which opens the release page

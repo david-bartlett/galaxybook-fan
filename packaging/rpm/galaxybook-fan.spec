@@ -58,11 +58,9 @@ echo "enable %{unbind_svc}" > %{buildroot}%{_presetdir}/80-%{name}.preset
 echo "enable %{user_timer}" > %{buildroot}%{_userpresetdir}/80-%{name}.preset
 
 # Bash: the removal of an install.sh copy is the same code uninstall.sh runs.
-# Built in with %(cat), which rpm doesn't expand macros in.
-%pre -p /bin/bash
-if [ "$1" -eq 1 ]; then
-%(cat %{prescript})
-fi
+# build.sh writes it (first install only) with every % doubled, as -f expands
+# macros in the file.
+%pre -p /bin/bash -f %{prescript}
 
 %post
 bash %{libdir_gb}/package-scripts.sh configure || :

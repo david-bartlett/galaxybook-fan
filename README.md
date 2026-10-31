@@ -166,6 +166,20 @@ The installer:
 
 Re-running `install.sh` over an existing install is fine; there's no need to uninstall first.
 
+<details>
+<summary>Fedora: build and install the rpm yourself (packages aren't on the releases yet)</summary>
+
+```bash
+sudo ./uninstall.sh                      # only if you installed with install.sh before
+sudo dnf install rpm-build systemd-rpm-macros
+bash packaging/rpm/build.sh
+sudo dnf install ./packaging/out/galaxybook-fan-*.noarch.rpm
+```
+
+The package does the same as `install.sh`, and refuses anything that isn't a Galaxy Book 5. Remove it with `sudo dnf remove galaxybook-fan`. Details: [packaging/README.md](packaging/README.md).
+
+</details>
+
 ### Initramfs
 
 `galaxybook_fan` loads after boot from `modules-load.d`, so it never needs to be in the initramfs. Some distros (Fedora) set DKMS's `post_transaction` to rebuild **every** kernel's initramfs after each DKMS operation, which takes a minute or two. Like fnkeys-fix-book5, both scripts suspend that for their own DKMS steps with a temporary drop-in (`/etc/dkms/framework.conf.d/zz-galaxybook-fan-defer-initramfs.conf`), which a trap removes when the script exits, even on failure. DKMS's own setting is never changed. On dracut systems, `/etc/dracut.conf.d/galaxybook-fan.conf` (`omit_drivers`) also keeps the module out of future initramfs images. If an old copy is already in the running kernel's initramfs, only that one image is rebuilt.
@@ -198,6 +212,7 @@ This removes everything the installer added and rebinds `acpi-fan`. No reboot is
 | `install.sh` / `uninstall.sh` | as above |
 | `module/gen-config.sh` | DKMS's `PRE_BUILD`: writes the module's config from this machine's DSDT before every build |
 | `lib/galaxybook-fan` | the `galaxybook-fan` command |
+| `packaging/` | rpm packaging, and the units and scripts shared by `install.sh` and the packages ([packaging/README.md](packaging/README.md)) |
 | `lib/fanpaths.sh`, `lib/fan-dkms.sh` | names, paths and DKMS steps shared by the installer, the command and the login check |
 | `tools/check-galaxybook-fan.sh` | the read-only "will it work on my laptop?" check; each release attaches a single-file copy built by `tools/build-check-script.sh` |
 | `lib/models.sh` | the Galaxy Book 5 models, and the ones confirmed working |

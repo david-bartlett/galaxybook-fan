@@ -26,11 +26,32 @@ if [[ "$GBFAN_LAYOUT" == package ]]; then
     GBFAN_CMD="/usr/bin/galaxybook-fan"
     CHECK_SCRIPT="$GBFAN_LIBDIR/samsung-galaxybook-fan-check.sh"
     USER_CHECK_SCRIPT="$GBFAN_LIBDIR/samsung-galaxybook-fan-user-check.sh"
+    SYSTEM_UNIT_DIR="/usr/lib/systemd/system"
+    USER_UNIT_DIR="/usr/lib/systemd/user"           # enabled for every user (systemctl --global)
+    POLKIT_RULE="/usr/share/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules"
+    DRACUT_CONF="/usr/lib/dracut/dracut.conf.d/galaxybook-fan.conf"
+    # Its own session helper, so it never owns a file another package
+    # (fingerprint-fix-sdcp) or a clone install also writes
+    SESSION_TARGET_NAME="galaxybook-fan-session.target"
+    SESSION_HELPER_TARGET="$USER_UNIT_DIR/$SESSION_TARGET_NAME"
+    SESSION_HELPER_SCRIPT="$GBFAN_LIBDIR/session-start.sh"
+    SESSION_HELPER_AUTOSTART="/etc/xdg/autostart/galaxybook-fan-session.desktop"
+    WRITTEN_BY="the galaxybook-fan package"
 else
     GBFAN_LIBDIR="/usr/local/lib/samsung-galaxybook/fan"
     GBFAN_CMD="/usr/local/sbin/galaxybook-fan"
     CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-check.sh"
     USER_CHECK_SCRIPT="/usr/local/bin/samsung-galaxybook-fan-user-check.sh"
+    SYSTEM_UNIT_DIR="/etc/systemd/system"
+    USER_UNIT_DIR=""                                # install.sh writes into the user's ~/.config/systemd/user
+    POLKIT_RULE="/etc/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules"
+    DRACUT_CONF="/etc/dracut.conf.d/galaxybook-fan.conf"
+    # Shared with the other Galaxy Book fixes' install.sh (session-helper.d)
+    SESSION_TARGET_NAME="samsung-galaxybook-session.target"
+    SESSION_HELPER_TARGET="/etc/systemd/user/$SESSION_TARGET_NAME"
+    SESSION_HELPER_SCRIPT="/usr/local/bin/samsung-galaxybook-session-start.sh"
+    SESSION_HELPER_AUTOSTART="/etc/xdg/autostart/samsung-galaxybook-session.desktop"
+    WRITTEN_BY="galaxybook-fan install.sh"
 fi
 # The DSDT parser, model list, this file and the built check script live in
 # GBFAN_LIBDIR (the parser used to be in "PARSER_DIR"; same folder for clone).
@@ -40,10 +61,10 @@ PARSER="$GBFAN_LIBDIR/dsdt-fan-config.py"
 MODLOAD_CONF="/etc/modules-load.d/${MOD_NAME}.conf"
 MODPROBE_CONF="/etc/modprobe.d/${MOD_NAME}.conf"                # old versions only
 UDEV_RULE="/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules"  # old versions only
-UNBIND_SERVICE="/etc/systemd/system/galaxybook-acpi-fan-unbind.service"
+UNBIND_SVC="galaxybook-acpi-fan-unbind.service"
+UNBIND_SERVICE="$SYSTEM_UNIT_DIR/$UNBIND_SVC"
 DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
 DKMS_DEFER_CONF="/etc/dkms/framework.conf.d/zz-${PKG_NAME}-defer-initramfs.conf"
-DRACUT_CONF="/etc/dracut.conf.d/${PKG_NAME}.conf"
 # Fedora: share the akmods key and DKMS config with Andy's fixes
 AKMODS_CERT="/etc/pki/akmods/certs/public_key.der"
 AKMODS_KEY="/etc/pki/akmods/private/private_key.priv"
@@ -59,15 +80,11 @@ FORCE_FLAG="$GBFAN_ETC/force"
 MONITOR_SVC="samsung-galaxybook-fan-monitor.service"
 USER_CHECK_SVC="samsung-galaxybook-fan-user-check.service"
 USER_CHECK_TIMER="samsung-galaxybook-fan-user-check.timer"
-POLKIT_RULE="/etc/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules"
 STATE_DIR="/var/lib/samsung-galaxybook"
 STATE_FILE="${STATE_DIR}/fan-state"
 STATUS_DIR="/run/samsung-galaxybook"
 STATUS_FILE="${STATUS_DIR}/fan-status"
-SESSION_HELPER_TARGET="/etc/systemd/user/samsung-galaxybook-session.target"
-SESSION_HELPER_SCRIPT="/usr/local/bin/samsung-galaxybook-session-start.sh"
-SESSION_HELPER_AUTOSTART="/etc/xdg/autostart/samsung-galaxybook-session.desktop"
-SESSION_HELPER_USERS="/etc/samsung-galaxybook/session-helper.d"
+SESSION_HELPER_USERS="/etc/samsung-galaxybook/session-helper.d"   # clone installs only
 
 ACPI_FAN_DRV="/sys/bus/platform/drivers/acpi-fan"
 

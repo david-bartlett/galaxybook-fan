@@ -6,3 +6,4 @@ __pycache__/
 .*.cmd
 Module.symvers
 modules.order
+packaging/out/

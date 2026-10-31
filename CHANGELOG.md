@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.8.0 — 2026-10-31
 
 - **Update now:** where the desktop shows notification buttons (KDE, Cinnamon, Xfce…), the new-version notification has **Update now**, which opens a terminal running `sudo galaxybook-fan update`, and **What's new**, which opens the release page

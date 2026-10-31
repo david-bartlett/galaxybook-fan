@@ -27,7 +27,7 @@ Makes **fan speed reporting** work on Linux on the **Samsung Galaxy Book 5** ser
 - **Nothing is hard-coded per model.** The installer disassembles the machine's own DSDT; `dsdt-fan-config.py` derives and validates the field, remap and table, and writes `galaxybook_fan_config.h` before DKMS builds the module.
 - **Supported:** Galaxy Book 5 models `940XHA`, `960XHA`, `960QHA`, `750XHD`, `754XHD`, `750QHA`, `754QHA` (with or without an `NP` prefix; same list as fnkeys-fix-book5). Tested on the 940XHA only. Other Samsung models are refused (earlier Galaxy Books already work with the stock driver); `--force` overrides. Non-Samsung machines are always refused. Kernel 6.8 or newer.
 - **Distros:** packages for Fedora 44/45, Ubuntu 24.04/26.04, Mint, Debian 13, MX 25 and Arch/CachyOS; `install.sh` for anything with `dnf`, `apt` or `pacman`. Tested on Fedora 45, Ubuntu 26.04, Linux Mint 22.3, MX Linux 25.3 and CachyOS.
-- **Repository:** private for now; David makes it public when it's ready for other people. It was `extras/galaxybook-fan` in `david-bartlett/samsung-galaxybook-fixes` until October 2026 (history moved with it; the old folder is tagged `galaxybook-fan-final` there).
+- **Repository:** public since 31 October 2026 (0.7.0). It was `extras/galaxybook-fan` in `david-bartlett/samsung-galaxybook-fixes` until October 2026 (history moved with it; the old folder is tagged `galaxybook-fan-final` there).
 
 ## 3. Install method and where things live
 
@@ -51,7 +51,7 @@ Install is a package from the release (rpm, deb or Arch, §10), or `sudo ./insta
 | Polkit rule (lets `wheel`/`sudo` users start the monitor) | `/etc/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules` |
 | State (kernel, BIOS, install folder and method at last check) | `/var/lib/samsung-galaxybook/fan-state` (`KVER`, `BIOS`, `INSTALL_DIR`, `INSTALL_METHOD` = `clone` or `package`) |
 | Notification for the user check | `/run/samsung-galaxybook/fan-status` |
-| New-version check: script, user timer and service (30 s after login, then hourly; GitHub at most once a day) | `update-check.sh` and `update.sh` in the library folder; `galaxybook-fan-update-check.{timer,service}` in `/usr/lib/systemd/user/` (packages, enabled for every user) or `~/.config/systemd/user/` (`install.sh`, for the user it ran for). **A newly installed user timer starts at the user's next login**, not in a session that's already running |
+| New-version check: script, user timer and service (30 s after login, then hourly; GitHub at most once a day) | `update-check.sh` and `update.sh` in the library folder; `galaxybook-fan-update-check.{timer,service}` in `/usr/lib/systemd/user/` (packages, enabled for every user) or `~/.config/systemd/user/` (`install.sh`, for the user it ran for). The packages start the update timer in sessions that are already running (`package-scripts.sh`'s `user_systemctl_all`); `install.sh`'s, for the user it ran for, also starts at once |
 | New-version check's off switch (`galaxybook-fan updates off`) | `/etc/galaxybook-fan/no-update-check` |
 | New-version check's state, per user | `~/.local/state/galaxybook-fan/last-update-check` (when GitHub last answered), `notified-version` (told once per version) |
 | Installed version, for the check | `VERSION` in the library folder (packages; `install.sh` writes it too) |
@@ -240,5 +240,5 @@ David tests each step on his laptop's distros before merging; the first packaged
 ## 11. Ideas not done yet (ask David before starting)
 
 - **Galaxy Book 6:** support it if its firmware has the same `_FST` bug (add its models after checking a real DSDT). The repository name is kept generic for this.
-- **Going public:** when David is happy, make the repository public and add a branch ruleset on `main` (block force pushes, restrict deletions, optionally require a PR with 0 approvals) and a tag ruleset on `v*` (restrict creations, updates, deletions; bypass: repository admin only), so only David can make a release. The update check starts working then (GitHub answers 404 while private).
+- **Branch ruleset on `main`** (block force pushes, restrict deletions; bypass: repository admin; no required PR, as the release tool pushes to `main`). The `v*` tag ruleset is in place since going public.
 - Testing the "signing key not enrolled" path and Book 5 models other than the 940XHA on real hardware.

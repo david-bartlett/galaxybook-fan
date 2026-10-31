@@ -8,6 +8,10 @@
 
 ## Unreleased
 
+- **No log-out needed:** installing or upgrading the package starts the new-version check straight away for everyone logged in, and removing it stops it
+- Before, `systemctl --global enable` only took effect at each user's next login, so the check didn't run until then; removal also stops both timers in running sessions
+- The new-version notification uses the standard `system-software-update` icon (the one it used is missing from some icon themes, e.g. KDE's Breeze showed a blank page)
+
 ## 0.7.0 — 2026-10-31
 
 - **New versions:** galaxybook-fan tells you once when a newer release is out, and `sudo galaxybook-fan update` installs it

@@ -1,0 +1,146 @@
+#!/bin/bash
+# =============================================================================
+# galaxybook-fan - the installed fix's command (installed by install.sh as
+# /usr/local/sbin/galaxybook-fan; by the packages as /usr/bin/galaxybook-fan)
+#
+#   galaxybook-fan status         what's installed, and the fan speed now
+#   sudo galaxybook-fan check     will it work on this laptop? (read-only)
+#   sudo galaxybook-fan rebuild   after a BIOS update: read the new firmware
+#                                 and build the module again
+#   sudo galaxybook-fan test-native
+#                                 can the stock acpi-fan driver read the fan
+#                                 by itself now? (then the fix isn't needed)
+# =============================================================================
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# Next to this script when installed; ../lib's copy when run from a clone
+for d in "$HERE" /usr/lib/galaxybook-fan /usr/local/lib/samsung-galaxybook/fan; do
+    [[ -f "$d/fanpaths.sh" ]] && { LIBDIR="$d"; break; }
+done
+[[ -n "${LIBDIR:-}" ]] || { echo "galaxybook-fan: fanpaths.sh not found - is the fix installed?" >&2; exit 2; }
+# shellcheck source=fanpaths.sh
+source "$LIBDIR/fanpaths.sh"
+# shellcheck source=fan-dkms.sh
+source "$LIBDIR/fan-dkms.sh"
+
+if [[ -t 1 ]]; then
+    B=$'\e[1m'; G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; C=$'\e[36m'; N=$'\e[0m'
+else
+    B=""; G=""; Y=""; R=""; C=""; N=""
+fi
+ok()   { echo "${G}[ OK ]${N}  $*"; }
+info() { echo "${C}[INFO]${N}  $*"; }
+warn() { echo "${Y}[WARN]${N}  $*"; }
+fail() { echo "${R}[FAIL]${N}  $*"; exit 1; }
+need_root() { [[ $EUID -eq 0 ]] || { echo "Run it with sudo: sudo galaxybook-fan $1"; exit 2; }; }
+
+state_value() { sed -n "s/^$1=//p" "$STATE_FILE" 2>/dev/null | tail -1; }
+fan_rpm() {
+    local h
+    for h in /sys/class/hwmon/hwmon*; do
+        [[ "$(cat "$h/name" 2>/dev/null)" == "$MOD_NAME" ]] && { cat "$h/fan1_input" 2>/dev/null; return; }
+    done
+    return 1
+}
+uninstall_hint() {
+    if [[ "$(state_value INSTALL_METHOD)" == package ]] || gbfan_package_installed; then
+        echo "remove the galaxybook-fan package (e.g. sudo dnf remove galaxybook-fan, sudo apt remove galaxybook-fan or sudo pacman -R galaxybook-fan)"
+    else
+        echo "run 'sudo ./uninstall.sh' in ${INSTALL_DIR:-$(state_value INSTALL_DIR)}"
+    fi
+}
+
+cmd_status() {
+    local v kernels rpm method dir rec_k rec_b
+    v="$(gbfan_dkms_version || true)"
+    method="$(state_value INSTALL_METHOD)"; dir="$(state_value INSTALL_DIR)"
+    rec_k="$(state_value KVER)"; rec_b="$(state_value BIOS)"
+    echo "${B}galaxybook-fan${N}"
+    if [[ -z "$v" ]]; then
+        warn "Not registered with DKMS - the fix isn't installed."
+        exit 1
+    fi
+    kernels="$(gbfan_dkms_kernels "$v" | tr '\n' ' ')"
+    info "Version ${v}, built for: ${kernels:-no kernel yet}"
+    if [[ "$method" == package ]]; then info "Installed from the galaxybook-fan package"
+    else info "Installed with install.sh${dir:+ from ${dir}}"; fi
+    if [[ -d /sys/module/$MOD_NAME ]]; then
+        if rpm="$(fan_rpm)"; then ok "Module loaded - fan: ${rpm} RPM"
+        else warn "Module loaded, but its fan sensor isn't there"; fi
+    else
+        warn "Module not loaded on kernel $(uname -r)"
+        [[ "$(cat /sys/class/dmi/id/bios_version 2>/dev/null)" != "$rec_b" && -n "$rec_b" ]] \
+            && info "The BIOS changed since the last check ($rec_b) - run: sudo galaxybook-fan rebuild"
+    fi
+    [[ -n "$rec_k" ]] && info "Last checked at login: kernel ${rec_k}, BIOS ${rec_b}"
+    exit 0
+}
+
+cmd_check() {
+    need_root check
+    [[ -f "$LIBDIR/check-galaxybook-fan.sh" ]] || fail "check-galaxybook-fan.sh is missing from ${LIBDIR}"
+    exec bash "$LIBDIR/check-galaxybook-fan.sh"
+}
+
+cmd_rebuild() {
+    need_root rebuild
+    local v k kernels=() failed=0 reason rpm
+    v="$(gbfan_dkms_version)" || fail "galaxybook-fan isn't registered with DKMS - install it first"
+    # The running kernel, plus every other kernel it's built for that still has headers
+    kernels+=("$(uname -r)")
+    while read -r k; do
+        [[ -n "$k" && "$k" != "$(uname -r)" && -d /lib/modules/$k/build ]] && kernels+=("$k")
+    done < <(gbfan_dkms_kernels "$v")
+
+    trap gbfan_dkms_resume_initramfs EXIT
+    gbfan_dkms_defer_initramfs
+    modprobe -r "$MOD_NAME" 2>/dev/null || true
+    for k in "${kernels[@]}"; do
+        info "Building galaxybook-fan ${v} for ${k} from this machine's firmware"
+        if gbfan_dkms_rebuild_kernel "$v" "$k" >/tmp/galaxybook-fan-rebuild.log 2>&1; then
+            ok "Built and installed for ${k}"
+        else
+            reason="$(gbfan_dkms_build_reason "$v" || true)"
+            warn "Build for ${k} failed${reason:+: ${reason#galaxybook-fan: }}"
+            [[ -z "$reason" ]] && warn "  see /tmp/galaxybook-fan-rebuild.log"
+            failed=1
+        fi
+    done
+
+    if modprobe "$MOD_NAME" 2>/dev/null; then
+        sleep 1
+        rpm="$(fan_rpm || true)"
+        ok "Module loaded${rpm:+ - fan: ${rpm} RPM}"
+        "$CHECK_SCRIPT" --record-state "$(state_value INSTALL_DIR)" "$(state_value INSTALL_METHOD)" \
+            || warn "Couldn't record the new state"
+    else
+        warn "The module didn't load - see: sudo dmesg | grep galaxybook_fan"
+        failed=1
+    fi
+    exit $failed
+}
+
+cmd_test_native() {
+    need_root test-native
+    if [[ -d /sys/module/$MOD_NAME ]]; then
+        info "The test needs the fan spinning - waiting up to 2 minutes."
+        info "If it's quiet, load the CPU in another terminal, e.g.: timeout 180 openssl speed -multi \$(nproc) rsa4096"
+    fi
+    case "$("$CHECK_SCRIPT" --test-native --wait 120)" in
+        works)     ok "The stock driver reads the fan speed - this fix is no longer needed: $(uninstall_hint)" ;;
+        broken)    ok "The stock driver still can't read the fan speed - keep this fix" ;;
+        fan-off)   warn "The fan wasn't spinning, so the test proved nothing - load the CPU and try again" ;;
+        no-device) warn "No ACPI fan device or acpi-fan driver found" ;;
+        *)         fail "The native test failed to run" ;;
+    esac
+}
+
+case "${1:-}" in
+    status)      cmd_status ;;
+    check)       cmd_check ;;
+    rebuild)     cmd_rebuild ;;
+    test-native) cmd_test_native ;;
+    -h|--help|help|"") sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [[ -n "${1:-}" ]]; exit $? ;;
+    *) echo "Unknown command: $1 (see galaxybook-fan --help)" >&2; exit 2 ;;
+esac

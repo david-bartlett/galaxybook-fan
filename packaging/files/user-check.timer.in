@@ -1,0 +1,14 @@
+[Unit]
+Description=Samsung Galaxy Book — fan speed fix login check (10s after login)
+# PartOf stops the timer at logout so it re-arms on the next login.
+PartOf=graphical-session.target
+After=graphical-session.target
+DefaultDependencies=no
+
+[Timer]
+OnActiveSec=10
+AccuracySec=1s
+Unit=@USER_CHECK_SVC@
+
+[Install]
+WantedBy=graphical-session.target

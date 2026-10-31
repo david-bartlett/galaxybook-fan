@@ -1,0 +1,42 @@
+# galaxybook-fan package: before the first install (rpm %pre, deb preinst).
+# Built in at package build time (packaging/render.sh): the package's files
+# aren't there yet. pacman ignores .install exit codes, so on Arch the same
+# check is made by module/gen-config.sh when DKMS builds.
+gbfan_refuse() {
+    cat >&2 <<GBFANEOF
+
+galaxybook-fan is only for the Samsung Galaxy Book 5
+(@BOOK5_MODELS_LIST@), but $1.
+Nothing was installed. To check this laptop:
+  https://github.com/david-bartlett/galaxybook-fan#will-it-work-on-my-laptop
+To install anyway (e.g. building a system image for a Galaxy Book 5):
+  sudo GALAXYBOOK_FAN_FORCE=1 <your package manager's install command>
+
+GBFANEOF
+    exit 1
+}
+if [ -e @GBFAN_CMD_CLONE@ ] || [ -e /usr/local/bin/samsung-galaxybook-fan-check.sh ]; then
+    cat >&2 <<GBFANEOF
+
+galaxybook-fan is already installed with install.sh. Remove that copy first,
+from the folder you installed it from:
+  sudo ./uninstall.sh
+then install the package again.
+
+GBFANEOF
+    exit 1
+fi
+if [ "${GALAXYBOOK_FAN_FORCE:-0}" = 1 ]; then
+    mkdir -p "$(dirname @FORCE_FLAG@)" && touch @FORCE_FLAG@
+else
+    gbfan_vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null)
+    gbfan_product=$(cat /sys/class/dmi/id/product_name 2>/dev/null)
+    case "$(printf '%s' "$gbfan_vendor" | tr '[:lower:]' '[:upper:]')" in
+        *SAMSUNG*) ;;
+        *) gbfan_refuse "this computer is not a Samsung (${gbfan_vendor:-unknown vendor})" ;;
+    esac
+    gbfan_model=$(printf '%s' "$gbfan_product" | tr '[:lower:]' '[:upper:]' | sed 's/^NP//')
+    gbfan_ok=0
+    for m in @BOOK5_MODELS_LIST@; do [ "$gbfan_model" = "$m" ] && gbfan_ok=1; done
+    [ "$gbfan_ok" = 1 ] || gbfan_refuse "this is a ${gbfan_product:-model that could not be read}"
+fi

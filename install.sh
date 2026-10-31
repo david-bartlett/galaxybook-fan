@@ -45,6 +45,13 @@ for _f in fanpaths.sh models.sh fan-dkms.sh; do
     source "$LIB_SRC/$_f" || { echo "lib/$_f missing from ${SCRIPT_DIR}" >&2; exit 1; }
 done
 SRC_DIR="/usr/src/${PKG_NAME}-${PKG_VERSION}"
+# The units, scripts and polkit rule come from packaging/files/, filled in
+# for this layout, so install.sh and the packages install the same files
+put_rendered() {    # TEMPLATE TARGET [MODE]
+    mkdir -p "$(dirname "$2")"
+    bash "$SCRIPT_DIR/packaging/render.sh" clone "$1" > "$2" || fail "Couldn't write $2"
+    chmod "${3:-644}" "$2"
+}
 FORCE=0
 CHECK_ONLY=0
 TEST_NATIVE=0
@@ -487,12 +494,7 @@ setup_signing() {
 
 keep_out_of_initramfs() {
     command -v dracut >/dev/null 2>&1 || return 0
-    mkdir -p "$(dirname "$DRACUT_CONF")"
-    cat > "$DRACUT_CONF" <<EOF
-# Written by ${PKG_NAME} install.sh - galaxybook_fan loads from modules-load.d
-# after boot and must never be in the initramfs. Removed by uninstall.sh.
-omit_drivers+=" ${MOD_NAME} "
-EOF
+    put_rendered dracut.conf.in "$DRACUT_CONF"
 }
 
 # If an older install did end up in this kernel's initramfs, rebuild just this
@@ -592,26 +594,7 @@ install_unbind() {
         ok "Removed old udev rule ${UDEV_RULE}"
     fi
 
-    cat > "$UNBIND_SERVICE" <<'EOF'
-# Written by galaxybook-fan install.sh.
-# Samsung's FAN0._FST is broken (Index without DerefOf), so the stock acpi-fan
-# driver only produces AML errors and a dead fan sensor. galaxybook_fan reads
-# the EC directly instead. The fan has no ACPI control (_FPS/_FSL), so the
-# cooling device acpi-fan registers does nothing - unbinding it loses nothing.
-[Unit]
-Description=Unbind acpi-fan from Samsung Galaxy Book fan (broken _FST)
-DefaultDependencies=no
-Before=sysinit.target
-ConditionPathIsDirectory=/sys/bus/platform/drivers/acpi-fan
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/bin/sh -c 'for d in /sys/bus/platform/drivers/acpi-fan/PNP0C0B:*; do [ -e "$$d" ] && echo "$${d##*/}" > /sys/bus/platform/drivers/acpi-fan/unbind; done; true'
-
-[Install]
-WantedBy=sysinit.target
-EOF
+    put_rendered unbind.service.in "$UNBIND_SERVICE"
     systemctl daemon-reload
     systemctl enable "$(basename "$UNBIND_SERVICE")" >/dev/null 2>&1 \
         || fail "Couldn't enable $(basename "$UNBIND_SERVICE")"
@@ -633,47 +616,11 @@ EOF
 # writes a notification to /run for the user script to show with notify-send.
 # ---------------------------------------------------------------------------
 install_session_helper() {
-    cat > "$SESSION_HELPER_TARGET" << 'SESSTARGETEOF'
-[Unit]
-Description=Samsung Galaxy Book — graphical session (desktops without systemd session support)
-# Started at login by samsung-galaxybook-session-start.sh. Binding to
-# graphical-session.target activates it, so units WantedBy= it start as they
-# do on KDE Plasma and GNOME.
-BindsTo=graphical-session.target
-Wants=graphical-session-pre.target
-After=graphical-session-pre.target
-SESSTARGETEOF
-    chmod 644 "$SESSION_HELPER_TARGET"
+    put_rendered session.target.in "$SESSION_HELPER_TARGET"
 
-    cat > "$SESSION_HELPER_SCRIPT" << 'SESSSCRIPTEOF'
-#!/bin/bash
-# Samsung Galaxy Book — start graphical-session.target on desktops that don't.
-# Run from XDG autostart at login. Does nothing if the desktop has already
-# started the target itself (KDE Plasma, GNOME).
-systemctl --user is-active --quiet graphical-session.target && exit 0
-# Pass the session's display variables to the systemd user manager first, so
-# services that show notifications or tray icons can reach the desktop.
-if command -v dbus-update-activation-environment >/dev/null 2>&1; then
-    dbus-update-activation-environment --systemd --all
-else
-    systemctl --user import-environment DISPLAY XAUTHORITY WAYLAND_DISPLAY \
-        XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null
-fi
-systemctl --user start samsung-galaxybook-session.target
-SESSSCRIPTEOF
-    chmod 755 "$SESSION_HELPER_SCRIPT"
+    put_rendered session-start.sh.in "$SESSION_HELPER_SCRIPT" 755
 
-    mkdir -p "$(dirname "$SESSION_HELPER_AUTOSTART")"
-    cat > "$SESSION_HELPER_AUTOSTART" << SESSDESKTOPEOF
-[Desktop Entry]
-Type=Application
-Name=Samsung Galaxy Book session helper
-Comment=Starts systemd graphical-session.target on desktops that do not
-Exec=${SESSION_HELPER_SCRIPT}
-NoDisplay=true
-X-GNOME-Autostart-enabled=true
-SESSDESKTOPEOF
-    chmod 644 "$SESSION_HELPER_AUTOSTART"
+    put_rendered session-autostart.desktop.in "$SESSION_HELPER_AUTOSTART"
 
     mkdir -p "$SESSION_HELPER_USERS"
     touch "$SESSION_HELPER_USERS/galaxybook-fan"
@@ -695,63 +642,12 @@ install_monitor() {
         || fail "Couldn't install ${GBFAN_CMD}"
     ok "Command: galaxybook-fan (status, check, rebuild, test-native)"
 
-    cat > "/etc/systemd/system/${MONITOR_SVC}" <<EOF
-[Unit]
-Description=Samsung Galaxy Book — fan speed fix monitor
-
-[Service]
-Type=oneshot
-ExecStart=${CHECK_SCRIPT} --monitor
-RemainAfterExit=no
-StandardOutput=journal
-StandardError=journal
-EOF
+    put_rendered monitor.service.in "$SYSTEM_UNIT_DIR/$MONITOR_SVC"
     systemctl daemon-reload
 
-    mkdir -p "$(dirname "$POLKIT_RULE")"
-    cat > "$POLKIT_RULE" <<'EOF'
-polkit.addRule(function(action, subject) {
-    if (action.id == "org.freedesktop.systemd1.manage-units" &&
-        action.lookup("unit") == "samsung-galaxybook-fan-monitor.service" &&
-        action.lookup("verb") == "start" &&
-        (subject.isInGroup("wheel") || subject.isInGroup("sudo"))) {
-        return polkit.Result.YES;
-    }
-});
-EOF
-    chmod 644 "$POLKIT_RULE"
+    put_rendered polkit-monitor.rules.in "$POLKIT_RULE"
 
-    cat > "$USER_CHECK_SCRIPT" <<'EOF'
-#!/bin/bash
-# Samsung Galaxy Book — fan speed fix user check (runs as user)
-# Started by samsung-galaxybook-fan-user-check.timer 10 seconds after
-# graphical-session.target is reached, so the desktop and notify-send are ready.
-# Starts the root monitor only when something changed that it should look at.
-STATE_FILE="/var/lib/samsung-galaxybook/fan-state"
-STATUS_FILE="/run/samsung-galaxybook/fan-status"
-
-[[ -f /etc/modules-load.d/galaxybook_fan.conf ]] || exit 0
-
-KVER="" BIOS=""
-[[ -f "$STATE_FILE" ]] && { KVER="$(sed -n 's/^KVER=//p' "$STATE_FILE")"; BIOS="$(sed -n 's/^BIOS=//p' "$STATE_FILE")"; }
-CUR_BIOS="$(cat /sys/class/dmi/id/bios_version 2>/dev/null)"
-
-if [[ "$(uname -r)" == "$KVER" && "$CUR_BIOS" == "$BIOS" && -d /sys/module/galaxybook_fan ]]; then
-    exit 0
-fi
-
-# Type=oneshot: returns once the monitor has finished writing its status
-systemctl start samsung-galaxybook-fan-monitor.service || exit 0
-
-[[ -s "$STATUS_FILE" ]] || exit 0
-{ IFS= read -r ICON; IFS= read -r TITLE; IFS= read -r MSG; } < "$STATUS_FILE"
-[[ -n "$TITLE" ]] || exit 0
-
-notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i "${ICON:-dialog-information}" "$TITLE" "$MSG" \
-    || logger -t samsung-galaxybook-fan-user-check "notify-send failed: $TITLE: $MSG"
-EOF
-    chown root:root "$USER_CHECK_SCRIPT"
-    chmod 755 "$USER_CHECK_SCRIPT"
+    put_rendered user-check.sh.in "$USER_CHECK_SCRIPT" 755
     ok "Monitor: ${MONITOR_SVC} + polkit rule"
 
     # Record the kernel/BIOS this install was made for
@@ -781,32 +677,8 @@ EOF
     }
 
     mkdir -p "$udir"
-    cat > "${udir}/${USER_CHECK_SVC}" <<EOF
-[Unit]
-Description=Samsung Galaxy Book — fan speed fix login check
-# Started by ${USER_CHECK_TIMER}; no [Install] section on purpose.
-
-[Service]
-Type=oneshot
-ExecStart=${USER_CHECK_SCRIPT}
-RemainAfterExit=no
-EOF
-    cat > "${udir}/${USER_CHECK_TIMER}" <<EOF
-[Unit]
-Description=Samsung Galaxy Book — fan speed fix login check (10s after login)
-# PartOf stops the timer at logout so it re-arms on the next login.
-PartOf=graphical-session.target
-After=graphical-session.target
-DefaultDependencies=no
-
-[Timer]
-OnActiveSec=10
-AccuracySec=1s
-Unit=${USER_CHECK_SVC}
-
-[Install]
-WantedBy=graphical-session.target
-EOF
+    put_rendered user-check.service.in "${udir}/${USER_CHECK_SVC}"
+    put_rendered user-check.timer.in "${udir}/${USER_CHECK_TIMER}"
     chown -R "${user}:$(id -gn "$user")" "$(dirname "$udir")"
     _fan_user_systemctl daemon-reload 2>/dev/null || true
     _fan_user_systemctl enable "${USER_CHECK_TIMER}" >/dev/null 2>&1 \

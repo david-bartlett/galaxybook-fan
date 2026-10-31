@@ -3,40 +3,10 @@
 # Started by @USER_CHECK_TIMER@ 10 seconds after
 # graphical-session.target is reached, so the desktop and notify-send are ready.
 # Starts the root monitor only when something changed that it should look at.
-# Also, at most once a day, says once when a newer release is out.
 STATE_FILE="@STATE_FILE@"
 STATUS_FILE="@STATUS_FILE@"
 
 [[ -f @MODLOAD_CONF@ ]] || exit 0
-
-# --- A newer release? (lib/update.sh; quiet when offline, or while GitHub has
-#     nothing to say) - before the checks below, which can stop the script
-update_check() {
-    local dir now last cur latest
-    [[ -f "@GBFAN_LIBDIR@/update.sh" ]] || return 0
-    # shellcheck disable=SC1091
-    { source "@GBFAN_LIBDIR@/fanpaths.sh" && source "@GBFAN_LIBDIR@/fan-dkms.sh" \
-        && source "@GBFAN_LIBDIR@/update.sh"; } 2>/dev/null || return 0
-    [[ -e "$UPDATES_OFF" ]] && return 0
-    dir="${XDG_STATE_HOME:-$HOME/.local/state}/galaxybook-fan"
-    mkdir -p "$dir" 2>/dev/null || return 0
-    now="$(date +%s)"
-    last="$(cat "$dir/last-update-check" 2>/dev/null || echo 0)"
-    [[ "$last" =~ ^[0-9]+$ ]] || last=0
-    (( now - last < ${GBFAN_UPDATE_EVERY:-86400} )) && return 0
-    cur="$(gbfan_installed_version)" || return 0
-    latest="$(gbfan_latest_version)" || return 0        # not reached: try next time
-    echo "$now" > "$dir/last-update-check"
-    gbfan_version_newer "$cur" "$latest" || return 0
-    [[ "$(cat "$dir/notified-version" 2>/dev/null)" == "$latest" ]] && return 0
-    # No buttons: GNOME doesn't show them. The command works everywhere.
-    notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i software-update-available \
-        "galaxybook-fan $latest is available" \
-        "You have $cur. To update: $(gbfan_update_hint)
-$(gbfan_release_url "$latest")" \
-        && echo "$latest" > "$dir/notified-version"
-}
-update_check
 
 KVER="" BIOS=""
 [[ -f "$STATE_FILE" ]] && { KVER="$(sed -n 's/^KVER=//p' "$STATE_FILE")"; BIOS="$(sed -n 's/^BIOS=//p' "$STATE_FILE")"; }

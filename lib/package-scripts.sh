@@ -95,7 +95,7 @@ configure() {
 
     systemctl daemon-reload >/dev/null 2>&1 || true
     systemctl enable "$UNBIND_SVC" >/dev/null 2>&1 || true
-    systemctl --global enable "$USER_CHECK_TIMER" >/dev/null 2>&1 || true
+    systemctl --global enable "$USER_CHECK_TIMER" "$UPDATE_CHECK_TIMER" >/dev/null 2>&1 || true
 
     if modprobe "$MOD_NAME" 2>/dev/null; then
         # Ours is reading the fan: take it from acpi-fan, now and at each boot.
@@ -134,7 +134,7 @@ remove() {
     gbfan_dkms_remove_all >/dev/null 2>&1 || true
 
     systemctl disable --now "$UNBIND_SVC" >/dev/null 2>&1 || true
-    systemctl --global disable "$USER_CHECK_TIMER" >/dev/null 2>&1 || true
+    systemctl --global disable "$USER_CHECK_TIMER" "$UPDATE_CHECK_TIMER" >/dev/null 2>&1 || true
     # Give the fan back to the stock acpi-fan driver
     gbfan_bind_acpi_fan
 

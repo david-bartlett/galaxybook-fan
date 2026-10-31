@@ -9,7 +9,7 @@
 ## Unreleased
 
 - **New versions:** galaxybook-fan tells you once when a newer release is out, and `sudo galaxybook-fan update` installs it
-- Checked at most once a day (after login, and daily while you stay logged in), told once per version, and nothing is said when GitHub can't be reached. The notification has no buttons, so it's the same on GNOME and KDE: it gives the command and the release's link
+- Looked for 30 seconds after login and hourly while you stay logged in, on GitHub at most once a day, waiting up to 2 minutes for the network at login; told once per version, and nothing is said when GitHub can't be reached. The notification has no buttons, so it's the same on GNOME and KDE: it gives the command and the release's link
 - `sudo galaxybook-fan update` downloads your distro's package from the newest release, checks it against the release's `SHA256SUMS` and installs it with `dnf`, `apt` or `pacman` (which ask first, as usual). A copy installed with `install.sh` is told how to update it instead
 - `sudo galaxybook-fan updates off` / `on` turns the notifications off and on; `galaxybook-fan status` shows which. The packages now need `curl`
 

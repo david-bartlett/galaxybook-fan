@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.8.1 — 2026-10-31
 
 - **What's new keeps Update now:** pressing *What's new* on the new-version notification opens the release page and leaves the notification there, so *Update now* is still one click away
 - Desktops close a notification when one of its buttons is pressed, so after the page opens it's shown again, a moment later so it appears after the browser window. *Update now* or closing it ends it

@@ -29,6 +29,11 @@
 - One `any` package: DKMS builds the module on the laptop, and Arch's DKMS hooks build it for every installed kernel with headers. The install names the headers package to add if the running kernel's are missing (e.g. `linux-cachyos-headers`). On anything but a Galaxy Book 5 it installs but doesn't build the module, and says why (`GALAXYBOOK_FAN_FORCE=1` builds anyway). Remove a copy installed with `install.sh` first (`sudo ./uninstall.sh`): pacman won't install over its module source (an older copy is removed just after installing). `sudo pacman -R galaxybook-fan` removes everything
 - Removing the package or running `uninstall.sh` unloads the module even when its file has already gone (`rmmod` when `modprobe -r` can't find it): on Arch, the DKMS hook deletes the file before the package's removal step, so `galaxybook_fan` stayed loaded and `sensors` showed both fans until a reboot
 
+- **Packages on the release page:** each release has the Fedora `.rpm`, the Ubuntu / Debian `.deb` and the Arch package, built by GitHub, with a table of which to download and the one command to install it
+- The release workflow builds the three packages (`fedora:45`, `debian:13`, `archlinux:base-devel`) and attaches them with a `PKGBUILD` to build the release on Arch instead, `galaxybook-fan.install`, `check-galaxybook-fan.sh` and `SHA256SUMS`. On every pull request it builds them as downloadable artifacts, so they can be tested before a release
+- The rpm is named `galaxybook-fan-X.Y.Z-1.noarch.rpm`, without `.fc45`: the same file is for Fedora 44 and 45
+- README: install from the release's packages first; `install.sh` stays for other distros
+
 ## 0.5.0 — 2026-10-31
 
 - **`galaxybook-fan` command:** `galaxybook-fan status`, `sudo galaxybook-fan check`, `sudo galaxybook-fan rebuild` (after a BIOS update) and `sudo galaxybook-fan test-native`

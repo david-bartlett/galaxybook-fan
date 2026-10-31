@@ -147,6 +147,20 @@ Not yet tested on real hardware: the "signing key not enrolled" path (the `mokut
 
 ## Install
 
+From the **[latest release](https://github.com/david-bartlett/galaxybook-fan/releases/latest)**, download your distro's file and install it:
+
+| Distro | Command |
+| --- | --- |
+| **Fedora 44, 45** | `sudo dnf install ./galaxybook-fan-*.noarch.rpm` |
+| **Ubuntu 24.04, 26.04, Mint, Debian 13, MX 25** | `sudo apt install ./galaxybook-fan_*_all.deb` |
+| **Arch, CachyOS, EndeavourOS** | `sudo pacman -U ./galaxybook-fan-*-any.pkg.tar.zst` (or `makepkg -si` with the release's `PKGBUILD` and `galaxybook-fan.install`) |
+
+The packages do what `install.sh` does (below), with no questions: DKMS builds the module on your laptop from its own firmware, for every kernel with headers. They refuse anything that isn't a Galaxy Book 5 (on Arch the module just isn't built, and the install says why). A copy installed with `install.sh` is replaced by the rpm and deb; on Arch, run `sudo ./uninstall.sh` in its folder first. Remove the package with `sudo dnf remove`, `sudo apt remove` or `sudo pacman -R galaxybook-fan`. Details: [packaging/README.md](packaging/README.md).
+
+### With install.sh (any distro with dnf, apt or pacman)
+
+From the release's **Source code (tar.gz)**, or a clone:
+
 ```bash
 sudo ./install.sh --check    # derive and show the config from your DSDT, install nothing
 sudo ./install.sh            # confirmed models (940XHA)
@@ -164,21 +178,7 @@ The installer:
 - installs the login-time check described above (plus the shared graphical session helper on desktops that need it, such as Xfce), and the `galaxybook-fan` command
 - refuses to install if your firmware's `_FST` is already correct, since the stock driver should work then (`--force` overrides)
 
-Re-running `install.sh` over an existing install is fine; there's no need to uninstall first.
-
-<details>
-<summary>Fedora: build and install the rpm yourself (packages aren't on the releases yet)</summary>
-
-```bash
-sudo ./uninstall.sh                      # only if you installed with install.sh before
-sudo dnf install rpm-build systemd-rpm-macros
-bash packaging/rpm/build.sh
-sudo dnf install ./packaging/out/galaxybook-fan-*.noarch.rpm
-```
-
-The package does the same as `install.sh`, and refuses anything that isn't a Galaxy Book 5. Remove it with `sudo dnf remove galaxybook-fan`. Details: [packaging/README.md](packaging/README.md).
-
-</details>
+Re-running `install.sh` over an existing install is fine; there's no need to uninstall first. It won't run while the package is installed.
 
 ### Initramfs
 
@@ -199,11 +199,13 @@ At the MokManager screen after the reboot: **Enroll MOK → Continue → Yes →
 
 ## Uninstall
 
+The package: `sudo dnf remove galaxybook-fan`, `sudo apt remove galaxybook-fan` or `sudo pacman -R galaxybook-fan`. A copy installed with `install.sh`:
+
 ```bash
 sudo ./uninstall.sh
 ```
 
-This removes everything the installer added and rebinds `acpi-fan`. No reboot is needed.
+Either removes everything that was added and rebinds `acpi-fan`. No reboot is needed.
 
 ## Files
 

@@ -57,7 +57,7 @@ dkms_cert() {
 }
 
 configure() {
-    local v kver reason rpm d old dev
+    local v kver reason rpm d old hcmd
     v="$(tr -d '[:space:]' < "$GBFAN_LIBDIR/VERSION")"
     kver="$(uname -r)"
     GBFAN_LOG="$(mktemp)"       # global: the EXIT trap runs after this function returns
@@ -81,6 +81,11 @@ configure() {
         else
             info "built and installed for ${kver}; DKMS rebuilds it for new kernels"
         fi
+    elif ! gbfan_has_headers "$kver"; then
+        hcmd="$(gbfan_headers_cmd "$kver")"
+        warn "the module wasn't built: the kernel headers for ${kver} aren't installed."
+        [[ -n "$hcmd" ]] && warn "Install them: ${hcmd}"
+        warn "then run: sudo galaxybook-fan rebuild"
     else
         reason="$(gbfan_dkms_build_reason "$v" || true)"
         warn "the module wasn't built for ${kver}${reason:+: ${reason#galaxybook-fan: }}"
@@ -90,17 +95,14 @@ configure() {
 
     systemctl daemon-reload >/dev/null 2>&1 || true
     systemctl enable "$UNBIND_SVC" >/dev/null 2>&1 || true
-    # restart, not enable --now: the unit stays active after it has run
-    # (RemainAfterExit), so a copy left active by install.sh would never re-run
-    systemctl restart "$UNBIND_SVC" >/dev/null 2>&1 || true
     systemctl --global enable "$USER_CHECK_TIMER" >/dev/null 2>&1 || true
-    # and unbind straight away in case systemd isn't running
-    for dev in "$ACPI_FAN_DRV"/PNP0C0B:*; do
-        [[ -e "$dev" ]] || continue
-        echo "$(basename "$dev")" > "$ACPI_FAN_DRV/unbind" 2>/dev/null || true
-    done
 
     if modprobe "$MOD_NAME" 2>/dev/null; then
+        # Ours is reading the fan: take it from acpi-fan, now and at each boot.
+        # restart, not enable --now: the unit stays active after it has run
+        # (RemainAfterExit), so a copy left active by install.sh would never re-run
+        systemctl restart "$UNBIND_SVC" >/dev/null 2>&1 || true
+        gbfan_unbind_acpi_fan || true
         sleep 1
         rpm="$(fan_rpm || true)"
         info "module loaded${rpm:+ - fan: ${rpm} RPM}"
@@ -109,8 +111,15 @@ configure() {
         warn "Enrol the key once (you choose a one-time password), then reboot and pick"
         warn "Enroll MOK -> Continue -> Yes -> the password -> Reboot:"
         warn "  sudo mokutil --import $(dkms_cert)"
-    else
+    elif dkms status -m "$PKG_NAME" -v "$v" -k "$kver" 2>/dev/null | grep -q installed; then
         warn "the module didn't load - see: sudo dmesg | grep ${MOD_NAME}"
+    fi
+    # Not loaded (not built, refused, waiting for its key): the fan stays
+    # with acpi-fan, which may well work here (an earlier Galaxy Book, a DSDT
+    # override); the unbind service skips itself at boot until ours loads
+    if [[ ! -d /sys/module/$MOD_NAME ]]; then
+        systemctl stop "$UNBIND_SVC" >/dev/null 2>&1 || true
+        gbfan_bind_acpi_fan
     fi
 
     # The login check compares against this kernel and BIOS from now on
@@ -119,7 +128,6 @@ configure() {
 }
 
 remove() {
-    local dev name
     gbfan_unload || true
     trap gbfan_dkms_resume_initramfs EXIT
     gbfan_dkms_defer_initramfs >/dev/null
@@ -128,11 +136,7 @@ remove() {
     systemctl disable --now "$UNBIND_SVC" >/dev/null 2>&1 || true
     systemctl --global disable "$USER_CHECK_TIMER" >/dev/null 2>&1 || true
     # Give the fan back to the stock acpi-fan driver
-    for dev in /sys/bus/platform/devices/PNP0C0B:*; do
-        [[ -e "$dev" ]] || continue
-        name="$(basename "$dev")"
-        [[ -e "$ACPI_FAN_DRV/$name" ]] || echo "$name" > "$ACPI_FAN_DRV/bind" 2>/dev/null || true
-    done
+    gbfan_bind_acpi_fan
 
     rm -f "$STATE_FILE" "$STATUS_FILE" "$FORCE_FLAG"
     rmdir "$GBFAN_ETC" "$STATE_DIR" 2>/dev/null || true

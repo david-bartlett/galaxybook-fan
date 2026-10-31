@@ -16,7 +16,8 @@
 # or a package installed with GALAXYBOOK_FAN_FORCE=1):
 #   - a laptop that isn't a Samsung Galaxy Book 5 (lib/models.sh)
 #   - firmware whose fan method is already correct (the stock driver works)
-# Always refuses firmware whose fan method it doesn't recognise.
+# Always refuses firmware whose fan method it doesn't recognise, and a DSDT
+# replaced at boot by an ACPI override (its own firmware can't be read then).
 #
 # GBFAN_DSDT and GBFAN_DMI override /sys/firmware/acpi/tables/DSDT and
 # /sys/class/dmi/id, for testing without the laptop.
@@ -56,6 +57,8 @@ if [[ "${vendor^^}" != *SAMSUNG* ]]; then
 elif ! gbfan_in_list "$model" "${BOOK5_MODELS[@]}"; then
     [[ $FORCE -eq 1 ]] || refuse "${product:-this model} is not a Galaxy Book 5 (install with --force to build anyway)"
 fi
+
+gbfan_dsdt_overridden && refuse "$GBFAN_OVERRIDE_MSG"
 
 command -v iasl    >/dev/null 2>&1 || refuse "iasl not found (install acpica-tools, or acpica on Arch)"
 command -v python3 >/dev/null 2>&1 || refuse "python3 not found"

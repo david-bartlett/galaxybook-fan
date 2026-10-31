@@ -8,6 +8,16 @@
 
 ## Unreleased
 
+- **Safer when the module isn't loaded:** the stock `acpi-fan` driver is only switched off while galaxybook-fan's module is loaded and reading the fan
+- At boot, `galaxybook-acpi-fan-unbind.service` now runs after the module has loaded, and only if it has. The packages, `install.sh` and `galaxybook-fan rebuild` do the same, and give the fan back to `acpi-fan` when the module doesn't load. Before, it was switched off whatever happened, so where the stock driver works (the Arch package on an earlier Galaxy Book, where pacman can't refuse to install; the old DSDT override; firmware that's fixed) there was no fan sensor at all
+
+- **Old DSDT override:** galaxybook-fan says when the laptop boots with a replacement DSDT, such as the old `fanspeed-fix-cpio`, instead of calling the firmware "already fixed"
+- The kernel log shows the override (`Table Upgrade: override [DSDT…]`). DKMS's config step, `install.sh`, `check-galaxybook-fan.sh` and the login check all stop there and say to remove the override, reboot and run `sudo galaxybook-fan rebuild`
+
+- **Missing kernel headers:** the install and `galaxybook-fan rebuild` name the package to add for the running kernel (`linux-headers-…` on Ubuntu, Debian and MX, `kernel-devel-…` on Fedora, `<kernel>-headers` on Arch)
+- README: not for immutable distros (Silverblue, Bazzite, SteamOS), and remove the old `fanspeed-fix-cpio` first
+
+
 - **README:** installing from the release's packages now comes straight after the check, and the rest is up to date with the packages
 - What the packages do is described where it differs from `install.sh` (the DSDT check, Secure Boot, the initramfs, removal), the *Tested on* table has a column for the package tested on each distro, and *Files* lists the packaging scripts and is collapsed
 

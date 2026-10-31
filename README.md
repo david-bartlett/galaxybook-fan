@@ -74,7 +74,7 @@ On the Galaxy Book 5 Pro (940XHA) that gives:
 
 These are Samsung's own table values, so the speed is stepped, exactly as Windows reports it. The EC doesn't expose a measured RPM.
 
-The fix also enables `galaxybook-acpi-fan-unbind.service`, which unbinds the stock `acpi-fan` driver early in boot. That removes the dead "Fan 0" sensor and the AML errors in dmesg. The fan has no ACPI control methods, so the cooling device `acpi-fan` registers does nothing anyway.
+The fix also enables `galaxybook-acpi-fan-unbind.service`, which unbinds the stock `acpi-fan` driver early in boot, **only once `galaxybook_fan` has loaded**. That removes the dead "Fan 0" sensor and the AML errors in dmesg. When the module isn't loaded (not built, waiting for its signing key, a laptop it refused), the fan stays with the stock driver, in case that works there. The fan has no ACPI control methods, so the cooling device `acpi-fan` registers does nothing anyway.
 
 Nothing is added to the boot chain: there's no DSDT override and no initrd change, so a BIOS update can't make the laptop unbootable.
 
@@ -86,6 +86,7 @@ Nothing is added to the boot chain: there's no DSDT override and no initrd chang
 - `_FST` contains any statement outside the known shape (extra maths, another EC read, `Case (Package …)`, `Default`, loops, calls…)
 - the EC field isn't defined exactly once, is wider than 8 bits, or is in anything other than an EmbeddedControl, SystemMemory or SystemIO region
 - the RPM table is missing, defined more than once, the wrong length, or gives a speed outside 500–20000 RPM
+- the laptop boots with a **replacement DSDT** (an ACPI table override loaded from the initramfs, such as the old `fanspeed-fix-cpio`): the table in memory is then the override, not the laptop's own firmware. Remove the override and reboot, then `sudo galaxybook-fan rebuild`
 
 `sudo galaxybook-fan check` (or `sudo ./install.sh --check`) shows why. `install.sh` also saves the disassembled DSDT to `/tmp/galaxybook-fan-dsdt.dsl`, and refuses to install.
 
@@ -128,7 +129,9 @@ sudo galaxybook-fan test-native  # can the stock driver read the fan by itself n
 - **Samsung Galaxy Book 5 series only:** `940XHA`, `960XHA`, `960QHA`, `750XHD`, `754XHD`, `750QHA`, `754QHA` (the same list as fnkeys-fix-book5, matched with or without an `NP` prefix). Tested on the 940XHA. On the other Book 5 models, the DSDT check confirms the firmware has the same bug before anything is installed.
 - Other Samsung models are refused. Earlier Galaxy Books report fan speed with the stock kernel driver, whose `_FST`-only fan support was written and tested on a Book2 Pro. `galaxybook-fan check` and `test-native` still work on them, and `install.sh --force` (or `GALAXYBOOK_FAN_FORCE=1` with a package) overrides.
 - Non-Samsung machines are always refused.
-- **Kernel 6.8 or newer.** The module builds cleanly against 6.8, 6.11, 6.14, 6.17 and 7.0.
+- **Kernel 6.8 or newer**, with its headers: DKMS builds the module for each kernel. If they're missing, the install and `galaxybook-fan rebuild` name the package to add (e.g. `linux-headers-$(uname -r)`, `kernel-devel-$(uname -r)`, `linux-cachyos-headers`). The module builds cleanly against 6.8, 6.11, 6.14, 6.17 and 7.0.
+- **Not for immutable distros** (Fedora Silverblue / Kinoite, Bazzite, SteamOS): DKMS can't build modules there.
+- **Replaces the old `fanspeed-fix-cpio`** DSDT override: remove that first (see *Guards*).
 
 ### Tested on
 

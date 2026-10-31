@@ -1,6 +1,6 @@
 # galaxybook-fan --help as a table
 
-PR #<n> · Claude · 2026-10-31
+PR #30 · Claude · 2026-10-31
 
 ## What changed
 - `lib/galaxybook-fan`: `cmd_help` prints the commands in a box table (command | what it does), 80 columns, descriptions wrapped in their cell with `fold`, commands and headings bold on a terminal (`$B`, empty when not a tty). It replaced printing the header comment with `sed`. No arguments still prints it and exits 1.

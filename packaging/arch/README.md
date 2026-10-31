@@ -11,7 +11,7 @@ Rebuilding the same version: raise `pkgrel` or use `makepkg -sif`.
 
 ## Before installing
 
-- **A copy installed with `install.sh` is replaced:** there's no need to run `uninstall.sh` first. pacman runs nothing before unpacking, so `post_install` removes the copy afterwards (the same steps as `uninstall.sh`), keeping the files the package now owns. The rpm and deb do it before unpacking.
+- **Remove a copy installed with `install.sh` first**, from its folder: `sudo ./uninstall.sh`. The rpm and deb do this themselves, but pacman checks for files that are already there before running anything, and refuses over the copy's module source (`/usr/src/galaxybook-fan-<version>/… exists in filesystem`) when it's the same version. With an older copy pacman does install, and `post_install` then removes that copy (the same steps as `uninstall.sh`, keeping the package's own files).
 - **Kernel headers:** DKMS needs the headers of each kernel it builds for. The install says which package is missing for the running kernel (`linux-headers`, `linux-cachyos-headers`, …); once it's installed, Arch's DKMS hook builds the module automatically.
 
 ## What it does

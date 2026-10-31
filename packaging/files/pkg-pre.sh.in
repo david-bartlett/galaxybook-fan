@@ -1,7 +1,9 @@
 # galaxybook-fan package: before the first install (rpm %pre, deb preinst).
-# Built in at package build time (packaging/render.sh): the package's files
-# aren't there yet. pacman ignores .install exit codes, so on Arch the same
-# check is made by module/gen-config.sh when DKMS builds.
+# Built in at package build time by packaging/pre-script.sh, after
+# lib/fanpaths.sh (clone layout), lib/fan-dkms.sh and lib/clone-remove.sh: the
+# package's files aren't there yet. Runs in bash. pacman ignores .install exit
+# codes, so on Arch the model check is made by module/gen-config.sh when DKMS
+# builds, and pacman stops before any script if an install.sh copy is there.
 gbfan_refuse() {
     cat >&2 <<GBFANEOF
 
@@ -15,20 +17,8 @@ To install anyway (e.g. building a system image for a Galaxy Book 5):
 GBFANEOF
     exit 1
 }
-if [ -e @GBFAN_CMD_CLONE@ ] || [ -e /usr/local/bin/samsung-galaxybook-fan-check.sh ]; then
-    cat >&2 <<GBFANEOF
-
-galaxybook-fan is already installed with install.sh. Remove that copy first,
-from the folder you installed it from:
-  sudo ./uninstall.sh
-then install the package again.
-
-GBFANEOF
-    exit 1
-fi
-if [ "${GALAXYBOOK_FAN_FORCE:-0}" = 1 ]; then
-    mkdir -p "$(dirname @FORCE_FLAG@)" && touch @FORCE_FLAG@
-else
+# 1. Galaxy Book 5 only - checked first, so a refusal changes nothing
+if [ "${GALAXYBOOK_FAN_FORCE:-0}" != 1 ]; then
     gbfan_vendor=$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null)
     gbfan_product=$(cat /sys/class/dmi/id/product_name 2>/dev/null)
     case "$(printf '%s' "$gbfan_vendor" | tr '[:lower:]' '[:upper:]')" in
@@ -39,4 +29,29 @@ else
     gbfan_ok=0
     for m in @BOOK5_MODELS_LIST@; do [ "$gbfan_model" = "$m" ] && gbfan_ok=1; done
     [ "$gbfan_ok" = 1 ] || gbfan_refuse "this is a ${gbfan_product:-model that could not be read}"
+fi
+
+# 2. A copy installed with install.sh: remove it, then carry on (its files
+#    would clash with the package's, and both would build the module)
+if gbfan_clone_installed; then
+    gbfan_from=$(sed -n 's/^INSTALL_DIR=//p' "$STATE_FILE" 2>/dev/null | head -1)
+    info "removing the copy installed with install.sh${gbfan_from:+ (from ${gbfan_from})}; the package replaces it"
+    trap gbfan_dkms_resume_initramfs EXIT
+    if ! gbfan_remove_clone; then
+        cat >&2 <<GBFANEOF
+
+galaxybook-fan: nothing was installed, and the install.sh copy is still in
+place: @MOD_NAME@ couldn't be unloaded. Close anything reading the fan speed
+(sensors, a system monitor), or reboot, then install the package again.
+
+GBFANEOF
+        exit 1
+    fi
+    info "the install.sh copy is removed; from now on use 'galaxybook-fan status' and 'sudo galaxybook-fan rebuild'"
+    [ -n "$gbfan_from" ] && info "the package doesn't use ${gbfan_from}: keep it or delete it, as you like"
+fi
+
+# 3. Remember --force for later DKMS builds (the removal above clears an old one)
+if [ "${GALAXYBOOK_FAN_FORCE:-0}" = 1 ]; then
+    mkdir -p "$(dirname @FORCE_FLAG@)" && touch @FORCE_FLAG@
 fi

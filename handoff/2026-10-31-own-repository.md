@@ -1,6 +1,6 @@
 # Own repository: project docs and VERSION
 
-PR (this one) · Claude · 2026-10-31
+PR #1 · Claude · 2026-10-31
 
 ## What changed
 - galaxybook-fan moved out of `samsung-galaxybook-fixes` (`extras/galaxybook-fan`) into this repository with its full history (28 commits; a committed `__pycache__/*.pyc` was left out). The old folder there now only has a README pointing here, and is tagged `galaxybook-fan-final`.

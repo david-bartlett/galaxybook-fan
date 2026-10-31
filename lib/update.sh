@@ -1,7 +1,8 @@
 # shellcheck shell=bash
 # =============================================================================
 # galaxybook-fan - is there a newer release? Shared by the login check (which
-# says so once per version, at most once a day) and 'galaxybook-fan update'.
+# says so once per version, asking GitHub at most every 6 hours) and
+# 'galaxybook-fan update'.
 # Source lib/fanpaths.sh first.
 #
 # The latest release comes from where github.com/.../releases/latest
@@ -32,6 +33,43 @@ gbfan_latest_version() {
     v="${url##*/tag/v}"
     [[ "$url" == */tag/v* && "$v" =~ ^[0-9]+(\.[0-9]+)*$ ]] || return 1
     echo "$v"
+}
+
+# How this copy was installed: rpm, deb or arch (a package), else nothing
+# (install.sh)
+gbfan_package_format() {
+    if command -v rpm >/dev/null 2>&1 && rpm -q "$PKG_NAME" >/dev/null 2>&1; then echo rpm
+    elif command -v dpkg-query >/dev/null 2>&1 \
+            && [[ "$(dpkg-query -W -f='${db:Status-Status}' "$PKG_NAME" 2>/dev/null)" == installed ]]; then echo deb
+    elif command -v pacman >/dev/null 2>&1 && pacman -Q "$PKG_NAME" >/dev/null 2>&1; then echo arch
+    fi
+}
+
+# gbfan_package_pattern VERSION FORMAT - the release file for that format, as
+# a regular expression for the names in SHA256SUMS
+gbfan_package_pattern() {
+    local v="${1//./\\.}"
+    case "$2" in
+        rpm)  echo "^galaxybook-fan-${v}-[0-9]+\\.noarch\\.rpm\$" ;;
+        deb)  echo "^galaxybook-fan_${v}-[0-9]+_all\\.deb\$" ;;
+        arch) echo "^galaxybook-fan-${v}-[0-9]+-any\\.pkg\\.tar\\.zst\$" ;;
+    esac
+}
+
+# gbfan_release_ready VERSION - true once the release's files are attached:
+# its SHA256SUMS (the workflow uploads it with the packages) is there and,
+# for a package install, lists this system's package. The workflow publishes
+# a release only after attaching them; this also covers a moment when they're
+# being re-attached. An install.sh copy only needs SHA256SUMS.
+gbfan_release_ready() {
+    local sums fmt pattern
+    sums="$(curl -fsSL --connect-timeout 5 --max-time 30 \
+        "$GBFAN_REPO_URL/releases/download/v$1/SHA256SUMS" 2>/dev/null)" || return 1
+    [[ -n "$sums" ]] || return 1
+    fmt="$(gbfan_package_format)"
+    [[ -z "$fmt" ]] && return 0
+    pattern="$(gbfan_package_pattern "$1" "$fmt")"
+    awk '{print $2}' <<<"$sums" | sed 's/^\*//' | grep -Eq "$pattern"
 }
 
 # gbfan_version_newer CURRENT LATEST - true if LATEST is newer

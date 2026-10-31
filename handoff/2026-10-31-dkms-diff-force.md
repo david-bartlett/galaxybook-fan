@@ -12,7 +12,7 @@ PR #31 · Claude · 2026-10-31
 
 ## Tested
 - Stand-in `dkms` acting like Mint's: first install keeps the file and status shows the warning → `--force` once → status clean; already clean → no `--force`. `bash -n`, shellcheck (no new notes).
-- Not tested here: real DKMS 3.0 (David's Mint is in this state now).
+- David, Mint 22.3 (real DKMS 3.0): `apt install --reinstall` of the PR's deb → `dkms status` clean, module file dated the reinstall (22:45), fan reading.
 
 ## For the next person
 - Adding `MODULE_VERSION` to the module would let DKMS tell versions apart by itself; not done, as it changes the module.

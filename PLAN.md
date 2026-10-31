@@ -63,6 +63,10 @@ Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds 
 | `module/galaxybook_fan_config.h` | Default config for the 940XHA so the module builds standalone. The installer replaces it in `/usr/src` with one generated for the running machine. |
 | `lib/dsdt-fan-config.py` | Parses the disassembled DSDT: `--dsl … --product … --out config.h` writes the header; `--status` prints `broken`, `fixed` or `unknown`. Never guesses: anything outside the known `_FST` shape is an error (exit 1). |
 | `lib/samsung-galaxybook-fan-check.sh` | `--test-native` (bind the stock `acpi-fan` briefly while the fan spins and see if it reads), `--monitor` (the root side of the login check), `--record-state [INSTALL_DIR]`. |
+| `lib/models.sh` | **The one model list:** `BOOK5_MODELS` (the series) and `CONFIRMED_MODELS` (reported working), plus `gbfan_model` (upper-case, drop `NP`) and `gbfan_in_list`. Sourced by `install.sh`; built into the check script. |
+| `tools/check-galaxybook-fan.sh` | The read-only "will it work on my laptop?" check (§5.1). Run from a clone it uses `lib/`; the release copy is one file. |
+| `tools/build-check-script.sh` | `bash tools/build-check-script.sh OUT [VERSION]`: the single-file copy, with `lib/models.sh` and `lib/dsdt-fan-config.py` built in at its `#@EMBED@` line. The release workflow runs it. |
+| `.github/ISSUE_TEMPLATE/` | Issue forms: *Works on my model* (asks for the check's report), *Bug report*; `config.yml` links the confirmed list. |
 | `module/Makefile`, `module/dkms.conf` | Kernel module build and DKMS definition. `install.sh` copies them, the `.c` and the generated config into `/usr/src/galaxybook-fan-<version>/`, flat. |
 | `LICENSE` | GNU GPL version 2, the licence the module already declares (`SPDX-License-Identifier: GPL-2.0`). |
 | `VERSION` | The release version, `X.Y.Z`. The release tool keeps `PACKAGE_VERSION` in `module/dkms.conf` and `PKG_VERSION` in `install.sh` in step with it (§7.1). |
@@ -74,12 +78,18 @@ Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds 
 
 ### Install (`install.sh`)
 
-1. Checks root, distro (`dnf`/`apt`/`pacman`), Samsung vendor and model (Book 5 list, `TESTED_MODELS`), kernel ≥ 6.8.
+1. Checks root, distro (`dnf`/`apt`/`pacman`), Samsung vendor and model (`BOOK5_MODELS` / `CONFIRMED_MODELS` from `lib/models.sh`), kernel ≥ 6.8.
 2. Installs what's missing: `iasl`, `python3`, `dkms`, `make`, `gcc`, kernel headers, `mokutil` (EFI), polkit, `notify-send`. Warns if the user isn't in `wheel`/`sudo`.
 3. Disassembles the DSDT, runs `dsdt-fan-config.py`. Refuses if `_FST` is already fixed (`--force` overrides) or the shape is unknown (saves the DSL to `/tmp/galaxybook-fan-dsdt.dsl`).
 4. Secure Boot: finds the key DKMS will sign with (`framework.conf`, then `framework.conf.d/*.conf` in order, falling back to `/var/lib/dkms/mok.*`); generates and/or offers `mokutil --import` if needed; checks the built module really is signed.
 5. Removes any older DKMS versions and `/usr/src/galaxybook-fan-*`, copies the source plus the generated config, `dkms add` / `dkms install` with the initramfs rebuild deferred.
 6. Autoload, unbind service, dracut omit, login check (scripts, units, polkit, session helper where needed), then `--record-state "$SCRIPT_DIR"`.
+
+### 5.1 check-galaxybook-fan.sh and confirming models
+
+`sudo bash check-galaxybook-fan.sh` installs and changes nothing. It reads the DMI vendor, product and BIOS, disassembles the DSDT with `iasl` and runs the parser exactly as the installer does, then says one of: not a Samsung; not a Book 5 (and, if it has the bug anyway, asks for a report); fan method not recognised (asks a Book 5 owner for a bug report); firmware already fixed (fix not needed); **should work**, with *already confirmed, nothing to report*, or *not confirmed yet*. When the fix is installed and `galaxybook_fan` reads a non-zero speed on an unconfirmed model, it prints a report to paste into a *Works on my model* issue. Exit status: 0 fine, 1 won't work / problem, 2 couldn't check (not root, `iasl` missing).
+
+**When a *Works on my model* report comes in:** check the report (Book 5 model, `Firmware: … fix needed`, a plausible RPM), add the model to `CONFIRMED_MODELS` in `lib/models.sh` **and** to the *Confirmed working* table at the top of `README.md` (removing it from the "expected to work" line), with a CHANGELOG line. One PR, then close the issue with a link to it.
 
 ### Login check
 
@@ -99,7 +109,7 @@ Ten seconds after login a user timer checks whether the kernel or BIOS changed o
 
 ### 7.1 How David releases
 
-David releases with a release tool in his private repository `david-bartlett/samsung-galaxybook-dev-tools` (folder `galaxybook-fan-github`, a copy of the fingerprint-fix-sdcp one). Its Release button sets `VERSION` (and the version in `module/dkms.conf` and `install.sh`), turns `## Unreleased` into `## X.Y.Z — date`, commits, tags `vX.Y.Z` and pushes, then adds a fresh `## Unreleased`. The tag starts `.github/workflows/release.yml`, which checks that `VERSION`, `module/dkms.conf`, `install.sh` and the CHANGELOG all have the tag's version, then creates the GitHub release with notes from `.github/release-notes.sh`: the install steps (`.github/release-install.md`), *What's new* (the bold lines) and the whole section collapsed under *Full changelog*. There are no packages yet; users download the source code GitHub attaches to every release.
+David releases with a release tool in his private repository `david-bartlett/samsung-galaxybook-dev-tools` (folder `galaxybook-fan-github`, a copy of the fingerprint-fix-sdcp one). Its Release button sets `VERSION` (and the version in `module/dkms.conf` and `install.sh`), turns `## Unreleased` into `## X.Y.Z — date`, commits, tags `vX.Y.Z` and pushes, then adds a fresh `## Unreleased`. The workflow also builds `check-galaxybook-fan.sh` and attaches it; the release page's first step links to it. The tag starts `.github/workflows/release.yml`, which checks that `VERSION`, `module/dkms.conf`, `install.sh` and the CHANGELOG all have the tag's version, then creates the GitHub release with notes from `.github/release-notes.sh`: the install steps (`.github/release-install.md`), *What's new* (the bold lines) and the whole section collapsed under *Full changelog*. There are no packages yet; users download the source code GitHub attaches to every release.
 
 **Contributors never do any of this.** Versioning (for David's information): fixes → `x.y.Z`, features → `x.Y.0`, a change users must act on → `X.0.0`.
 
@@ -119,6 +129,7 @@ David releases with a release tool in his private repository `david-bartlett/sam
 
 - `bash -n install.sh uninstall.sh lib/samsung-galaxybook-fan-check.sh`; `python3 -m py_compile lib/dsdt-fan-config.py`.
 - **Parser:** run `dsdt-fan-config.py` against DSL text (a saved 940XHA DSDT, or small hand-made DSL showing the broken, fixed and unknown `_FST` shapes). Keep test files **outside the repository**.
+- **check-galaxybook-fan.sh without the laptop:** write a small ASL file with the 940XHA's fan device (`FAN0` with `_FST` reading `^^H_EC.FANS`, a `Switch` remap, `If ((Local0 == Zero))`, `Local0--`, `Local1 = FANT [Local0]`, `Local1 += 0x0A`; `H_EC` with a SystemMemory `ECR` region and `FANS, 4` at offset `0x87`; DSDT IDs `SECCSD LH43STAR 0x01072009`), compile it with `iasl`, and variants with `DerefOf (FANT [Local0])` (fixed) and an extra statement (unrecognised). Build the script with `tools/build-check-script.sh`, then run a copy with `/sys/class/dmi/id`, `/sys/firmware/acpi/tables/DSDT`, `/sys/class/hwmon`, `/etc/modules-load.d/galaxybook_fan.conf`, `/usr/src/galaxybook-fan-*` and `/etc/os-release` redirected (`sed`) to a scratch folder. Keep all of this outside the repository.
 - **Module:** `make -C module KDIR=/lib/modules/<version>/build` builds against any installed headers; it can't be loaded meaningfully without the hardware.
 - Describe in the PR what you checked and what you couldn't.
 

@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.6.2 — 2026-10-31
 
 - **Safer when the module isn't loaded:** the stock `acpi-fan` driver is only switched off while galaxybook-fan's module is loaded and reading the fan

@@ -20,7 +20,7 @@ Depends: ${misc:Depends},
          polkitd | policykit-1,
          libnotify-bin,
          curl
-Recommends: mokutil, xdg-utils
+Recommends: mokutil, xdg-utils, python3-gi
 Description: Fan speed for the Samsung Galaxy Book 5 (DKMS module)
  Samsung's fan status method (_FST) is broken on Linux, so the stock acpi-fan
  driver can't read the fan. galaxybook_fan is a small DKMS hwmon module that

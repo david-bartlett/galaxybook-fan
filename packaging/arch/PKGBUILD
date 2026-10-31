@@ -19,6 +19,7 @@ url="https://github.com/david-bartlett/galaxybook-fan"
 license=('GPL-2.0-only')
 depends=('dkms' 'make' 'gcc' 'acpica' 'python' 'kmod' 'bash' 'systemd' 'polkit' 'libnotify' 'curl')
 optdepends=('xdg-utils: for the "What'"'"'s new" button on the new-version notification'
+            'python-gobject: for the new-version notification'"'"'s buttons on GNOME'
             'linux-headers: to build the module for the linux kernel (or your kernel'"'"'s -headers package, e.g. linux-cachyos-headers)')
 # Config files, as rpm %config(noreplace) and deb conffiles: kept if changed
 backup=('etc/modules-load.d/galaxybook_fan.conf' 'etc/xdg/autostart/galaxybook-fan-session.desktop')

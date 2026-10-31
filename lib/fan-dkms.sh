@@ -81,14 +81,72 @@ gbfan_dkms_defer_initramfs() {
 }
 gbfan_dkms_resume_initramfs() { rm -f "$DKMS_DEFER_CONF"; }
 
-# The registered version, e.g. 0.4.0 (empty if none)
+# The registered version, e.g. 0.4.0 (empty if none): the installed copy's
+# own (its VERSION file) when DKMS has it, else the newest DKMS lists - not
+# just the first, which could be an old one left behind
 gbfan_dkms_version() {
-    local d
+    local d v="" list=()
+    [[ -r "${GBFAN_LIBDIR:-}/VERSION" ]] && v="$(tr -d '[:space:]' < "$GBFAN_LIBDIR/VERSION")"
+    [[ -n "$v" && -d /var/lib/dkms/$PKG_NAME/$v ]] && { echo "$v"; return 0; }
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         d="$(basename "$d")"
-        [[ "$d" =~ ^[0-9][0-9.]*$ ]] && { echo "$d"; return 0; }
+        [[ "$d" =~ ^[0-9][0-9.]*$ ]] && list+=("$d")
     done
-    return 1
+    (( ${#list[@]} )) || return 1
+    printf '%s\n' "${list[@]}" | sort -V | tail -1
+}
+
+# gbfan_dkms_forget VERSION - if DKMS couldn't remove VERSION (its source in
+# /usr/src already gone), take its entry out of /var/lib/dkms by hand, with
+# the kernel-* links that point into it (DKMS's "installed for this kernel").
+# Prints those kernels, one per line, so the new version can be installed
+# for them.
+gbfan_dkms_forget() {
+    local v="$1" l t
+    [[ -n "$v" && -d /var/lib/dkms/$PKG_NAME/$v ]] || return 0
+    for l in /var/lib/dkms/"$PKG_NAME"/kernel-*; do
+        [[ -L "$l" ]] || continue
+        t="$(readlink "$l")"                 # e.g. 0.5.0/7.2.10-2-liquorix-amd64/x86_64
+        [[ "$t" == "$v/"* ]] || continue
+        t="${t#"$v"/}"; echo "${t%%/*}"
+        rm -f "$l"
+    done
+    rm -rf "/var/lib/dkms/$PKG_NAME/$v"
+}
+
+# gbfan_dkms_install VERSION KERNEL - 'dkms install', its output on stdout.
+# If DKMS refuses because a galaxybook_fan module file no DKMS version owns
+# is already there ("Module <file> already installed (unversioned module)",
+# Debian 13's DKMS: an old version DKMS couldn't remove, see
+# gbfan_dkms_forget), that file is an old copy of this module: remove it and
+# try once more. Looked for in the output whatever DKMS returns: MX's dkms
+# wrapper adds every kernel to each install, refuses some and still returns 0
+# - so the files can be for other kernels too.
+gbfan_dkms_install() {
+    local v="$1" k="$2" out rc f removed=0
+    out="$(dkms install -m "$PKG_NAME" -v "$v" -k "$k" 2>&1)"; rc=$?
+    while read -r f; do
+        # only this module's own file, in a kernel's module folder
+        [[ "$f" == /lib/modules/*/"$MOD_NAME".ko* && -f "$f" ]] || continue
+        rm -f "$f" && removed=1
+    done < <(sed -n -E 's#.*Module (/lib/modules/[^ ]+) already installed \(unversioned module\).*#\1#p' <<<"$out")
+    if (( removed )); then
+        out="$(dkms install -m "$PKG_NAME" -v "$v" -k "$k" 2>&1)"; rc=$?
+    fi
+    [[ -n "$out" ]] && printf '%s\n' "$out"
+    return $rc
+}
+
+# gbfan_dkms_installed_for VERSION KERNEL - is VERSION installed for KERNEL?
+gbfan_dkms_installed_for() {
+    dkms status -m "$PKG_NAME" -v "$1" -k "$2" 2>/dev/null | grep -q ': installed'
+}
+
+# Kernels VERSION is built for but not installed for (e.g. DKMS refused to
+# install it over an old version's file)
+gbfan_dkms_built_only() {
+    dkms status -m "$PKG_NAME" -v "$1" 2>/dev/null \
+        | sed -n -E 's#^[^,]*, *([^,]*), *[^:]*: *built( .*)?$#\1#p' | sort -u
 }
 
 # Kernels galaxybook_fan is currently built for
@@ -113,5 +171,5 @@ gbfan_dkms_rebuild_kernel() {
     local v="$1" k="$2"
     dkms remove -m "$PKG_NAME" -v "$v" -k "$k" >/dev/null 2>&1 || true
     [[ -d /var/lib/dkms/$PKG_NAME/$v ]] || dkms add -m "$PKG_NAME" -v "$v" >/dev/null || return 1
-    dkms install -m "$PKG_NAME" -v "$v" -k "$k"
+    gbfan_dkms_install "$v" "$k"
 }

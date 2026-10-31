@@ -15,6 +15,11 @@
 - The release workflow now creates each release as a draft, attaches the files and only then publishes it, so a release never appears without them
 - The check also looks for this system's package in the release's `SHA256SUMS`; if it isn't there yet it says nothing and looks again an hour later. `galaxybook-fan updates check` says the release isn't ready yet instead of announcing it
 
+- **Upgrading the deb:** the old version no longer lingers in DKMS after a deb upgrade, and `galaxybook-fan status` shows the version you have
+- apt deletes the old version's source before the new package sets itself up, and DKMS (seen on Mint 22 and Ubuntu 26.04) then couldn't remove the old version, so `dkms status` showed *Could not locate dkms.conf* and `galaxybook-fan status` said the old version, built for no kernel. The upgrade now removes what's left of it, which also tidies a copy upgraded before this
+- Other kernels the old version was still installed for (MX had two) get the new version too, where their headers are installed
+- On Debian 13 and MX, DKMS refused to install the new module over the old version's file (*already installed (unversioned module)*), so the old module stayed in use: the old file is now removed first
+
 ## 0.8.1 — 2026-10-31
 
 - **What's new keeps Update now:** pressing *What's new* on the new-version notification opens the release page and leaves the notification there, so *Update now* is still one click away

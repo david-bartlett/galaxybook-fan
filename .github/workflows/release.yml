@@ -35,8 +35,8 @@ jobs:
           version="${TAG#v}"
           [[ "$(tr -d '[:space:]' < VERSION)" == "$version" ]] \
             || { echo "::error::VERSION is $(cat VERSION), the tag is $TAG"; exit 1; }
-          grep -qx "PACKAGE_VERSION=\"$version\"" dkms.conf \
-            || { echo "::error::dkms.conf's PACKAGE_VERSION isn't $version"; exit 1; }
+          grep -qx "PACKAGE_VERSION=\"$version\"" module/dkms.conf \
+            || { echo "::error::module/dkms.conf's PACKAGE_VERSION isn't $version"; exit 1; }
           grep -q "^PKG_VERSION=\"$version\"" install.sh \
             || { echo "::error::install.sh's PKG_VERSION isn't $version"; exit 1; }
           grep -q "^## $version" CHANGELOG.md \

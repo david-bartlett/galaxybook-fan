@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- **Update now:** where the desktop shows notification buttons (KDE, Cinnamon, Xfce…), the new-version notification has **Update now**, which opens a terminal running `sudo galaxybook-fan update`, and **What's new**, which opens the release page
+- `galaxybook-fan updates check` (no sudo) looks for a new version straight away and, if there is one, shows the same notification
+- *What's new* is offered only where the link can be opened (`xdg-open`, or `gio open`); the packages recommend `xdg-utils`. *Update now* is offered only where a terminal can be found
+- The terminal is the desktop's own (its default where set, e.g. Konsole on KDE, Ptyxis or GNOME Terminal on GNOME, xfce4-terminal on Xfce); it closes by itself after a successful update. GNOME shows the same text without buttons. The notification you see is drawn by the version you have, so the buttons appear from the release after this one
+
 - **No log-out needed:** installing or upgrading the package starts the new-version check straight away for everyone logged in, and removing it stops it
 - Before, `systemctl --global enable` only took effect at each user's next login, so the check didn't run until then; removal also stops both timers in running sessions
 - The new-version notification puts the command and the release link on separate lines (on KDE they ran together and looked like one command), and uses the standard `system-software-update` icon (the one it used is missing from some icon themes, e.g. KDE's Breeze showed a blank page)

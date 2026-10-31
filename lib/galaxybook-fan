@@ -13,6 +13,8 @@
 #   sudo galaxybook-fan update    install the newest release's package
 #   galaxybook-fan updates on|off|status
 #                                 "new version" notifications (on: daily)
+#   galaxybook-fan updates check  look now; if there's a new version, show
+#                                 the notification (no sudo)
 # =============================================================================
 set -uo pipefail
 
@@ -28,6 +30,7 @@ source "$LIBDIR/fanpaths.sh"
 source "$LIBDIR/fan-dkms.sh"
 # shellcheck source=update.sh
 [[ -f "$LIBDIR/update.sh" ]] && source "$LIBDIR/update.sh"
+GBFAN_HERE="$LIBDIR"        # notify-update.sh beside this command (or a clone's lib/)
 
 # Installed copies, or the clone's when run from lib/ before installing
 MONITOR_SCRIPT="$CHECK_SCRIPT"
@@ -240,7 +243,25 @@ cmd_updates() {
         status)
              if [[ -e "$UPDATES_OFF" ]]; then info "\"New version\" notifications: off (sudo galaxybook-fan updates on)"
              else info "\"New version\" notifications: on, checked at most once a day (sudo galaxybook-fan updates off)"; fi ;;
-        *)   echo "Usage: galaxybook-fan updates on|off|status" >&2; exit 2 ;;
+        check)
+             # As the user: a notification sent as root wouldn't reach their desktop
+             [[ $EUID -ne 0 ]] || fail "Run it without sudo, so the notification reaches your desktop: galaxybook-fan updates check"
+             local cur latest
+             cur="$(gbfan_installed_version)" || fail "Can't tell which version is installed - is galaxybook-fan installed?"
+             latest="$(gbfan_latest_version)" \
+                 || fail "Couldn't find the newest release on GitHub (no network?)"
+             if ! gbfan_version_newer "$cur" "$latest"; then
+                 ok "galaxybook-fan ${cur} is up to date (newest release: ${latest})"
+                 return 0
+             fi
+             info "galaxybook-fan ${latest} is available (you have ${cur}): $(gbfan_release_url "$latest")"
+             info "To update, run: $(gbfan_update_hint)"
+             if [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] \
+                     && gbfan_update_notify "$cur" "$latest" "galaxybook-fan-notify-check-$$"; then
+                 gbfan_update_mark_told "$latest"
+                 info "Notification shown (with Update now / What's new where your desktop has buttons)"
+             fi ;;
+        *)   echo "Usage: galaxybook-fan updates on|off|status|check" >&2; exit 2 ;;
     esac
 }
 
@@ -251,6 +272,6 @@ case "${1:-}" in
     check)       cmd_check ;;
     rebuild)     cmd_rebuild ;;
     test-native) cmd_test_native ;;
-    -h|--help|help|"") sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [[ -n "${1:-}" ]]; exit $? ;;
+    -h|--help|help|"") sed -n '3,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [[ -n "${1:-}" ]]; exit $? ;;
     *) echo "Unknown command: $1 (see galaxybook-fan --help)" >&2; exit 2 ;;
 esac

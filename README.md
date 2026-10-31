@@ -124,11 +124,12 @@ sudo galaxybook-fan rebuild      # after a BIOS update: read the new firmware, r
 sudo galaxybook-fan test-native  # can the stock driver read the fan by itself now?
 sudo galaxybook-fan update       # install the newest release's package
 galaxybook-fan updates off|on    # "new version" notifications (sudo for off/on)
+galaxybook-fan updates check     # look now, and show the notification if there's a new version
 ```
 
 ### New versions
 
-30 seconds after login, and every hour while you stay logged in, the fix looks on GitHub for a newer release (at most once a day; at login it waits up to 2 minutes for the network), and tells you once per version: *galaxybook-fan X.Y.Z is available … To update: `sudo galaxybook-fan update`*. That command downloads your distro's package from the release, checks it against the release's `SHA256SUMS` and installs it with `dnf`, `apt` or `pacman`, which asks before installing as usual. Nothing is installed without you running it. A copy installed with `install.sh` is told how to update it instead (`git pull`, then `sudo ./install.sh`). Nothing is said when GitHub can't be reached. Turn the notifications off with `sudo galaxybook-fan updates off`.
+30 seconds after login, and every hour while you stay logged in, the fix looks on GitHub for a newer release (at most once a day; at login it waits up to 2 minutes for the network), and tells you once per version: *galaxybook-fan X.Y.Z is available … To update, run: `sudo galaxybook-fan update`*, with the release's link. Where the desktop shows notification buttons (KDE, Cinnamon, Xfce…), **Update now** opens a terminal running that command, and **What's new** opens the release page; GNOME shows the same text without buttons. That command downloads your distro's package from the release, checks it against the release's `SHA256SUMS` and installs it with `dnf`, `apt` or `pacman`, which asks before installing as usual. Nothing is installed without you running it. A copy installed with `install.sh` is told how to update it instead (`git pull`, then `sudo ./install.sh`). Nothing is said when GitHub can't be reached. Turn the notifications off with `sudo galaxybook-fan updates off`.
 
 ## Supported hardware and kernels
 

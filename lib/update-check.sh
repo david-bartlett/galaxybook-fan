@@ -20,6 +20,7 @@ for f in fanpaths.sh fan-dkms.sh update.sh; do
     source "$HERE/$f" 2>/dev/null || exit 0
 done
 [[ -e "$UPDATES_OFF" ]] && exit 0
+GBFAN_HERE="$HERE"                    # notify-update.sh is beside this script
 
 dir="${XDG_STATE_HOME:-$HOME/.local/state}/galaxybook-fan"
 mkdir -p "$dir" 2>/dev/null || exit 0
@@ -40,14 +41,6 @@ date +%s > "$dir/last-update-check"
 
 gbfan_version_newer "$cur" "$latest" || exit 0
 [[ "$(cat "$dir/notified-version" 2>/dev/null)" == "$latest" ]] && exit 0
-# No buttons: GNOME doesn't show them. The command works on every desktop.
-# Each part on its own line, a blank line before the link, so the command and
-# the link don't run together when the desktop wraps them.
-notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update \
-    "galaxybook-fan $latest is available" \
-    "You have $cur.
-To update, run: $(gbfan_update_hint)
-
-What's new: $(gbfan_release_url "$latest")" \
-    && echo "$latest" > "$dir/notified-version"
+# The notification, with buttons where the desktop shows them (lib/update.sh)
+gbfan_update_notify "$cur" "$latest" && gbfan_update_mark_told "$latest"
 exit 0

@@ -53,3 +53,36 @@ gbfan_update_hint() {
 }
 
 gbfan_release_url() { echo "$GBFAN_REPO_URL/releases/tag/v$1"; }
+
+# The notification's title and text (CURRENT LATEST), shared by the hourly
+# check and 'galaxybook-fan updates check'. The command and the link are in
+# the text on every desktop (GNOME shows no buttons), each on its own line so
+# they don't run together when wrapped.
+gbfan_update_title() { echo "galaxybook-fan $2 is available"; }
+gbfan_update_text() {
+    printf 'You have %s.\nTo update, run: %s\n\nWhat'"'"'s new: %s' "$1" "$(gbfan_update_hint)" "$(gbfan_release_url "$2")"
+}
+
+# Show it: with "Update now" / "What's new" where buttons work
+# (notify-update.sh, which waits for a click, so it runs on its own via
+# systemd-run), else plainly. Run as the user, in their desktop.
+gbfan_update_notify() {
+    # notify-update.sh beside the script that's running (GBFAN_HERE: a clone's
+    # lib/ when run from one), else the installed library folder
+    local cur="$1" latest="$2" unit="${3:-galaxybook-fan-notify-$2}" title text
+    local notifier="${GBFAN_HERE:-$GBFAN_LIBDIR}/notify-update.sh"
+    title="$(gbfan_update_title "$cur" "$latest")"
+    text="$(gbfan_update_text "$cur" "$latest")"
+    if [[ -x "$notifier" ]] && command -v systemd-run >/dev/null 2>&1 \
+            && systemd-run --user --collect --quiet --unit="$unit" "$notifier" \
+                "$title" "$text" "$(gbfan_release_url "$latest")" 2>/dev/null; then
+        return 0
+    fi
+    notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update "$title" "$text"
+}
+
+# Remember a version was announced to this user (so it's said once)
+gbfan_update_mark_told() {
+    local dir="${XDG_STATE_HOME:-$HOME/.local/state}/galaxybook-fan"
+    mkdir -p "$dir" 2>/dev/null && echo "$1" > "$dir/notified-version"
+}

@@ -24,6 +24,12 @@ source "$LIBDIR/fanpaths.sh"
 # shellcheck source=fan-dkms.sh
 source "$LIBDIR/fan-dkms.sh"
 
+# Installed copies, or the clone's when run from lib/ before installing
+MONITOR_SCRIPT="$CHECK_SCRIPT"
+[[ -x "$MONITOR_SCRIPT" ]] || MONITOR_SCRIPT="$LIBDIR/samsung-galaxybook-fan-check.sh"
+LAPTOP_CHECK="$LIBDIR/check-galaxybook-fan.sh"
+[[ -f "$LAPTOP_CHECK" ]] || LAPTOP_CHECK="$LIBDIR/../tools/check-galaxybook-fan.sh"
+
 if [[ -t 1 ]]; then
     B=$'\e[1m'; G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; C=$'\e[36m'; N=$'\e[0m'
 else
@@ -79,8 +85,8 @@ cmd_status() {
 
 cmd_check() {
     need_root check
-    [[ -f "$LIBDIR/check-galaxybook-fan.sh" ]] || fail "check-galaxybook-fan.sh is missing from ${LIBDIR}"
-    exec bash "$LIBDIR/check-galaxybook-fan.sh"
+    [[ -f "$LAPTOP_CHECK" ]] || fail "check-galaxybook-fan.sh not found (looked in ${LIBDIR} and ../tools)"
+    exec bash "$LAPTOP_CHECK"
 }
 
 cmd_rebuild() {
@@ -112,7 +118,7 @@ cmd_rebuild() {
         sleep 1
         rpm="$(fan_rpm || true)"
         ok "Module loaded${rpm:+ - fan: ${rpm} RPM}"
-        "$CHECK_SCRIPT" --record-state "$(state_value INSTALL_DIR)" "$(state_value INSTALL_METHOD)" \
+        bash "$MONITOR_SCRIPT" --record-state "$(state_value INSTALL_DIR)" "$(state_value INSTALL_METHOD)" \
             || warn "Couldn't record the new state"
     else
         warn "The module didn't load - see: sudo dmesg | grep galaxybook_fan"
@@ -127,7 +133,7 @@ cmd_test_native() {
         info "The test needs the fan spinning - waiting up to 2 minutes."
         info "If it's quiet, load the CPU in another terminal, e.g.: timeout 180 openssl speed -multi \$(nproc) rsa4096"
     fi
-    case "$("$CHECK_SCRIPT" --test-native --wait 120)" in
+    case "$(bash "$MONITOR_SCRIPT" --test-native --wait 120)" in
         works)     ok "The stock driver reads the fan speed - this fix is no longer needed: $(uninstall_hint)" ;;
         broken)    ok "The stock driver still can't read the fan speed - keep this fix" ;;
         fan-off)   warn "The fan wasn't spinning, so the test proved nothing - load the CPU and try again" ;;

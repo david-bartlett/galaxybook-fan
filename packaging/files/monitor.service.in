@@ -1,0 +1,9 @@
+[Unit]
+Description=Samsung Galaxy Book — fan speed fix monitor
+
+[Service]
+Type=oneshot
+ExecStart=@CHECK_SCRIPT@ --monitor
+RemainAfterExit=no
+StandardOutput=journal
+StandardError=journal

@@ -1,0 +1,18 @@
+# Written by @WRITTEN_BY@.
+# Samsung's FAN0._FST is broken (Index without DerefOf), so the stock acpi-fan
+# driver only produces AML errors and a dead fan sensor. galaxybook_fan reads
+# the EC directly instead. The fan has no ACPI control (_FPS/_FSL), so the
+# cooling device acpi-fan registers does nothing - unbinding it loses nothing.
+[Unit]
+Description=Unbind acpi-fan from Samsung Galaxy Book fan (broken _FST)
+DefaultDependencies=no
+Before=sysinit.target
+ConditionPathIsDirectory=/sys/bus/platform/drivers/acpi-fan
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for d in /sys/bus/platform/drivers/acpi-fan/PNP0C0B:*; do [ -e "$$d" ] && echo "$${d##*/}" > /sys/bus/platform/drivers/acpi-fan/unbind; done; true'
+
+[Install]
+WantedBy=sysinit.target

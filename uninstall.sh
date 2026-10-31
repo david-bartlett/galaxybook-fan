@@ -62,7 +62,9 @@ rmdir "$GBFAN_ETC" 2>/dev/null || true
 [[ -f "$GBFAN_CMD" ]] && rm -f "$GBFAN_CMD" && ok "Removed the galaxybook-fan command"
 
 if [[ -f "$UNBIND_SERVICE" ]]; then
-    systemctl disable "$(basename "$UNBIND_SERVICE")" >/dev/null 2>&1 || true
+    # --now: stop it too, or it stays "active" (RemainAfterExit) after the unit
+    # file has gone, and a later install's enable --now wouldn't re-run it
+    systemctl disable --now "$(basename "$UNBIND_SERVICE")" >/dev/null 2>&1 || true
     rm -f "$UNBIND_SERVICE"
     systemctl daemon-reload
     ok "Removed $(basename "$UNBIND_SERVICE")"

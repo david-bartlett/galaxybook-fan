@@ -63,6 +63,8 @@ Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds 
 | `module/gen-config.sh` | DKMS `PRE_BUILD` (`dkms.conf`): before every build, reads the DSDT and DMI, checks the model (Book 5 only unless `/etc/galaxybook-fan/force`) and runs the parser to write `galaxybook_fan_config.h`. **On any problem it writes a header that is only an `#error` with the reason**, because DKMS 3.0 ignores a `PRE_BUILD`'s exit status: the build then fails, and the reason is in `make.log`. `GBFAN_DSDT` / `GBFAN_DMI` override the paths for testing. |
 | `lib/galaxybook-fan` | The command: `status`, `check` (runs the installed `check-galaxybook-fan.sh`), `rebuild` (DKMS remove + install for the running kernel and every other kernel it's built for that has headers, so `gen-config.sh` reads the firmware again; then reloads and records the state), `test-native`. |
 | `lib/fanpaths.sh` | **All names and paths**, for the `clone` layout (install.sh: `/usr/local`) and the `package` layout (`/usr`). Sourced by `install.sh`, `uninstall.sh`, the command and the login check. `gbfan_package_installed` (rpm/dpkg/pacman). |
+| `lib/package-scripts.sh` | What every package format runs: `configure` after install/upgrade, `remove` before removal (never on upgrade). See `packaging/README.md`. |
+| `packaging/` | `files/*.in` (units, scripts, polkit rule, session helper, dracut, autoload) **shared by `install.sh` and the packages**, filled in by `render.sh clone|package`; `install-files.sh` (a package's files, every format); `files/pkg-pre.sh.in` (the Book 5 check before the first install); `rpm/` (spec, `build.sh`). |
 | `lib/fan-dkms.sh` | DKMS steps shared by `install.sh`, `uninstall.sh` and the command: remove all versions, defer/resume the initramfs rebuild, version and kernel list, the build-failure reason from `make.log`, rebuild one kernel. |
 | `uninstall.sh` | Removes everything `install.sh` added and rebinds `acpi-fan`. |
 | `module/galaxybook_fan.c` | The hwmon module. At load it checks the DMI product and the DSDT's OEM ID, table ID and revision against the config (refuses on a mismatch, i.e. after a BIOS update, unless `force=1`), then checks the field exists and reads. |
@@ -203,8 +205,8 @@ Also:
 ### 10.3 Steps (one PR each)
 
 1. ✅ **Preparation:** `PRE_BUILD` config generation (`module/gen-config.sh`), the shared paths file (`lib/fanpaths.sh`) and DKMS helpers (`lib/fan-dkms.sh`), the `galaxybook-fan` command, notifications that know the install method. `install.sh` keeps working throughout. Checked: DKMS 3.0 ignores the `PRE_BUILD` exit status, hence the `#error` header.
-2. **`packaging/` shared files:** units, polkit rule, scripts as templates (`packaging/files/*.in`, `render.sh`, `install-files.sh`), as in fingerprint-fix-sdcp.
-3. **rpm** (`packaging/rpm/`: spec, `build.sh`).
+2. ✅ **`packaging/` shared files:** units, polkit rule, scripts as templates (`packaging/files/*.in`, `render.sh`, `install-files.sh`), as in fingerprint-fix-sdcp. `install.sh` renders the same templates (`put_rendered`). The package's session helper has its own names (`galaxybook-fan-session.*`), so it never owns a file fingerprint-fix-sdcp's package or a clone install also writes (deb and pacman refuse two packages owning one file).
+3. ✅ **rpm** (`packaging/rpm/`: spec, `build.sh`). `noarch`; `%pre` = `pkg-pre.sh.in`; `%post` / `%preun` call `lib/package-scripts.sh`.
 4. **deb** (`packaging/debian/`: control, rules, maintainer scripts, `build.sh`).
 5. **Arch** (`packaging/arch/`: `PKGBUILD`, `galaxybook-fan.install`; CI builds the `.pkg.tar.zst`).
 6. **Release workflow:** build all three, attach them, and change the release page to a per-distro download-and-install table.

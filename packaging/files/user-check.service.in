@@ -1,0 +1,8 @@
+[Unit]
+Description=Samsung Galaxy Book — fan speed fix login check
+# Started by @USER_CHECK_TIMER@; no [Install] section on purpose.
+
+[Service]
+Type=oneshot
+ExecStart=@USER_CHECK_SCRIPT@
+RemainAfterExit=no

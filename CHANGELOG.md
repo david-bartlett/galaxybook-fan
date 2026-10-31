@@ -13,6 +13,7 @@
 - DKMS now writes the module's config from the laptop's DSDT itself, before every build (`module/gen-config.sh`, DKMS `PRE_BUILD`), with the same checks as the installer: Galaxy Book 5 only (unless installed with `--force`), and never for firmware it doesn't recognise. A refused build says why
 - Names, paths and DKMS steps are shared by the installer, `uninstall.sh`, the command and the login check (`lib/fanpaths.sh`, `lib/fan-dkms.sh`), ready for the rpm, deb and Arch packages. `install.sh` won't run while the package is installed
 - Re-run `sudo ./install.sh` once to get the command; nothing else changes for an existing install
+- The command also works straight from a clone before installing (`sudo ./lib/galaxybook-fan check`)
 
 - **Running the check:** the README and release page also show the `chmod +x` way, for running `check-galaxybook-fan.sh` with `./`
 - A downloaded file can't be run with `./` until it's made executable, so `./check-galaxybook-fan.sh` was refused; `sudo bash check-galaxybook-fan.sh` always works

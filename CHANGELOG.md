@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.6.1 — 2026-10-31
 
 - **Fedora package:** galaxybook-fan can be built and installed as an rpm (`bash packaging/rpm/build.sh`, then `sudo dnf install ./packaging/out/galaxybook-fan-*.noarch.rpm`)
 - One `noarch` rpm for Fedora 44 and 45: DKMS builds the module on the laptop, as with `install.sh`. It refuses anything that isn't a Galaxy Book 5 (`GALAXYBOOK_FAN_FORCE=1` overrides). A failed build doesn't fail the install: it says why, and `sudo galaxybook-fan rebuild` builds it once sorted. With Secure Boot on and the key not enrolled, it gives the `mokutil` command. `sudo dnf remove galaxybook-fan` removes everything

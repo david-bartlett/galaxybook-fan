@@ -35,7 +35,9 @@ Install is `sudo ./install.sh` from a clone (no packages yet; see the plan in §
 
 | What | Where |
 |---|---|
-| Module source for DKMS (with the generated config) | `/usr/src/galaxybook-fan-<version>/` |
+| Module source for DKMS: `galaxybook_fan.c`, `Makefile`, `dkms.conf`, `gen-config.sh`, `dsdt-fan-config.py`, `models.sh` (no config header: `gen-config.sh` writes it at each build) | `/usr/src/galaxybook-fan-<version>/` |
+| `--force` remembered, so DKMS keeps building on a non-Book 5 / already-fixed firmware | `/etc/galaxybook-fan/force` |
+| The command | `/usr/local/sbin/galaxybook-fan` (packages: `/usr/bin/galaxybook-fan`) |
 | Autoload | `/etc/modules-load.d/galaxybook_fan.conf` (also the quickest "is it installed?" check) |
 | Module options (old versions only; install and uninstall remove it) | `/etc/modprobe.d/galaxybook_fan.conf` |
 | `acpi-fan` unbind at boot | `/etc/systemd/system/galaxybook-acpi-fan-unbind.service` (older versions used a udev rule, `/etc/udev/rules.d/90-galaxybook-acpi-fan-unbind.rules`, which install and uninstall remove) |
@@ -44,10 +46,10 @@ Install is `sudo ./install.sh` from a clone (no packages yet; see the plan in §
 | Fedora shared akmods key config (shared with Andy's fixes; uninstall leaves it) | `/etc/dkms/framework.conf.d/akmods-keys.conf` |
 | Temporary "don't rebuild every initramfs" drop-in (removed by a trap) | `/etc/dkms/framework.conf.d/zz-galaxybook-fan-defer-initramfs.conf` |
 | Login check scripts | `/usr/local/bin/samsung-galaxybook-fan-check.sh`, `samsung-galaxybook-fan-user-check.sh` |
-| DSDT parser copy for the monitor | `/usr/local/lib/samsung-galaxybook/fan/dsdt-fan-config.py` |
+| Library folder: `dsdt-fan-config.py`, `fanpaths.sh`, `models.sh`, `fan-dkms.sh`, the built `check-galaxybook-fan.sh` | `/usr/local/lib/samsung-galaxybook/fan/` (packages: `/usr/lib/galaxybook-fan/`) |
 | Monitor service, user timer and service | `samsung-galaxybook-fan-monitor.service`, `samsung-galaxybook-fan-user-check.{service,timer}` |
 | Polkit rule (lets `wheel`/`sudo` users start the monitor) | `/etc/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules` |
-| State (kernel, BIOS, install folder at last check) | `/var/lib/samsung-galaxybook/fan-state` |
+| State (kernel, BIOS, install folder and method at last check) | `/var/lib/samsung-galaxybook/fan-state` (`KVER`, `BIOS`, `INSTALL_DIR`, `INSTALL_METHOD` = `clone` or `package`) |
 | Notification for the user check | `/run/samsung-galaxybook/fan-status` |
 | Shared graphical session helper (Xfce etc.; shared with other Galaxy Book fixes) | `/etc/systemd/user/samsung-galaxybook-session.target`, `/usr/local/bin/samsung-galaxybook-session-start.sh`, `/etc/xdg/autostart/samsung-galaxybook-session.desktop`, `/etc/samsung-galaxybook/session-helper.d/` |
 
@@ -57,7 +59,11 @@ Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds 
 
 | File | Purpose |
 |---|---|
-| `install.sh` | `--check` (derive and show the config, install nothing), `--test-native`, `--force`. Finds the rest through `MODULE_SRC` (`module/`) and `LIB_SRC` (`lib/`). |
+| `install.sh` | `--check` (derive and show the config, install nothing), `--test-native`, `--force`. Finds the rest through `MODULE_SRC` (`module/`) and `LIB_SRC` (`lib/`). Refuses if the galaxybook-fan package is installed. |
+| `module/gen-config.sh` | DKMS `PRE_BUILD` (`dkms.conf`): before every build, reads the DSDT and DMI, checks the model (Book 5 only unless `/etc/galaxybook-fan/force`) and runs the parser to write `galaxybook_fan_config.h`. **On any problem it writes a header that is only an `#error` with the reason**, because DKMS 3.0 ignores a `PRE_BUILD`'s exit status: the build then fails, and the reason is in `make.log`. `GBFAN_DSDT` / `GBFAN_DMI` override the paths for testing. |
+| `lib/galaxybook-fan` | The command: `status`, `check` (runs the installed `check-galaxybook-fan.sh`), `rebuild` (DKMS remove + install for the running kernel and every other kernel it's built for that has headers, so `gen-config.sh` reads the firmware again; then reloads and records the state), `test-native`. |
+| `lib/fanpaths.sh` | **All names and paths**, for the `clone` layout (install.sh: `/usr/local`) and the `package` layout (`/usr`). Sourced by `install.sh`, `uninstall.sh`, the command and the login check. `gbfan_package_installed` (rpm/dpkg/pacman). |
+| `lib/fan-dkms.sh` | DKMS steps shared by `install.sh`, `uninstall.sh` and the command: remove all versions, defer/resume the initramfs rebuild, version and kernel list, the build-failure reason from `make.log`, rebuild one kernel. |
 | `uninstall.sh` | Removes everything `install.sh` added and rebinds `acpi-fan`. |
 | `module/galaxybook_fan.c` | The hwmon module. At load it checks the DMI product and the DSDT's OEM ID, table ID and revision against the config (refuses on a mismatch, i.e. after a BIOS update, unless `force=1`), then checks the field exists and reads. |
 | `module/galaxybook_fan_config.h` | Default config for the 940XHA so the module builds standalone. The installer replaces it in `/usr/src` with one generated for the running machine. |
@@ -82,8 +88,10 @@ Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds 
 2. Installs what's missing: `iasl`, `python3`, `dkms`, `make`, `gcc`, kernel headers, `mokutil` (EFI), polkit, `notify-send`. Warns if the user isn't in `wheel`/`sudo`.
 3. Disassembles the DSDT, runs `dsdt-fan-config.py`. Refuses if `_FST` is already fixed (`--force` overrides) or the shape is unknown (saves the DSL to `/tmp/galaxybook-fan-dsdt.dsl`).
 4. Secure Boot: finds the key DKMS will sign with (`framework.conf`, then `framework.conf.d/*.conf` in order, falling back to `/var/lib/dkms/mok.*`); generates and/or offers `mokutil --import` if needed; checks the built module really is signed.
-5. Removes any older DKMS versions and `/usr/src/galaxybook-fan-*`, copies the source plus the generated config, `dkms add` / `dkms install` with the initramfs rebuild deferred.
-6. Autoload, unbind service, dracut omit, login check (scripts, units, polkit, session helper where needed), then `--record-state "$SCRIPT_DIR"`.
+5. Removes any older DKMS versions and `/usr/src/galaxybook-fan-*`, copies the module source with `gen-config.sh`, the parser and `models.sh` (`--force` also writes `/etc/galaxybook-fan/force`), `dkms add` / `dkms install` with the initramfs rebuild deferred. DKMS's `PRE_BUILD` writes the config; a failed build prints `gen-config.sh`'s reason.
+6. Autoload, unbind service, dracut omit, login check (scripts, units, polkit, session helper where needed), the library folder and the `galaxybook-fan` command, then `--record-state "$SCRIPT_DIR" clone`.
+
+**After a BIOS update** the module refuses to load (its DSDT check). The login check tells the user to run `sudo galaxybook-fan rebuild`, which rebuilds through DKMS, so `gen-config.sh` reads the new firmware. Uninstall hints depend on `INSTALL_METHOD`: `./uninstall.sh` in the recorded folder, or remove the package.
 
 ### 5.1 check-galaxybook-fan.sh and confirming models
 
@@ -152,6 +160,7 @@ Give him a short numbered list of what to run and what he should see (and `sudo 
 ## 9. Safety and gotchas
 
 - **Never guess the firmware.** If the DSDT doesn't match the known shape, refuse and explain; a wrong field or table gives wrong readings with no warning.
+- **Never put a ready-made config header in `/usr/src`.** `module/galaxybook_fan_config.h` (940XHA) is only for building by hand from the repository; DKMS must always get its header from `gen-config.sh`, which fails the build with an `#error` rather than build for the wrong machine.
 - **Keep the module's load-time DMI and DSDT checks.** They are what makes a BIOS update pause the fix instead of reporting nonsense.
 - **Nothing in the boot chain:** no DSDT override, no initrd change, so a BIOS update can never make the laptop unbootable. Keep it that way; the module loads from `modules-load.d` after boot.
 - **Secure Boot keys:** never generate a second key when one is configured; Fedora shares one akmods key with Andy's fixes (`akmods-keys.conf` is shared and never removed). Check that the module really was signed.
@@ -187,13 +196,13 @@ Also:
 - **Galaxy Book 5 only (David's rule):** the packages install only on a Samsung whose DMI product is in the Book 5 list (`940XHA`, `960XHA`, `960QHA`, `750XHD`, `754XHD`, `750QHA`, `754QHA`, with or without `NP`; the same list and normalisation as `install.sh`). One list, in one shared file, used by `install.sh`, the scriptlets and `gen-config.sh`; Book 6 is added there later.
   - **rpm `%pre` and deb `preinst`** refuse anything else (exit 1, with the reason), so nothing is installed. `GALAXYBOOK_FAN_FORCE=1` overrides, like `install.sh --force` (same idea as fingerprint-fix-sdcp's `FPRINT_SDCP_FORCE`).
   - **Arch:** pacman ignores the exit status of `.install` scripts, so `pre_install` can only warn. The real gate there is `gen-config.sh`, which also checks the model: the module never builds on anything but a Book 5, whatever the format, and `post_install` says why it wasn't built.
-- **Check before relying on it:** what each package manager does when the DKMS build fails during install (it must give a clear message, not leave apt or dnf half-configured).
+- **Check before relying on it:** what each package manager does when the DKMS build fails during install (it must give a clear message, not leave apt or dnf half-configured). The build itself fails cleanly with `gen-config.sh`'s reason (step 1).
 - **Removal only, not upgrade:** tidy-up in rpm `%preun`/`%postun` when `$1 == 0`, deb `prerm remove`/`postrm purge`, Arch `pre_remove`. Never fail a removal.
 - **Clone install and package detect each other**, so the two are never installed together.
 
 ### 10.3 Steps (one PR each)
 
-1. **Preparation:** `PRE_BUILD` config generation, a shared paths file (clone vs package layout, like fingerprint-fix-sdcp's `lib/fixpaths.sh`), the `galaxybook-fan` command, notifications that know the install method. `install.sh` keeps working throughout.
+1. ✅ **Preparation:** `PRE_BUILD` config generation (`module/gen-config.sh`), the shared paths file (`lib/fanpaths.sh`) and DKMS helpers (`lib/fan-dkms.sh`), the `galaxybook-fan` command, notifications that know the install method. `install.sh` keeps working throughout. Checked: DKMS 3.0 ignores the `PRE_BUILD` exit status, hence the `#error` header.
 2. **`packaging/` shared files:** units, polkit rule, scripts as templates (`packaging/files/*.in`, `render.sh`, `install-files.sh`), as in fingerprint-fix-sdcp.
 3. **rpm** (`packaging/rpm/`: spec, `build.sh`).
 4. **deb** (`packaging/debian/`: control, rules, maintainer scripts, `build.sh`).

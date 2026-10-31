@@ -8,6 +8,12 @@
 
 ## Unreleased
 
+- **`galaxybook-fan` command:** `galaxybook-fan status`, `sudo galaxybook-fan check`, `sudo galaxybook-fan rebuild` (after a BIOS update) and `sudo galaxybook-fan test-native`
+- After a BIOS update you no longer need the folder you installed from: the notification says to run `sudo galaxybook-fan rebuild`, which rebuilds the module for the new firmware on every kernel it's built for. `status` shows the version, kernels, how it was installed and the fan speed now
+- DKMS now writes the module's config from the laptop's DSDT itself, before every build (`module/gen-config.sh`, DKMS `PRE_BUILD`), with the same checks as the installer: Galaxy Book 5 only (unless installed with `--force`), and never for firmware it doesn't recognise. A refused build says why
+- Names, paths and DKMS steps are shared by the installer, `uninstall.sh`, the command and the login check (`lib/fanpaths.sh`, `lib/fan-dkms.sh`), ready for the rpm, deb and Arch packages. `install.sh` won't run while the package is installed
+- Re-run `sudo ./install.sh` once to get the command; nothing else changes for an existing install
+
 - **Running the check:** the README and release page also show the `chmod +x` way, for running `check-galaxybook-fan.sh` with `./`
 - A downloaded file can't be run with `./` until it's made executable, so `./check-galaxybook-fan.sh` was refused; `sudo bash check-galaxybook-fan.sh` always works
 

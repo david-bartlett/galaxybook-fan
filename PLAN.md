@@ -31,7 +31,7 @@ Makes **fan speed reporting** work on Linux on the **Samsung Galaxy Book 5** ser
 
 ## 3. Install method and where things live
 
-Install is `sudo ./install.sh` from a clone; the rpm and deb can be built from a checkout (`packaging/`, §10) and aren't in a release yet. Re-running it over an existing install is fine. `sudo ./uninstall.sh` removes everything it added.
+Install is a package from the release (rpm, deb or Arch, §10), or `sudo ./install.sh` from a clone or the release's source code. Re-running it over an existing install is fine. `sudo ./uninstall.sh` removes everything it added.
 
 | What | Where |
 |---|---|
@@ -120,7 +120,15 @@ Ten seconds after login a user timer checks whether the kernel or BIOS changed o
 
 ### 7.1 How David releases
 
-David releases with a release tool in his private repository `david-bartlett/samsung-galaxybook-dev-tools` (folder `galaxybook-fan-github`, a copy of the fingerprint-fix-sdcp one). Its Release button sets `VERSION` (and the version in `module/dkms.conf` and `install.sh`), turns `## Unreleased` into `## X.Y.Z — date`, commits, tags `vX.Y.Z` and pushes, then adds a fresh `## Unreleased`. The workflow also builds `check-galaxybook-fan.sh` and attaches it; the release page's first step links to it. The tag starts `.github/workflows/release.yml`, which checks that `VERSION`, `module/dkms.conf`, `install.sh` and the CHANGELOG all have the tag's version, then creates the GitHub release with notes from `.github/release-notes.sh`: the install steps (`.github/release-install.md`), *What's new* (the bold lines) and the whole section collapsed under *Full changelog*. There are no packages yet; users download the source code GitHub attaches to every release.
+David releases with a release tool in his private repository `david-bartlett/samsung-galaxybook-dev-tools` (folder `galaxybook-fan-github`, a copy of the fingerprint-fix-sdcp one). Its Release button sets `VERSION` (and the version in `module/dkms.conf` and `install.sh`), turns `## Unreleased` into `## X.Y.Z — date`, commits, tags `vX.Y.Z` and pushes, then adds a fresh `## Unreleased`.
+
+The tag starts `.github/workflows/release.yml`:
+- checks that `VERSION`, `module/dkms.conf`, `install.sh` and the CHANGELOG all have the tag's version;
+- builds the packages: the `.rpm` in `fedora:45` (`packaging/rpm/build.sh`), the `.deb` in `debian:13` (`packaging/debian/build.sh`) and the Arch `.pkg.tar.zst` in `archlinux:base-devel` (`makepkg` in `packaging/arch/`), plus the release `PKGBUILD` (from `packaging/arch/PKGBUILD.release.in`, with the tarball's checksum once the repository is public), `galaxybook-fan.install` and `check-galaxybook-fan.sh`;
+- creates the GitHub release with notes from `.github/release-notes.sh`: the install table (`.github/release-install.md`), *What's new* (the bold lines) and the whole section collapsed under *Full changelog*;
+- attaches the files and `SHA256SUMS`.
+
+**On every pull request** the same workflow builds the packages without releasing: they're the run's *Artifacts* (Actions → the PR's run), so David can test exactly what a release would attach. *Run workflow* with an existing tag re-attaches the files to that release.
 
 **Contributors never do any of this.** Versioning (for David's information): fixes → `x.y.Z`, features → `x.Y.0`, a change users must act on → `X.0.0`.
 
@@ -157,6 +165,8 @@ sensors | grep -A2 galaxybook_fan     # fan speed shown; spin the fan up to see 
 ```
 
 Give him a short numbered list of what to run and what he should see (and `sudo ./uninstall.sh` when the PR touches removal).
+
+For a PR that changes packaging, he can also test the packages the PR's workflow run built: Actions → the run → *Artifacts* (`galaxybook-fan-rpm`, `-deb`, `-arch`), unzip, then `sudo dnf install ./…rpm`, `sudo apt install ./…deb` or `sudo pacman -U ./…zst`. On Arch, `sudo ./uninstall.sh` first if an `install.sh` copy is there.
 
 ---
 
@@ -210,7 +220,7 @@ Also:
 3. ✅ **rpm** (`packaging/rpm/`: spec, `build.sh`). `noarch`; `%pre -p /bin/bash` = `packaging/pre-script.sh` (removes an `install.sh` copy since PR #17); `%post` / `%preun` call `lib/package-scripts.sh`.
 4. ✅ **deb** (`packaging/debian/`: control, rules, maintainer scripts, `build.sh`; debhelper). `Architecture: all`, version `X.Y.Z-N` with no release tag (nothing in it depends on the release). `preinst install` = `packaging/pre-script.sh` (`#!/bin/bash`); `postinst configure` / `prerm remove` call `lib/package-scripts.sh`. The two `/etc` files are conffiles, so `gbfan_clone_installed` doesn't count the autoload file (a removed-not-purged deb leaves it).
 5. ✅ **Arch** (`packaging/arch/`: `PKGBUILD` packaging the working tree, `galaxybook-fan.install`; `arch=any`). `post_install` / `post_upgrade` / `pre_remove` call `lib/package-scripts.sh`; `post_install` / `post_upgrade` first run `package-scripts.sh replace-clone` (removes an older install.sh copy after unpacking, keeping what the package owns; a same-version copy makes pacman refuse first, over its `/usr/src` files, so the README says `uninstall.sh` first) and name the missing headers package (`/usr/lib/modules/<kernel>/pkgbase` + `-headers`). Arch's DKMS hooks build for every kernel with headers. Step 6 adds the release `PKGBUILD` (from the tarball) and CI's `.pkg.tar.zst`.
-6. **Release workflow:** build all three, attach them, and change the release page to a per-distro download-and-install table.
+6. ✅ **Release workflow:** builds all three (and on every PR, as artifacts), attaches them with the release `PKGBUILD`, `galaxybook-fan.install`, the check script and `SHA256SUMS`, and the release page has a per-distro download-and-install table. The rpm has no `.fcNN` in its name (`%{?dist}` dropped: one noarch file for Fedora 44 and 45).
 
 David tests each step on his laptop's distros before merging; the first packaged release follows step 6.
 

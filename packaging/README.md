@@ -34,6 +34,10 @@ The session helper uses its own names (`galaxybook-fan-session.*`), not the `sam
 - **After install or upgrade** (`package-scripts.sh configure`: rpm `%post`, deb `postinst configure`): removes other DKMS versions, builds this one for the running kernel (DKMS builds new kernels itself), enables the unbind service and the login check timer for every user, loads the module, and records the state (`INSTALL_METHOD=package`). With Secure Boot on and the signing key not enrolled, it prints the `mokutil --import` command. **A failed build never fails the install**: it says why, and `sudo galaxybook-fan rebuild` builds it once sorted.
 - **Before removal, never on upgrade** (`package-scripts.sh remove`: rpm `%preun` with `$1 = 0`, deb `prerm remove`). A deb removed without purge keeps its two files in `/etc` (dpkg conffiles); `apt purge` removes them: unloads and removes the module from DKMS, disables the units, gives the fan back to `acpi-fan`, removes the state and force flag.
 
+## On GitHub
+
+`.github/workflows/release.yml` builds all three (the rpm in `fedora:45`, the deb in `debian:13`, the Arch package in `archlinux:base-devel`) on every pull request, as downloadable *Artifacts*, and for a release attaches them with the release `PKGBUILD` (`arch/PKGBUILD.release.in`), `arch/galaxybook-fan.install`, `check-galaxybook-fan.sh` and `SHA256SUMS`.
+
 ## Building one locally
 
 Each build packages this checkout as it is now (tracked and new files) and writes to `packaging/out/`. The version is `VERSION`; give a higher release number to test an upgrade (`build.sh 2`).

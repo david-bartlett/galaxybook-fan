@@ -21,3 +21,7 @@ The files are the rpm's and deb's (`packaging/install-files.sh`), and `galaxyboo
 pacman ignores the exit status of install scripts, so it can't refuse a laptop that isn't a Galaxy Book 5: there the package installs, but `module/gen-config.sh` refuses to build the module and the install says why. `sudo GALAXYBOOK_FAN_FORCE=1 pacman -U …` builds anyway, as with the rpm and deb.
 
 The two files in `/etc` are `backup` files: kept as `.pacsave` if you changed them.
+
+## On the release
+
+Each release has the built `galaxybook-fan-X.Y.Z-1-any.pkg.tar.zst` (nothing in it depends on Arch's libraries, so a package built on CI keeps working) and a `PKGBUILD` that builds that release from its source tarball, written from `PKGBUILD.release.in` with `galaxybook-fan.install` beside it. Keep the two PKGBUILDs' package details the same.

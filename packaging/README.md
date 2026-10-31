@@ -30,7 +30,7 @@ The session helper uses its own names (`galaxybook-fan-session.*`), not the `sam
 
 ## What the package does
 
-- **Before the first install** (rpm `%pre` with `$1 = 1`, deb `preinst install`): refuses anything that isn't a Galaxy Book 5, changing nothing (`GALAXYBOOK_FAN_FORCE=1` overrides and writes `/etc/galaxybook-fan/force`). Then, if a copy installed with `install.sh` is there, removes it with `uninstall.sh`'s own steps and carries on (if `galaxybook_fan` can't be unloaded it stops, changing nothing). On Arch, pacman runs nothing before unpacking, so `post_install` does the removal afterwards (`package-scripts.sh replace-clone`, keeping what the package owns); and pacman can't refuse an install, so there `gen-config.sh` refusing to build is the Book 5 check.
+- **Before the first install** (rpm `%pre` with `$1 = 1`, deb `preinst install`): refuses anything that isn't a Galaxy Book 5, changing nothing (`GALAXYBOOK_FAN_FORCE=1` overrides and writes `/etc/galaxybook-fan/force`). Then, if a copy installed with `install.sh` is there, removes it with `uninstall.sh`'s own steps and carries on (if `galaxybook_fan` can't be unloaded it stops, changing nothing). On Arch, pacman refuses over a same-version copy's `/usr/src` files before running anything, so run `sudo ./uninstall.sh` first; an older copy doesn't clash, and `post_install` removes it afterwards (`package-scripts.sh replace-clone`, keeping what the package owns). pacman can't refuse an install either, so there `gen-config.sh` refusing to build is the Book 5 check.
 - **After install or upgrade** (`package-scripts.sh configure`: rpm `%post`, deb `postinst configure`): removes other DKMS versions, builds this one for the running kernel (DKMS builds new kernels itself), enables the unbind service and the login check timer for every user, loads the module, and records the state (`INSTALL_METHOD=package`). With Secure Boot on and the signing key not enrolled, it prints the `mokutil --import` command. **A failed build never fails the install**: it says why, and `sudo galaxybook-fan rebuild` builds it once sorted.
 - **Before removal, never on upgrade** (`package-scripts.sh remove`: rpm `%preun` with `$1 = 0`, deb `prerm remove`). A deb removed without purge keeps its two files in `/etc` (dpkg conffiles); `apt purge` removes them: unloads and removes the module from DKMS, disables the units, gives the fan back to `acpi-fan`, removes the state and force flag.
 
@@ -53,10 +53,10 @@ sudo apt install ./packaging/out/galaxybook-fan_*_all.deb
 galaxybook-fan status
 sudo apt remove galaxybook-fan          # or purge, to remove its /etc files too
 
-# Arch, CachyOS
+# Arch, CachyOS (sudo ./uninstall.sh first if install.sh was used)
 cd packaging/arch && makepkg -si
 galaxybook-fan status
 sudo pacman -R galaxybook-fan
 ```
 
-Build as your normal user (no sudo). A copy installed with `install.sh` is removed by the rpm and deb before they install, and by the Arch package just after; there's no need to run `uninstall.sh` first.
+Build as your normal user (no sudo). A copy installed with `install.sh` is removed by the rpm and deb before they install; there's no need to run `uninstall.sh` first, except on Arch.

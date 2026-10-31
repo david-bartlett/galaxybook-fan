@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.3.0 — 2026-10-31
 
 - **Own repository:** galaxybook-fan has moved out of samsung-galaxybook-fixes into its own repository, with its full history
 - It used to be `extras/galaxybook-fan` in [samsung-galaxybook-fixes](https://github.com/david-bartlett/samsung-galaxybook-fixes), which now only has a README pointing here. Already installed from there? Run this repository's `install.sh` once, so the notifications after a BIOS or kernel update tell you to run `install.sh` and `uninstall.sh` in this folder instead of the old one

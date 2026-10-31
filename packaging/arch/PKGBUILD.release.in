@@ -1,0 +1,35 @@
+# Maintainer: David Bartlett <22402006+david-bartlett@users.noreply.github.com>
+#
+# galaxybook-fan @VERSION@ for Arch and Arch-based distros (CachyOS, EndeavourOS, …)
+# Attached to the GitHub release; builds that release from its source tarball.
+# (The release also has the built package: sudo pacman -U galaxybook-fan-@VERSION@-1-any.pkg.tar.zst)
+#
+#   sudo pacman -S --needed base-devel
+#   Put this file and galaxybook-fan.install in one folder, then:
+#   makepkg -si
+#
+# Written by .github/workflows/release.yml from packaging/arch/PKGBUILD.release.in
+# - change that file, not a copy.
+
+pkgname=galaxybook-fan
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Fan speed for the Samsung Galaxy Book 5 (DKMS module)"
+arch=('any')
+url="https://github.com/david-bartlett/galaxybook-fan"
+license=('GPL-2.0-only')
+depends=('dkms' 'make' 'gcc' 'acpica' 'python' 'kmod' 'bash' 'systemd' 'polkit' 'libnotify')
+optdepends=('linux-headers: to build the module for the linux kernel (or your kernel'"'"'s -headers package, e.g. linux-cachyos-headers)')
+# Config files, as rpm %config(noreplace) and deb conffiles: kept if changed
+backup=('etc/modules-load.d/galaxybook_fan.conf' 'etc/xdg/autostart/galaxybook-fan-session.desktop')
+install=galaxybook-fan.install
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('@SHA256@')
+
+# The files are shared with the rpm and deb (packaging/install-files.sh).
+package() {
+    local src="$srcdir/$pkgname-$pkgver"
+    bash "$src/packaging/install-files.sh" "$pkgdir"
+    install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" "$src/README.md" "$src/CHANGELOG.md"
+    install -Dm644 "$src/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

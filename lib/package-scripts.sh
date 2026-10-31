@@ -40,6 +40,23 @@ fan_rpm() {
     return 1
 }
 
+# Run systemctl --user for everyone logged in now. "systemctl --global enable"
+# only takes effect at each user's next login; this starts the timers in
+# sessions that are already running (or stops them on removal), so nobody
+# has to log out and in. Only sessions with a running desktop are touched.
+user_systemctl_all() {
+    local uid user bus
+    for bus in /run/user/*/bus; do
+        [[ -S "$bus" ]] || continue
+        uid="$(basename "$(dirname "$bus")")"
+        [[ "$uid" =~ ^[0-9]+$ && "$uid" -ge 1000 ]] || continue
+        user="$(id -nu "$uid" 2>/dev/null)" || continue
+        runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" \
+            systemctl --user "$@" >/dev/null 2>&1 || true
+    done
+}
+
 secure_boot_on() {
     local var=/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d0-aa0d-00e098032b8c
     [[ -r "$var" ]] && [[ "$(od -An -t u1 -j 4 -N 1 "$var" 2>/dev/null | tr -d ' ')" == "1" ]]
@@ -96,6 +113,10 @@ configure() {
     systemctl daemon-reload >/dev/null 2>&1 || true
     systemctl enable "$UNBIND_SVC" >/dev/null 2>&1 || true
     systemctl --global enable "$USER_CHECK_TIMER" "$UPDATE_CHECK_TIMER" >/dev/null 2>&1 || true
+    # ...and in sessions already running: the new-version timer at once (it
+    # waits 30 s, then hourly); the login check's at its next login as before
+    user_systemctl_all daemon-reload
+    user_systemctl_all start "$UPDATE_CHECK_TIMER"
 
     if modprobe "$MOD_NAME" 2>/dev/null; then
         # Ours is reading the fan: take it from acpi-fan, now and at each boot.
@@ -135,6 +156,7 @@ remove() {
 
     systemctl disable --now "$UNBIND_SVC" >/dev/null 2>&1 || true
     systemctl --global disable "$USER_CHECK_TIMER" "$UPDATE_CHECK_TIMER" >/dev/null 2>&1 || true
+    user_systemctl_all stop "$UPDATE_CHECK_TIMER" "$USER_CHECK_TIMER"
     # Give the fan back to the stock acpi-fan driver
     gbfan_bind_acpi_fan
 

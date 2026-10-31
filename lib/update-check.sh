@@ -41,9 +41,13 @@ date +%s > "$dir/last-update-check"
 gbfan_version_newer "$cur" "$latest" || exit 0
 [[ "$(cat "$dir/notified-version" 2>/dev/null)" == "$latest" ]] && exit 0
 # No buttons: GNOME doesn't show them. The command works on every desktop.
-notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i software-update-available \
+# Each part on its own line, a blank line before the link, so the command and
+# the link don't run together when the desktop wraps them.
+notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update \
     "galaxybook-fan $latest is available" \
-    "You have $cur. To update: $(gbfan_update_hint)
-$(gbfan_release_url "$latest")" \
+    "You have $cur.
+To update, run: $(gbfan_update_hint)
+
+What's new: $(gbfan_release_url "$latest")" \
     && echo "$latest" > "$dir/notified-version"
 exit 0

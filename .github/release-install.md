@@ -11,6 +11,13 @@ Download **[check-galaxybook-fan.sh](https://github.com/david-bartlett/galaxyboo
 sudo bash check-galaxybook-fan.sh
 ```
 
+or make it executable first, then run it with `./`:
+
+```bash
+chmod +x check-galaxybook-fan.sh
+sudo ./check-galaxybook-fan.sh
+```
+
 It says whether galaxybook-fan will work on your laptop, and whether your model is already confirmed. If your model isn't confirmed yet, install the fix and run it again: it gives you a short report to post as a [Works on my model](https://github.com/david-bartlett/galaxybook-fan/issues/new?template=works_on.yml) issue.
 
 ## 2. Install

@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.8.3 — 2026-10-31
 
 - **Easier to read help:** `galaxybook-fan --help` lists the commands in a table, with what each one does beside it
 - 80 columns wide, commands in bold on a terminal (plain when piped). `updates on` / `off` (with `sudo`) and `updates status` (without) now have a row each, and the help says the check runs every 6 hours, not daily. The README and the release page have the same table, collapsed

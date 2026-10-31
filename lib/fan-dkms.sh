@@ -98,12 +98,18 @@ gbfan_dkms_version() {
 
 # gbfan_dkms_forget VERSION - if DKMS couldn't remove VERSION (its source in
 # /usr/src already gone), take its entry out of /var/lib/dkms by hand, with
-# the kernel-* links that point into it
+# the kernel-* links that point into it (DKMS's "installed for this kernel").
+# Prints those kernels, one per line, so the new version can be installed
+# for them.
 gbfan_dkms_forget() {
-    local v="$1" l
+    local v="$1" l t
     [[ -n "$v" && -d /var/lib/dkms/$PKG_NAME/$v ]] || return 0
     for l in /var/lib/dkms/"$PKG_NAME"/kernel-*; do
-        [[ -L "$l" && "$(readlink "$l")" == *"$v/"* ]] && rm -f "$l"
+        [[ -L "$l" ]] || continue
+        t="$(readlink "$l")"                 # e.g. 0.5.0/7.2.10-2-liquorix-amd64/x86_64
+        [[ "$t" == "$v/"* ]] || continue
+        t="${t#"$v"/}"; echo "${t%%/*}"
+        rm -f "$l"
     done
     rm -rf "/var/lib/dkms/$PKG_NAME/$v"
 }

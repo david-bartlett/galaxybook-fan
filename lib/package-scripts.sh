@@ -74,7 +74,7 @@ dkms_cert() {
 }
 
 configure() {
-    local v kver reason rpm d old hcmd
+    local v kver reason rpm d old hcmd k held=()
     v="$(tr -d '[:space:]' < "$GBFAN_LIBDIR/VERSION")"
     kver="$(uname -r)"
     GBFAN_LOG="$(mktemp)"       # global: the EXIT trap runs after this function returns
@@ -90,9 +90,10 @@ configure() {
         dkms remove "${PKG_NAME}/${old}" --all >/dev/null 2>&1 || true
         # A deb upgrade deletes the old version's /usr/src first, and DKMS
         # then can't remove it ("Could not locate dkms.conf"; seen on Mint 22
-        # and Ubuntu 26.04), leaving an entry that breaks 'dkms status'. Its
-        # module file is the same one the new version installs over.
-        gbfan_dkms_forget "$old"
+        # and Ubuntu 26.04), leaving an entry that breaks 'dkms status' and
+        # still holds the kernels it was installed for (seen on MX). Forget it,
+        # noting those kernels, so the new version is installed for them below.
+        while read -r k; do [[ -n "$k" ]] && held+=("$k"); done < <(gbfan_dkms_forget "$old")
     done
 
     [[ -d /var/lib/dkms/$PKG_NAME/$v ]] || dkms add -m "$PKG_NAME" -v "$v" >/dev/null 2>&1 || true
@@ -114,6 +115,18 @@ configure() {
         [[ -z "$reason" ]] && tail -5 "$GBFAN_LOG" >&2
         warn "the package is installed; see 'galaxybook-fan status', and 'sudo galaxybook-fan rebuild' once it's sorted"
     fi
+    # Other kernels an old, forgotten version was installed for: the new
+    # version there too, where their headers are (else their old module stays
+    # until 'sudo galaxybook-fan rebuild' or that kernel's next update)
+    for k in $(printf '%s\n' "${held[@]}" | sort -u); do
+        [[ "$k" == "$kver" ]] && continue
+        gbfan_has_headers "$k" || continue
+        if dkms install -m "$PKG_NAME" -v "$v" -k "$k" >/dev/null 2>&1; then
+            info "also installed for ${k}"
+        else
+            warn "couldn't install the module for ${k}: 'sudo galaxybook-fan rebuild' after booting it"
+        fi
+    done
 
     systemctl daemon-reload >/dev/null 2>&1 || true
     systemctl enable "$UNBIND_SVC" >/dev/null 2>&1 || true

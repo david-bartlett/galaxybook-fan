@@ -88,6 +88,11 @@ configure() {
         [[ "$old" =~ ^[0-9][0-9.]*$ && "$old" != "$v" ]] || continue
         gbfan_unload || true
         dkms remove "${PKG_NAME}/${old}" --all >/dev/null 2>&1 || true
+        # A deb upgrade deletes the old version's /usr/src first, and older
+        # DKMS (3.0, Ubuntu 24.04 / Mint 22) then can't remove it ("Could not
+        # locate dkms.conf"), leaving an entry that breaks 'dkms status'. Its
+        # module file is the same one the new version installs over.
+        gbfan_dkms_forget "$old"
     done
 
     [[ -d /var/lib/dkms/$PKG_NAME/$v ]] || dkms add -m "$PKG_NAME" -v "$v" >/dev/null 2>&1 || true

@@ -81,14 +81,31 @@ gbfan_dkms_defer_initramfs() {
 }
 gbfan_dkms_resume_initramfs() { rm -f "$DKMS_DEFER_CONF"; }
 
-# The registered version, e.g. 0.4.0 (empty if none)
+# The registered version, e.g. 0.4.0 (empty if none): the installed copy's
+# own (its VERSION file) when DKMS has it, else the newest DKMS lists - not
+# just the first, which could be an old one left behind
 gbfan_dkms_version() {
-    local d
+    local d v="" list=()
+    [[ -r "${GBFAN_LIBDIR:-}/VERSION" ]] && v="$(tr -d '[:space:]' < "$GBFAN_LIBDIR/VERSION")"
+    [[ -n "$v" && -d /var/lib/dkms/$PKG_NAME/$v ]] && { echo "$v"; return 0; }
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         d="$(basename "$d")"
-        [[ "$d" =~ ^[0-9][0-9.]*$ ]] && { echo "$d"; return 0; }
+        [[ "$d" =~ ^[0-9][0-9.]*$ ]] && list+=("$d")
     done
-    return 1
+    (( ${#list[@]} )) || return 1
+    printf '%s\n' "${list[@]}" | sort -V | tail -1
+}
+
+# gbfan_dkms_forget VERSION - if DKMS couldn't remove VERSION (its source in
+# /usr/src already gone), take its entry out of /var/lib/dkms by hand, with
+# the kernel-* links that point into it
+gbfan_dkms_forget() {
+    local v="$1" l
+    [[ -n "$v" && -d /var/lib/dkms/$PKG_NAME/$v ]] || return 0
+    for l in /var/lib/dkms/"$PKG_NAME"/kernel-*; do
+        [[ -L "$l" && "$(readlink "$l")" == *"$v/"* ]] && rm -f "$l"
+    done
+    rm -rf "/var/lib/dkms/$PKG_NAME/$v"
 }
 
 # Kernels galaxybook_fan is currently built for

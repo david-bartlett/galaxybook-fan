@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Upgrading on Mint and Ubuntu 24.04:** the old version no longer lingers in DKMS after a deb upgrade, and `galaxybook-fan status` shows the version you have
+- apt deletes the old version's source before the new package sets itself up, and DKMS on Ubuntu 24.04 and Mint 22 then couldn't remove the old version, so `dkms status` showed *Could not locate dkms.conf* and `galaxybook-fan status` said the old version, built for no kernel. The upgrade now removes what's left of it, which also tidies a copy upgraded before this
+
 ## 0.8.1 — 2026-10-31
 
 - **What's new keeps Update now:** pressing *What's new* on the new-version notification opens the release page and leaves the notification there, so *Update now* is still one click away

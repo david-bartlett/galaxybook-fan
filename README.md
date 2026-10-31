@@ -120,19 +120,28 @@ sudo galaxybook-fan test-native  # can the stock driver read the fan by itself n
 
 ### Tested on
 
-All tests were on a Galaxy Book 5 Pro (940XHA, BIOS P10VAJ.390.260522.02, DSDT `SECCSD LH43STAR 0x01072009`), October 2026:
+Fedora 45, Ubuntu 26.04, Linux Mint 22.3, MX Linux 25.3 and CachyOS, on a Galaxy Book 5 Pro (940XHA, BIOS P10VAJ.390.260522.02, DSDT `SECCSD LH43STAR 0x01072009`).
 
-| Distro | Kernel | Desktop | Secure Boot signing | `--check` | Install | `--test-native` | Login check | Uninstall |
-|---|---|---|---|---|---|---|---|---|
-| Fedora 45 | 7.2.12 | KDE Plasma | akmods key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Ubuntu 26.04.1 LTS | 7.0.0 | GNOME | Ubuntu shim key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Linux Mint 27 (beta) | 7.0.0 | Cinnamon | Ubuntu shim key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ |
-| MX Linux 25.2 (systemd boot) | 7.2.10 Liquorix | Xfce (session helper) | Secure Boot off | ✓ | ✓ | ✓ | ✓ after a reboot¹ | ✓ |
-| CachyOS | 7.2.9 | KDE Plasma | Secure Boot off | ✓ | ✓ | ✓ | ✓ | ✓ |
+<details>
+<summary>Test results per distro</summary>
+
+Install, the check and the `galaxybook-fan` command were tested on 31 October 2026 with the current version. `--test-native`, the login check and uninstall were tested on 23 October 2026 with 0.2 (the same code for those parts).
+
+| Distro | Kernel | Desktop | Secure Boot signing | Check | Install | `galaxybook-fan` status / rebuild | `--test-native` | Login check | Uninstall |
+|---|---|---|---|---|---|---|---|---|---|
+| Fedora 45 | 7.2.14 | KDE Plasma | akmods key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Ubuntu 26.04.1 LTS | 7.0.0-42 | GNOME | Ubuntu MOK key (enrolled) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Linux Mint 22.3 | 7.0.0-38 | Cinnamon | MOK key (enrolled) | ✓ | ✓ | ✓ | ✓² | ✓² | ✓² |
+| MX Linux 25.3 (systemd boot) | 7.2.11 Liquorix (and 7.2.10, 7.2.6) | Xfce (session helper) | Secure Boot off | ✓ | ✓ | ✓ (rebuilt all 3 kernels) | ✓ | ✓ after a reboot¹ | ✓ |
+| CachyOS (Limine) | 7.3.0-4 | KDE Plasma | Secure Boot off | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 `--test-native` passing means it correctly reported that the stock `acpi-fan` driver still can't read the fan, so the fix is needed. The firmware bug is the same on every distro.
 
 ¹ On MX, a plain log-out and log-in doesn't re-run the login check while Xfce's Print Queue Applet (`system-config-printer`) keeps the old session open. This doesn't matter in practice, because the check only has work to do after a kernel or BIOS update, and those come with a reboot. Turning the applet off under Session and Startup → Application Autostart makes log-outs end cleanly.
+
+² Tested on Linux Mint 27 (beta) with 0.2, before that install was replaced by 22.3.
+
+</details>
 
 Not yet tested on real hardware: the "signing key not enrolled" path (the `mokutil --import` prompt and MokManager after the reboot), and Book 5 models other than the 940XHA.
 

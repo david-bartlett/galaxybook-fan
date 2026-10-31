@@ -640,8 +640,10 @@ install_monitor() {
         || fail "Couldn't install ${GBFAN_CMD}"
     # The version, and the "new version" check (lib/update.sh, update-check.sh)
     echo "$PKG_VERSION" > "$GBFAN_LIBDIR/VERSION"
-    install -m 755 -o root -g root "$LIB_SRC/update-check.sh" "$UPDATE_CHECK_SCRIPT" \
-        || fail "Couldn't install ${UPDATE_CHECK_SCRIPT}"
+    for f in update-check.sh notify-update.sh update-in-terminal.sh; do
+        install -m 755 -o root -g root "$LIB_SRC/$f" "$GBFAN_LIBDIR/" \
+            || fail "Couldn't install ${f} to ${GBFAN_LIBDIR}"
+    done
     ok "Command: galaxybook-fan (status, check, rebuild, test-native, update)"
 
     put_rendered monitor.service.in "$SYSTEM_UNIT_DIR/$MONITOR_SVC"

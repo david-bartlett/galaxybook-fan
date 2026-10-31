@@ -40,14 +40,20 @@ date +%s > "$dir/last-update-check"
 
 gbfan_version_newer "$cur" "$latest" || exit 0
 [[ "$(cat "$dir/notified-version" 2>/dev/null)" == "$latest" ]] && exit 0
-# No buttons: GNOME doesn't show them. The command works on every desktop.
-# Each part on its own line, a blank line before the link, so the command and
-# the link don't run together when the desktop wraps them.
-notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update \
-    "galaxybook-fan $latest is available" \
-    "You have $cur.
+# The command and the link are in the text on every desktop (GNOME shows no
+# buttons), each on its own line so they don't run together when wrapped.
+# Where buttons work, notify-update.sh adds "Update now" and "What's new"; it
+# waits for a click, so it runs on its own (systemd-run) and this script ends.
+title="galaxybook-fan $latest is available"
+msg="You have $cur.
 To update, run: $(gbfan_update_hint)
 
-What's new: $(gbfan_release_url "$latest")" \
-    && echo "$latest" > "$dir/notified-version"
+What's new: $(gbfan_release_url "$latest")"
+if [[ -x "$HERE/notify-update.sh" ]] && command -v systemd-run >/dev/null 2>&1 \
+        && systemd-run --user --collect --quiet --unit="galaxybook-fan-notify-$latest" \
+            "$HERE/notify-update.sh" "$title" "$msg" "$(gbfan_release_url "$latest")" 2>/dev/null; then
+    echo "$latest" > "$dir/notified-version"
+elif notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update "$title" "$msg"; then
+    echo "$latest" > "$dir/notified-version"
+fi
 exit 0

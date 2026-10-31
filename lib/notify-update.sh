@@ -19,6 +19,14 @@
 title="${1:?Usage: $0 TITLE MESSAGE URL}"; msg="${2:-}"; url="${3:-}"
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 args=(-t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update)
+# GNOME (Ubuntu's is ubuntu:GNOME; not Budgie, budgie:GNOME): it ignores -t 0
+# and slides a normal notification into its list after a few seconds; only a
+# critical one stays on screen until it's closed or clicked (as
+# fingerprint-fix-sdcp's does). Other desktops keep -t 0 alone.
+desk="${XDG_CURRENT_DESKTOP,,}"
+gnome=0
+[[ "$desk" == *gnome* && "$desk" != *budgie* ]] && gnome=1
+(( gnome )) && args+=(-u critical)
 
 # The user's terminal: the desktop's default where it says, else the usual one
 # for this desktop, else any installed. Prints the command to start one with
@@ -66,11 +74,9 @@ if notify-send --help 2>&1 | grep -q -- '--action'; then
     [[ -n "$url" && -n "$opener" ]] && actions+=(--action=whatsnew="What's new")
     # GNOME usually shows no buttons, but clicking the notification sends its
     # "default" action: make that "What's new" too (not "Update now", so a
-    # stray click only opens a web page), and say so. Only on GNOME (Ubuntu's
-    # is ubuntu:GNOME; not Budgie, budgie:GNOME, which shows the buttons):
-    # some other desktops draw "default" as a button of its own.
-    desk="${XDG_CURRENT_DESKTOP,,}"
-    if [[ "$desk" == *gnome* && "$desk" != *budgie* && -n "$url" && -n "$opener" ]]; then
+    # stray click only opens a web page), and say so. Only on GNOME ($gnome
+    # above): some other desktops draw "default" as a button of its own.
+    if (( gnome )) && [[ -n "$url" && -n "$opener" ]]; then
         actions+=(--action=default="What's new")
         msg+=$'\n\nClick this notification to see what\'s new.'
     fi

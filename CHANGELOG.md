@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Stays on screen on GNOME:** the new-version notification now stays until you close or click it, as it does on other desktops
+- GNOME ignores "keep it open" for normal notifications and moves them to its list after a few seconds, so on GNOME (only) it's sent as critical, like fingerprint-fix-sdcp's. Hover over it to see the whole text and the buttons
+
 ## 0.8.4 — 2026-10-31
 
 - **The new module is really installed:** on Mint 22 and Ubuntu 24.04, an upgrade could leave the old version's module file in place, so `dkms status` said *Diff between built and installed module*

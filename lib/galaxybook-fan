@@ -11,10 +11,13 @@
 #                                 can the stock acpi-fan driver read the fan
 #                                 by itself now? (then the fix isn't needed)
 #   sudo galaxybook-fan update    install the newest release's package
-#   galaxybook-fan updates on|off|status
-#                                 "new version" notifications (on: daily)
+#   sudo galaxybook-fan updates on|off
+#                                 "new version" notifications on or off
+#   galaxybook-fan updates status are they on? (checked every 6 hours)
 #   galaxybook-fan updates check  look now; if there's a new version, show
 #                                 the notification (no sudo)
+#
+# 'galaxybook-fan --help' shows the same as a table (cmd_help).
 # =============================================================================
 set -uo pipefail
 
@@ -255,6 +258,50 @@ cmd_updates() {
     esac
 }
 
+# --help: the commands as a table, 80 columns wide; commands in bold on a
+# terminal. Each row is "command|what it does"; the description wraps inside
+# its cell.
+cmd_help() {
+    local w1=35 w2=38 row cmd desc part first i
+    local rows=(
+        "galaxybook-fan status|What's installed, and the fan speed now"
+        "sudo galaxybook-fan check|Will it work on this laptop? (read-only)"
+        "sudo galaxybook-fan rebuild|After a BIOS update: read the new firmware and build the module again"
+        "sudo galaxybook-fan test-native|Can the stock acpi-fan driver read the fan by itself now? (then the fix isn't needed)"
+        "sudo galaxybook-fan update|Install the newest release's package"
+        "sudo galaxybook-fan updates on/off|\"New version\" notifications on or off"
+        "galaxybook-fan updates status|Are they on? (checked every 6 hours)"
+        "galaxybook-fan updates check|Look now; if there's a new version, show the notification (no sudo)"
+    )
+    rule() {
+        local a b
+        a="$(printf '─%.0s' $(seq $((w1 + 2))))"; b="$(printf '─%.0s' $(seq $((w2 + 2))))"
+        echo "$1$a$2$b$3"
+    }
+    echo "${B}galaxybook-fan${N} - fan speed fix for the Samsung Galaxy Book 5"
+    echo "Installed as /usr/bin/galaxybook-fan by the packages,"
+    echo "or /usr/local/sbin/galaxybook-fan by install.sh"
+    echo
+    rule ┌ ┬ ┐
+    printf '│ %s%-*s%s │ %s%-*s%s │\n' "$B" "$w1" "Command" "$N" "$B" "$w2" "What it does" "$N"
+    rule ├ ┼ ┤
+    for i in "${!rows[@]}"; do
+        row="${rows[$i]}"; cmd="${row%%|*}"; desc="${row#*|}"
+        cmd="${cmd//on\/off/on|off}"
+        first=1
+        while IFS= read -r part; do
+            part="${part%"${part##*[! ]}"}"          # fold leaves a trailing space
+            if (( first )); then
+                printf '│ %s%-*s%s │ %-*s │\n' "$B" "$w1" "$cmd" "$N" "$w2" "$part"; first=0
+            else
+                printf '│ %-*s │ %-*s │\n' "$w1" "" "$w2" "$part"
+            fi
+        done < <(fold -s -w "$w2" <<<"$desc")
+        (( i < ${#rows[@]} - 1 )) && rule ├ ┼ ┤
+    done
+    rule └ ┴ ┘
+}
+
 case "${1:-}" in
     status)      cmd_status ;;
     update)      cmd_update ;;
@@ -262,6 +309,6 @@ case "${1:-}" in
     check)       cmd_check ;;
     rebuild)     cmd_rebuild ;;
     test-native) cmd_test_native ;;
-    -h|--help|help|"") sed -n '3,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; [[ -n "${1:-}" ]]; exit $? ;;
+    -h|--help|help|"") cmd_help; [[ -n "${1:-}" ]]; exit $? ;;
     *) echo "Unknown command: $1 (see galaxybook-fan --help)" >&2; exit 2 ;;
 esac

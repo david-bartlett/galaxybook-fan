@@ -6,7 +6,8 @@
 #   notify-update.sh TITLE MESSAGE URL
 #
 # Buttons: "Update now" (a terminal running 'sudo galaxybook-fan update',
-# lib/update-in-terminal.sh) and "What's new" (URL: the release page). It
+# lib/update-in-terminal.sh) and "What's new" (URL: the release page, after
+# which the notification is shown again, so "Update now" is still there). It
 # waits for a click, so update-check.sh starts it on its own (systemd-run)
 # rather than waiting for it. Without notify-send --action, or on desktops
 # that don't show buttons (GNOME), it's the same text with the command and
@@ -60,16 +61,34 @@ if notify-send --help 2>&1 | grep -q -- '--action'; then
     [[ -n "$term" && -x "$HERE/update-in-terminal.sh" ]] && actions+=(--action=update="Update now")
     # ...and "What's new" only where the link can be opened
     [[ -n "$url" && -n "$opener" ]] && actions+=(--action=whatsnew="What's new")
-    choice="$(notify-send "${args[@]}" "${actions[@]}" "$title" "$msg" 2>/dev/null)"
-    case "$choice" in
-        update)
-            # $term is a command and its options, split on purpose
-            # shellcheck disable=SC2086
-            exec $term /bin/bash "$HERE/update-in-terminal.sh" ;;
-        whatsnew)
-            # shellcheck disable=SC2086
-            exec $opener "$url" ;;
-    esac
+    # "What's new" shouldn't take "Update now" away: ask the server to keep
+    # the notification when a button is pressed (the "resident" hint: GNOME
+    # does; KDE closes it anyway), and after opening the page show it again,
+    # replacing it by its ID where notify-send can, so there's never two.
+    # Only "Update now" or closing it ends this.
+    idargs=(); notify-send --help 2>&1 | grep -q -- '--print-id' && idargs=(--print-id)
+    id=""
+    for (( n = 0; n < 20; n++ )); do
+        out="$(notify-send "${args[@]}" --hint=boolean:resident:true "${idargs[@]}" \
+            ${id:+--replace-id="$id"} "${actions[@]}" "$title" "$msg" 2>/dev/null)"
+        if [[ ${#idargs[@]} -gt 0 ]]; then
+            id="$(head -1 <<< "$out")"; [[ "$id" =~ ^[0-9]+$ ]] || id=""
+            choice="$(sed -n 2p <<< "$out")"
+        else
+            choice="$out"
+        fi
+        case "$choice" in
+            update)
+                # $term is a command and its options, split on purpose
+                # shellcheck disable=SC2086
+                exec $term /bin/bash "$HERE/update-in-terminal.sh" ;;
+            whatsnew)
+                # shellcheck disable=SC2086
+                $opener "$url" >/dev/null 2>&1 &
+                ;;
+            *)  break ;;                   # closed, or timed out
+        esac
+    done
 else
     notify-send "${args[@]}" "$title" "$msg"
 fi

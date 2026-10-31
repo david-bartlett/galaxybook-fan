@@ -9,6 +9,11 @@
 #   package-scripts.sh remove      before the package is removed - never on an
 #                                  upgrade (rpm %preun with $1 = 0, deb prerm
 #                                  remove, pacman pre_remove)
+#   package-scripts.sh replace-clone   remove a copy installed with install.sh,
+#                                  keeping what the package now owns (pacman
+#                                  post_install / post_upgrade, before configure:
+#                                  pacman runs nothing before unpacking; the rpm
+#                                  and deb do this before, in pre-script.sh)
 #
 # Installed as /usr/lib/galaxybook-fan/package-scripts.sh. A package's install
 # must never fail because of this: problems are explained, and the command
@@ -24,6 +29,7 @@ source "$HERE/fanpaths.sh"
 source "$HERE/fan-dkms.sh"
 
 info() { echo "galaxybook-fan: $*"; }
+ok()   { echo "galaxybook-fan: $*"; }
 warn() { echo "galaxybook-fan: WARNING: $*" >&2; }
 
 fan_rpm() {
@@ -63,7 +69,7 @@ configure() {
     for d in /var/lib/dkms/"$PKG_NAME"/*/; do
         old="$(basename "$d")"
         [[ "$old" =~ ^[0-9][0-9.]*$ && "$old" != "$v" ]] || continue
-        modprobe -r "$MOD_NAME" 2>/dev/null || true
+        gbfan_unload || true
         dkms remove "${PKG_NAME}/${old}" --all >/dev/null 2>&1 || true
     done
 
@@ -114,7 +120,7 @@ configure() {
 
 remove() {
     local dev name
-    modprobe -r "$MOD_NAME" 2>/dev/null || true
+    gbfan_unload || true
     trap gbfan_dkms_resume_initramfs EXIT
     gbfan_dkms_defer_initramfs >/dev/null
     gbfan_dkms_remove_all >/dev/null 2>&1 || true
@@ -133,8 +139,36 @@ remove() {
     return 0
 }
 
+# The install.sh copy's paths are the clone layout, so this runs in a
+# subshell with lib/fanpaths.sh read again for that layout.
+replace_clone() {
+    (
+        GBFAN_LAYOUT=clone
+        # shellcheck source=fanpaths.sh
+        source "$HERE/fanpaths.sh"
+        # shellcheck source=fan-dkms.sh
+        source "$HERE/fan-dkms.sh"
+        # shellcheck source=clone-remove.sh
+        source "$HERE/clone-remove.sh"
+        gbfan_clone_installed || exit 0
+        local from
+        from=$(sed -n 's/^INSTALL_DIR=//p' "$STATE_FILE" 2>/dev/null | head -1)
+        info "removing the copy installed with install.sh${from:+ (from ${from})}; the package replaces it"
+        trap gbfan_dkms_resume_initramfs EXIT
+        if GBFAN_KEEP_VERSION="$(tr -d '[:space:]' < "$HERE/VERSION")" gbfan_remove_clone; then
+            info "the install.sh copy is removed; from now on use 'galaxybook-fan status' and 'sudo galaxybook-fan rebuild'"
+            [[ -n "$from" ]] && info "the package doesn't use ${from}: keep it or delete it, as you like"
+        else
+            warn "the install.sh copy is still here: ${MOD_NAME} couldn't be unloaded."
+            warn "Close anything reading the fan speed (or reboot), then install the package again."
+        fi
+        return 0
+    )
+}
+
 case "${1:-}" in
-    configure) configure ;;
-    remove)    remove ;;
-    *) echo "Usage: $0 configure|remove" >&2; exit 2 ;;
+    configure)     configure ;;
+    remove)        remove ;;
+    replace-clone) replace_clone ;;
+    *) echo "Usage: $0 configure|remove|replace-clone" >&2; exit 2 ;;
 esac

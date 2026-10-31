@@ -22,11 +22,17 @@ gbfan_clone_installed() {
 
 # Remove it all and give the fan back to acpi-fan. Returns 1, having changed
 # nothing, if the module is loaded and can't be unloaded.
+# GBFAN_KEEP_VERSION=X.Y.Z: run after a package with that version has been
+# unpacked (Arch's post_install, where pacman can't run anything earlier):
+# keep the files the package now owns or uses as well - its source in
+# /usr/src, the autoload file, the force flag and the state - and don't rebind
+# acpi-fan (the package's install takes the fan straight back).
 gbfan_remove_clone() {
-    local f home udir user uid removed_monitor=0 in_use dev name rebound=0
+    local f d home udir user uid removed_monitor=0 in_use dev name rebound=0
+    local keep="${GBFAN_KEEP_VERSION:-}"
 
     if [[ -d /sys/module/$MOD_NAME ]]; then
-        modprobe -r "$MOD_NAME" || { warn "Couldn't unload ${MOD_NAME}"; return 1; }
+        gbfan_unload || { warn "Couldn't unload ${MOD_NAME}"; return 1; }
         ok "Unloaded ${MOD_NAME}"
     fi
 
@@ -39,13 +45,21 @@ gbfan_remove_clone() {
         gbfan_dkms_remove_all
         ok "Removed from DKMS"
     fi
-    rm -rf /usr/src/"${PKG_NAME}"-* && ok "Removed source from /usr/src"
+    for d in /usr/src/"${PKG_NAME}"-*; do
+        [[ -e "$d" && "$d" != "/usr/src/${PKG_NAME}-${keep}" ]] || continue
+        rm -rf "$d" && ok "Removed ${d}"
+    done
     gbfan_dkms_resume_initramfs
 
-    for f in "$MODLOAD_CONF" "$MODPROBE_CONF" "$DKMS_SIGN_CONF" "$DRACUT_CONF" "$FORCE_FLAG"; do
+    for f in "$MODPROBE_CONF" "$DKMS_SIGN_CONF" "$DRACUT_CONF"; do
         [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
     done
-    rmdir "$GBFAN_ETC" 2>/dev/null || true
+    if [[ -z "$keep" ]]; then
+        for f in "$MODLOAD_CONF" "$FORCE_FLAG"; do
+            [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
+        done
+        rmdir "$GBFAN_ETC" 2>/dev/null || true
+    fi
     [[ -f "$GBFAN_CMD" ]] && rm -f "$GBFAN_CMD" && ok "Removed the galaxybook-fan command"
 
     if [[ -f "$UNBIND_SERVICE" ]]; then
@@ -81,7 +95,7 @@ gbfan_remove_clone() {
     done
     rm -rf "$GBFAN_LIBDIR"
     rmdir /usr/local/lib/samsung-galaxybook 2>/dev/null || true
-    rm -f "$STATE_FILE" "$STATUS_FILE"
+    [[ -z "$keep" ]] && rm -f "$STATE_FILE" "$STATUS_FILE"
     systemctl daemon-reload 2>/dev/null || true
     [[ $removed_monitor -eq 1 ]] && ok "Removed the login check (timer, monitor service, polkit rule)"
 
@@ -106,6 +120,7 @@ gbfan_remove_clone() {
         fi
     fi
 
+    [[ -n "$keep" ]] && return 0
     # Rebind acpi-fan to any unbound PNP0C0B fan device
     for dev in /sys/bus/platform/devices/PNP0C0B:*; do
         [[ -e "$dev" ]] || continue

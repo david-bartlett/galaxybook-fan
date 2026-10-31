@@ -1,0 +1,28 @@
+#!/usr/bin/make -f
+# galaxybook-fan - built by packaging/debian/build.sh, which puts this folder
+# in a copy of the checkout as debian/. Architecture-independent: the package
+# ships the module's source and DKMS builds it on the laptop.
+
+PKGDIR := $(CURDIR)/debian/galaxybook-fan
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+
+override_dh_auto_build:
+
+override_dh_auto_test:
+
+override_dh_auto_install:
+	bash packaging/install-files.sh $(PKGDIR)
+
+# lib/package-scripts.sh enables the units and runs DKMS itself (postinst),
+# the same for every package format.
+override_dh_installsystemd:
+
+override_dh_installsystemduser:
+
+# Keep the executable bits install-files.sh sets (gen-config.sh in /usr/src).
+override_dh_fixperms:
+	dh_fixperms -X/usr/src

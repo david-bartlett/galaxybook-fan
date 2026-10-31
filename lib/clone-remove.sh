@@ -81,7 +81,10 @@ gbfan_remove_clone() {
     for home in /home/*/; do
         udir="${home}.config/systemd/user"
         rm -f "${udir}/${USER_CHECK_TIMER}" "${udir}/${USER_CHECK_SVC}" \
-              "${udir}/graphical-session.target.wants/${USER_CHECK_TIMER}"
+              "${udir}/graphical-session.target.wants/${USER_CHECK_TIMER}" \
+              "${udir}/${UPDATE_CHECK_TIMER:-galaxybook-fan-update-check.timer}" \
+              "${udir}/${UPDATE_CHECK_SVC:-galaxybook-fan-update-check.service}" \
+              "${udir}/graphical-session.target.wants/${UPDATE_CHECK_TIMER:-galaxybook-fan-update-check.timer}"
     done
     user="$(loginctl list-sessions --no-legend 2>/dev/null | awk '$4 == "seat0" {print $3}' | head -1)"
     uid="$(id -u "$user" 2>/dev/null)"

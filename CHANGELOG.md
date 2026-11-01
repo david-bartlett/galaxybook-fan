@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.0 — 2026-11-01
 
 - **The notification goes once you've updated:** if you update another way while the new-version notification is on screen (`sudo galaxybook-fan update`, or the downloaded file), it closes by itself a couple of seconds after the new version is installed

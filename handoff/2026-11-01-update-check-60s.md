@@ -11,6 +11,7 @@ PR #34 · Claude · 2026-11-01
 
 ## Tested
 - `bash packaging/render.sh` of the timer; `bash -n` on the changed scripts.
+- David on Fedora: the branch's rpm installed, the timer has `OnActiveSec=60s`.
 
 ## For the next person
 - The timer applies at the next login (or when a package install starts it in a running session); the hourly runs aren't changed, so the two can still coincide at an hour, rarely.

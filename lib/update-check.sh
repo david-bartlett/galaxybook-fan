@@ -3,7 +3,9 @@
 # galaxybook-fan - "a new version is out" (runs as the user, from
 # galaxybook-fan-update-check.timer: 60 s after login, then hourly)
 #
-# Goes to GitHub at most every 6 hours, and tells once per version. At login
+# Goes to GitHub at most about once an hour, and always at the first check
+# after login (as fingerprint-fix-sdcp's check does), and tells once per
+# version. At login
 # the network may not be up yet, so it tries for about 2 minutes; if GitHub
 # still can't be reached it says nothing and records nothing, and the next
 # hourly run tries again. The same if the new release's files aren't attached
@@ -11,7 +13,8 @@
 # 'galaxybook-fan update' can install it. The service doesn't start at all while
 # 'galaxybook-fan updates off' is set or the fix isn't installed.
 #
-# GBFAN_UPDATE_EVERY (seconds, default 6 hours) and GBFAN_UPDATE_TRIES /
+# GBFAN_UPDATE_EVERY (seconds, default 55 minutes: the timer runs on the hour,
+# so a full 60 would skip every other hour) and GBFAN_UPDATE_TRIES /
 # GBFAN_UPDATE_WAIT (attempts, seconds between them) are for testing.
 # =============================================================================
 set -uo pipefail
@@ -29,7 +32,12 @@ mkdir -p "$dir" 2>/dev/null || exit 0
 now="$(date +%s)"
 last="$(cat "$dir/last-update-check" 2>/dev/null || echo 0)"
 [[ "$last" =~ ^[0-9]+$ ]] || last=0
-(( now - last < ${GBFAN_UPDATE_EVERY:-21600} )) && exit 0
+# When this login's desktop session started (0 if systemd can't say): an
+# answer from before it doesn't count, so the first check of a login asks
+login="$(systemctl --user show -P ActiveEnterTimestamp --timestamp=unix graphical-session.target 2>/dev/null)"
+login="${login#@}"; login="${login%%.*}"
+[[ "$login" =~ ^[0-9]+$ ]] || login=0
+(( last >= login && now - last < ${GBFAN_UPDATE_EVERY:-3300} )) && exit 0
 
 cur="$(gbfan_installed_version)" || exit 0
 latest=""

@@ -13,7 +13,7 @@
 #   sudo galaxybook-fan update    install the newest release's package
 #   sudo galaxybook-fan updates on|off
 #                                 "new version" notifications on or off
-#   galaxybook-fan updates status are they on? (checked every 6 hours)
+#   galaxybook-fan updates status are they on? (checked hourly)
 #   galaxybook-fan updates check  look now; if there's a new version, show
 #                                 the notification (no sudo)
 #
@@ -228,10 +228,10 @@ cmd_updates() {
                  && ok "No more \"new version\" notifications. Turn them back on: sudo galaxybook-fan updates on" ;;
         on)  need_root "updates on"
              rm -f "$UPDATES_OFF"; rmdir "$GBFAN_ETC" 2>/dev/null || true
-             ok "\"New version\" notifications are on: GitHub asked at most every 6 hours, told once per version" ;;
+             ok "\"New version\" notifications are on: GitHub asked hourly and at login, told once per version" ;;
         status)
              if [[ -e "$UPDATES_OFF" ]]; then info "\"New version\" notifications: off (sudo galaxybook-fan updates on)"
-             else info "\"New version\" notifications: on, GitHub asked at most every 6 hours (sudo galaxybook-fan updates off)"; fi ;;
+             else info "\"New version\" notifications: on, GitHub asked hourly (sudo galaxybook-fan updates off)"; fi ;;
         check)
              # As the user: a notification sent as root wouldn't reach their desktop
              [[ $EUID -ne 0 ]] || fail "Run it without sudo, so the notification reaches your desktop: galaxybook-fan updates check"
@@ -270,7 +270,7 @@ cmd_help() {
         "sudo galaxybook-fan test-native|Can the stock acpi-fan driver read the fan by itself now? (then the fix isn't needed)"
         "sudo galaxybook-fan update|Install the newest release's package"
         "sudo galaxybook-fan updates on/off|\"New version\" notifications on or off"
-        "galaxybook-fan updates status|Are they on? (checked every 6 hours)"
+        "galaxybook-fan updates status|Are they on? (checked hourly)"
         "galaxybook-fan updates check|Look now; if there's a new version, show the notification (no sudo)"
     )
     rule() {

@@ -38,7 +38,7 @@ Then check: `galaxybook-fan status`, and `sensors` shows the fan's speed.
 | `sudo galaxybook-fan test-native` | Can the stock acpi-fan driver read the fan by itself now? (then the fix isn't needed) |
 | `sudo galaxybook-fan update` | Install the newest release's package |
 | `sudo galaxybook-fan updates on` / `off` | "New version" notifications on or off |
-| `galaxybook-fan updates status` | Are they on? (checked every 6 hours) |
+| `galaxybook-fan updates status` | Are they on? (checked hourly) |
 | `galaxybook-fan updates check` | Look now; if there's a new version, show the notification (no sudo) |
 
 </details>
@@ -65,7 +65,7 @@ To remove it: `sudo ./uninstall.sh` in the same folder.
 
 ## 3. Update
 
-Already have galaxybook-fan 0.7.0 or newer? It looks for new releases by itself, but only every 6 hours, so to update now:
+Already have galaxybook-fan 0.7.0 or newer? It looks for new releases by itself, at login and then hourly, so to update now:
 
 ```bash
 sudo galaxybook-fan update

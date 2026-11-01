@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.8.10 — 2026-11-01
 
 - **Clearer notification status:** `galaxybook-fan status` and `updates status` put the command to turn notifications off (or on) on its own line, so it no longer reads as if they're off

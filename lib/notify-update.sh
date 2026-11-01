@@ -9,8 +9,8 @@
 # lib/update-in-terminal.sh) and "What's new" (URL: the release page, after
 # which the notification is shown again, so "Update now" is still there). It
 # waits for a click, so update-check.sh starts it on its own (systemd-run)
-# rather than waiting for it. Without buttons it's the same text, with the
-# command and the link in it. Critical everywhere (so it stays). On GNOME, shown by
+# rather than waiting for it. With buttons the text is just "You have
+# X.Y.Z."; without them it's all of MESSAGE, with the command and the link. Critical everywhere (so it stays). On GNOME, shown by
 # notify-dbus.py (notify-send drops its buttons there), and clicking the
 # notification itself also opens the release page (its "default" action;
 # only there, so other desktops don't draw it as a third button). Same idea
@@ -93,7 +93,15 @@ if (( gnome )) && [[ -f "$HERE/notify-dbus.py" ]] && command -v python3 >/dev/nu
 elif notify-send --help 2>&1 | grep -q -- '--action'; then
     way=notify-send
 fi
-[[ " ${acts[*]} " == *" default="* && -n "$way" ]] && msg+=$'\n\nClick this notification to see what\'s new.'
+# With buttons, only the first line of the text ("You have X.Y.Z."): the
+# command and the link are what the buttons do, and GNOME runs the lines
+# together into one long one. Without buttons, all of it ($full: also used
+# if the D-Bus helper fails below), so it can still be acted on.
+full="$msg"
+if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
+    msg="${msg%%$'\n'*}"
+    [[ " ${acts[*]} " == *" default="* ]] && msg+=$'\n'"Click this notification to see what's new."
+fi
 
 # Show it and print the button pressed (nothing if it was closed)
 show() {
@@ -123,7 +131,7 @@ if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
         if [[ $way == dbus && $rc -eq 2 ]]; then
             # D-Bus didn't work after all: the plain notification, without
             # the line about clicking it
-            notify-send "${args[@]}" "$title" "${msg%$'\n\nClick this notification'*}"
+            notify-send "${args[@]}" "$title" "$full"
             break
         fi
         case "$choice" in

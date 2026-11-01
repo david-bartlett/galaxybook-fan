@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.8.9 — 2026-11-01
 
 - **Hourly, like fingerprint-fix-sdcp:** the new-version check asks GitHub every hour and always at login (it was at most every 6 hours), so a second release the same day is noticed within the hour
 - Still one notification per version

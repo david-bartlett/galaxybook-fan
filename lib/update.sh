@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # =============================================================================
 # galaxybook-fan - is there a newer release? Shared by the login check (which
-# says so once per version, asking GitHub at most every 6 hours) and
+# says so once per version, asking GitHub hourly and at each login) and
 # 'galaxybook-fan update'.
 # Source lib/fanpaths.sh first.
 #

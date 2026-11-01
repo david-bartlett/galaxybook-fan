@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Hourly, like fingerprint-fix-sdcp:** the new-version check asks GitHub every hour and always at login (it was at most every 6 hours), so a second release the same day is noticed within the hour
+- Still one notification per version
+
 - **Update straight away:** the release page has a new **3. Update** section, so anyone told about a release (for example by GitHub's emails) can install it at once with `sudo galaxybook-fan update`, instead of waiting up to 6 hours for the check
 
 ## 0.8.8 — 2026-11-01

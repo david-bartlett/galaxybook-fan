@@ -12,7 +12,8 @@ PR #41 · Claude · 2026-11-01
 
 ## Tested
 - Stand-ins for `notify-send` (waits, `--print-id`), `gdbus` and `xdg-open`, KDE: VERSION changed after 3 s → `CloseNotification 42`, script ended about 2 s later; a What's new click still opens the page and re-shows. shellcheck, `bash -n`, `py_compile`.
-- Not tested here: the D-Bus helper's watch (needs GNOME), and whether KDE / Cinnamon / MATE / Xfce allow `CloseNotification` from another D-Bus connection.
+- David on Ubuntu 26.04 (GNOME, the D-Bus helper): the notification closed by itself within about 1–2 s of VERSION changing.
+- Not tested yet: whether KDE / Cinnamon / MATE / Xfce allow `CloseNotification` from another D-Bus connection.
 
 ## For the next person
 - fingerprint-fix-sdcp has the same change (its own PR); keep `notify-dbus.py` in step.

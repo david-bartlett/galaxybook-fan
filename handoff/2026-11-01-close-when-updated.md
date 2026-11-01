@@ -1,6 +1,6 @@
 # The new-version notification closes once the new version is installed
 
-PR #<n> · Claude · 2026-11-01
+PR #41 · Claude · 2026-11-01
 
 ## What changed
 - `lib/notify-update.sh`: the announced version (from the URL's `/tag/vX.Y.Z`) and the installed `VERSION` file beside it (or the clone's); `updated()` compares them with `sort -V`. `wait_notify_send` runs `notify-send --print-id …` in the background, notices a click within 0.5 s, and every 2 s, once `updated`, calls `gdbus … CloseNotification ID` (once); it prints the button (line 2 of notify-send's output). Without `--print-id` it's plain `notify-send` as before.

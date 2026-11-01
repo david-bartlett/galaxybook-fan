@@ -1,6 +1,6 @@
 # New-version check 60 s after login
 
-PR #<n> · Claude · 2026-11-01
+PR #34 · Claude · 2026-11-01
 
 ## What changed
 - `packaging/files/update-check.timer.in`: `OnActiveSec=60s` (was 30s), with a comment why; descriptions and comments in `update-check.sh`, `package-scripts.sh`, `fanpaths.sh`, README, PLAN.md say 60 s. README's update paragraph tidied (a repeated "tells you").

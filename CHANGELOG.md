@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.0 — 2026-11-01
 
 - **The notification goes once you've updated:** if you update another way while the new-version notification is on screen (`sudo galaxybook-fan update`, or the downloaded file), it closes by itself a couple of seconds after the new version is installed
 - While it's on screen it looks at the installed version every 2 seconds. On GNOME it closes its own notification; elsewhere it asks the desktop to close it, which most allow (if one doesn't, the notification stays as before)

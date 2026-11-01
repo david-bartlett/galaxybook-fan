@@ -1,6 +1,6 @@
 # Release page: 3. Update
 
-PR #<n> · Claude · 2026-11-01
+PR #37 · Claude · 2026-11-01
 
 ## What changed
 - `.github/release-install.md` (the release page's install section): new **3. Update** with `sudo galaxybook-fan update` (from 0.7.0) and `galaxybook-fan updates check` (from 0.8.0); older versions and `install.sh` copies install the file as in 2 (the text that was in the IMPORTANT box). The box's "Already installed?" now points to 3.

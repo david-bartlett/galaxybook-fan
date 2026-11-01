@@ -8,6 +8,8 @@
 
 ## Unreleased
 
+- **What's new first:** on the release page, *What's new* now comes straight after the box at the top, before Check, Install and Update, as on fingerprint-fix-sdcp's
+
 ## 0.8.10 — 2026-11-01
 
 - **Clearer notification status:** `galaxybook-fan status` and `updates status` put the command to turn notifications off (or on) on its own line, so it no longer reads as if they're off

@@ -1,6 +1,6 @@
 # Make sure the module file is really installed (Ubuntu 26.04)
 
-PR #<n> · Claude · 2026-11-01
+PR #35 · Claude · 2026-11-01
 
 ## What changed
 - `lib/fan-dkms.sh`: new `gbfan_dkms_not_in_place VERSION` lists kernels DKMS calls installed but whose file isn't in place: the warning in either wording (*Diff between built and installed module* on DKMS 3.0, *Differences between built and installed modules* on 3.2), or no `galaxybook_fan.ko*` in `/lib/modules/<k>/updates/dkms` or `extra`. `gbfan_dkms_install` force-installs for those (#31 matched only the 3.0 wording).

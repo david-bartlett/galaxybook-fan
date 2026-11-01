@@ -1,7 +1,7 @@
 > [!IMPORTANT]
 > **galaxybook-fan** makes fan speed reporting work on the Samsung Galaxy Book 5 (`940XHA`, `960XHA`, `960QHA`, `750XHD`, `754XHD`, `750QHA`, `754QHA`). It reads your laptop's own firmware to set itself up, and refuses anything else.
 >
-> **Already installed?** Install the new file the same way: it updates the old one. A copy installed with `install.sh` is replaced by the Fedora and Ubuntu / Debian packages; on Arch, run `sudo ./uninstall.sh` in its folder first.
+> **Already installed?** See **3. Update** below: one command installs this release.
 
 ## 1. Check your laptop first
 
@@ -62,5 +62,17 @@ sudo ./install.sh
 To remove it: `sudo ./uninstall.sh` in the same folder.
 
 </details>
+
+## 3. Update
+
+Already have galaxybook-fan 0.7.0 or newer? It looks for new releases by itself, but only every 6 hours, so to update now:
+
+```bash
+sudo galaxybook-fan update
+```
+
+It downloads your distro's file from this release, checks it against `SHA256SUMS` and installs it (`dnf`, `apt` or `pacman` asks first, as usual). Or run `galaxybook-fan updates check` (no `sudo`, from 0.8.0) to see the new-version notification now, with **Update now** and **What's new**.
+
+Older versions, or a copy installed with `install.sh`: install this release's file the same way as in **2. Install**, which updates the old one. The Fedora and Ubuntu / Debian packages replace an `install.sh` copy; on Arch, run `sudo ./uninstall.sh` in its folder first.
 
 `SHA256SUMS` lists the files' checksums: `sha256sum -c SHA256SUMS --ignore-missing` in the download folder checks the ones you downloaded.

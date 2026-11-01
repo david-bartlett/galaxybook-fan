@@ -8,6 +8,8 @@
 
 ## Unreleased
 
+- **Update straight away:** the release page has a new **3. Update** section, so anyone told about a release (for example by GitHub's emails) can install it at once with `sudo galaxybook-fan update`, instead of waiting up to 6 hours for the check
+
 ## 0.8.8 — 2026-11-01
 
 - **Shorter notification:** with buttons, the new-version notification just says which version you have; **Update now** and **What's new** do the rest

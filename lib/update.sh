@@ -117,7 +117,7 @@ gbfan_update_notify() {
                 "$title" "$text" "$(gbfan_release_url "$latest")" 2>/dev/null; then
         return 0
     fi
-    notify-send -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update "$title" "$text"
+    notify-send -u critical -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update "$title" "$text"
 }
 
 # Remember a version was announced to this user (so it's said once)

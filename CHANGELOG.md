@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Stays on screen on Cinnamon:** the new-version notification now stays until you close or click it on every desktop, not just GNOME
+- Cinnamon, like GNOME, slides a normal notification away after a few seconds, so it's now sent as critical everywhere, as fingerprint-fix-sdcp's always has been
+
 - **One notification at a time:** galaxybook-fan's new-version check now runs a minute after login, so when it and fingerprint-fix-sdcp (30 seconds after login) both have an update, their notifications don't arrive together
 
 ## 0.8.5 — 2026-10-31

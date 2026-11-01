@@ -136,7 +136,7 @@ configure() {
     systemctl enable "$UNBIND_SVC" >/dev/null 2>&1 || true
     systemctl --global enable "$USER_CHECK_TIMER" "$UPDATE_CHECK_TIMER" >/dev/null 2>&1 || true
     # ...and in sessions already running: the new-version timer at once (it
-    # waits 30 s, then hourly); the login check's at its next login as before
+    # waits 60 s, then hourly); the login check's at its next login as before
     user_systemctl_all daemon-reload
     user_systemctl_all start "$UPDATE_CHECK_TIMER"
 

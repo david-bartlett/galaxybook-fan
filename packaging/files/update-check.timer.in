@@ -1,12 +1,14 @@
 # Written by @WRITTEN_BY@.
 [Unit]
-Description=galaxybook-fan - look for a new release (30 s after login, then hourly; GitHub at most every 6 hours)
+Description=galaxybook-fan - look for a new release (60 s after login, then hourly; GitHub at most every 6 hours)
 # PartOf stops the timer at logout so it re-arms on the next login.
 PartOf=graphical-session.target
 After=graphical-session.target
 
 [Timer]
-OnActiveSec=30s
+# 60 s, not 30 s: fingerprint-fix-sdcp's check runs 30 s after login, so
+# when both have a new release their notifications don't arrive together
+OnActiveSec=60s
 AccuracySec=1s
 OnCalendar=hourly
 Unit=@UPDATE_CHECK_SVC@

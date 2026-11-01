@@ -8,6 +8,8 @@
 
 ## Unreleased
 
+- **One notification at a time:** galaxybook-fan's new-version check now runs a minute after login, so when it and fingerprint-fix-sdcp (30 seconds after login) both have an update, their notifications don't arrive together
+
 ## 0.8.5 — 2026-10-31
 
 - **Stays on screen on GNOME:** the new-version notification now stays until you close or click it, as it does on other desktops

@@ -77,7 +77,7 @@ GBFAN_ETC="/etc/galaxybook-fan"
 FORCE_FLAG="$GBFAN_ETC/force"
 # 'sudo galaxybook-fan updates off' leaves this: no "new version" notifications
 UPDATES_OFF="$GBFAN_ETC/no-update-check"
-# The "new version" check: a user timer (30 s after login, then hourly) and
+# The "new version" check: a user timer (60 s after login, then hourly) and
 # its script in the library folder (lib/update-check.sh)
 UPDATE_CHECK_SVC="galaxybook-fan-update-check.service"
 UPDATE_CHECK_TIMER="galaxybook-fan-update-check.timer"

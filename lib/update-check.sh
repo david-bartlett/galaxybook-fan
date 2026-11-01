@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # galaxybook-fan - "a new version is out" (runs as the user, from
-# galaxybook-fan-update-check.timer: 30 s after login, then hourly)
+# galaxybook-fan-update-check.timer: 60 s after login, then hourly)
 #
 # Goes to GitHub at most every 6 hours, and tells once per version. At login
 # the network may not be up yet, so it tries for about 2 minutes; if GitHub

@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **The notification goes once you've updated:** if you update another way while the new-version notification is on screen (`sudo galaxybook-fan update`, or the downloaded file), it closes by itself a couple of seconds after the new version is installed
+- While it's on screen it looks at the installed version every 2 seconds. On GNOME it closes its own notification; elsewhere it asks the desktop to close it, which most allow (if one doesn't, the notification stays as before)
+
 - **What's new first:** on the release page, *What's new* now comes straight after the box at the top, before Check, Install and Update, as on fingerprint-fix-sdcp's
 
 ## 0.8.10 — 2026-11-01

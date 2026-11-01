@@ -103,17 +103,58 @@ if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
     [[ " ${acts[*]} " == *" default="* ]] && msg+=$'\n'"Click this notification to see what's new."
 fi
 
+# Updated another way while it's on screen (sudo galaxybook-fan update, the
+# file installed by hand): close it. The announced version is the release
+# URL's tag (.../tag/vX.Y.Z); the installed one is the VERSION file beside
+# this script (installed copies), or the clone's.
+want="${url##*/tag/v}"; [[ "$want" == "$url" || ! "$want" =~ ^[0-9.]+$ ]] && want=""
+watch=""
+for f in "$HERE/VERSION" "$HERE/../VERSION"; do [[ -f "$f" ]] && { watch="$f"; break; }; done
+updated() {
+    local have
+    [[ -n "$want" && -n "$watch" ]] || return 1
+    have="$(tr -d '[:space:]' < "$watch" 2>/dev/null)"
+    [[ -n "$have" && "$(printf '%s\n%s\n' "$want" "$have" | sort -V | tail -1)" == "$have" ]]
+}
+
+# notify-send, closed once updated: --print-id gives its ID first (then the
+# button, when one is pressed); every 2 s look at the installed version, and
+# once it's the announced one ask the desktop to close that ID (most allow it
+# for the same user; if not it simply stays). Prints the button pressed.
+wait_notify_send() {
+    local out pid id="" i=0 closed=0
+    if ! notify-send --help 2>&1 | grep -q -- '--print-id' || ! out="$(mktemp)"; then
+        notify-send "$@" 2>/dev/null; return
+    fi
+    notify-send --print-id "$@" > "$out" 2>/dev/null &
+    pid=$!
+    while kill -0 "$pid" 2>/dev/null; do
+        sleep 0.5                                   # a click is noticed at once...
+        (( ++i % 4 )) && continue                   # ...the version every 2 s
+        [[ -n "$id" ]] || id="$(head -1 "$out")"
+        if (( ! closed )) && [[ "$id" =~ ^[0-9]+$ ]] && updated; then
+            gdbus call --session --dest org.freedesktop.Notifications \
+                --object-path /org/freedesktop/Notifications \
+                --method org.freedesktop.Notifications.CloseNotification "$id" >/dev/null 2>&1
+            closed=1
+        fi
+    done
+    wait "$pid" 2>/dev/null
+    sed -n '2p' "$out"                              # the button (after the ID)
+    rm -f "$out"
+}
+
 # Show it and print the button pressed (nothing if it was closed)
 show() {
     local a pairs=() opts=()
     case "$way" in
         dbus)
             for a in "${acts[@]}"; do pairs+=("${a%%=*}" "${a#*=}"); done
-            python3 -I "$HERE/notify-dbus.py" 2 \
+            NOTIFY_WATCH_FILE="$watch" NOTIFY_WATCH_VERSION="$want" python3 -I "$HERE/notify-dbus.py" 2 \
                 "Samsung Galaxy Book Fixes" system-software-update "$title" "$msg" "${pairs[@]}" ;;
         notify-send)
             for a in "${acts[@]}"; do opts+=("--action=$a"); done
-            notify-send "${args[@]}" "${opts[@]}" "$title" "$msg" 2>/dev/null ;;
+            wait_notify_send "${args[@]}" "${opts[@]}" "$title" "$msg" ;;
     esac
 }
 
@@ -143,7 +184,7 @@ if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
                 # shellcheck disable=SC2086
                 $opener "$url" >/dev/null 2>&1 &
                 sleep 2 ;;
-            *)  break ;;                   # closed, or timed out
+            *)  break ;;                   # closed, timed out, or updated another way
         esac
     done
 else

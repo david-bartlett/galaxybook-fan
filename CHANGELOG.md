@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Shorter notification:** with buttons, the new-version notification just says which version you have; **Update now** and **What's new** do the rest
+- The command and the release's link are only in the text where the buttons can't be shown (then it's the full text as before). On GNOME the lines ran together into one long one
+
 ## 0.8.7 — 2026-11-01
 
 - **Upgrading on Ubuntu 26.04:** the new module is now really installed, so it loads after the upgrade

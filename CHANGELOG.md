@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.8.8 — 2026-11-01
 
 - **Shorter notification:** with buttons, the new-version notification just says which version you have; **Update now** and **What's new** do the rest

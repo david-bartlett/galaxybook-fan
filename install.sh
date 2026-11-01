@@ -28,7 +28,7 @@
 # ============================================================================
 set -uo pipefail
 
-PKG_VERSION="0.8.5"   # keep in step with VERSION and module/dkms.conf (the release tool sets all three)
+PKG_VERSION="0.8.6"   # keep in step with VERSION and module/dkms.conf (the release tool sets all three)
 
 # Oldest kernel the module has been build-tested against (6.8 to 7.0 all build
 # cleanly); anything able to run a Lunar Lake Book 5 is newer than this.

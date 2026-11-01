@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.8.6 — 2026-11-01
 
 - **Stays on screen on Cinnamon:** the new-version notification now stays until you close or click it on every desktop, not just GNOME
 - Cinnamon, like GNOME, slides a normal notification away after a few seconds, so it's now sent as critical everywhere, as fingerprint-fix-sdcp's always has been

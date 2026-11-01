@@ -1,6 +1,6 @@
 # New-version check: hourly and at each login
 
-PR #<n> · Claude · 2026-11-01
+PR #38 · Claude · 2026-11-01
 
 ## What changed
 - `lib/update-check.sh`: GitHub at most every 55 minutes (`GBFAN_UPDATE_EVERY` default 3300; was 21600), and always when `last-update-check` is from before this login (`graphical-session.target`'s `ActiveEnterTimestamp`). 55, not 60: the timer runs on the hour and the stamp is written a moment later, so with 60 the next hour's run would find it under an hour old and skip.

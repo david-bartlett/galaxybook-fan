@@ -1,6 +1,6 @@
 # Short new-version notification when it has buttons
 
-PR #<n> · Claude · 2026-11-01
+PR #36 · Claude · 2026-11-01
 
 ## What changed
 - `lib/notify-update.sh`: when it shows buttons, the text is MESSAGE's first line (*You have X.Y.Z.*), plus the GNOME click line; the full MESSAGE (command and link) is kept in `$full` for when there are no buttons, and for the plain fallback if `notify-dbus.py` fails.

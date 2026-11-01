@@ -11,4 +11,5 @@ PR #35 · Claude · 2026-11-01
 
 ## Tested
 - The status-line parsing on sample lines (both wordings → force; plain *installed* → file check; *built* → skipped). `bash -n`, shellcheck (no new notes).
-- Not run here: `gbfan_dkms_install` against a stand-in `dkms` (this session's safety check refuses scripts that source a library with `rm`). David's Ubuntu is in exactly this state.
+- Not run here: `gbfan_dkms_install` against a stand-in `dkms` (this session's safety check refuses scripts that source a library with `rm`).
+- David on Ubuntu 26.04, from the broken state: `apt install --reinstall` of this branch's deb → `dkms status` `galaxybook-fan/0.8.6, 7.0.0-42-generic, x86_64: installed`, no warning.

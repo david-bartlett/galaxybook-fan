@@ -230,8 +230,15 @@ cmd_updates() {
              rm -f "$UPDATES_OFF"; rmdir "$GBFAN_ETC" 2>/dev/null || true
              ok "\"New version\" notifications are on: GitHub asked hourly and at login, told once per version" ;;
         status)
-             if [[ -e "$UPDATES_OFF" ]]; then info "\"New version\" notifications: off (sudo galaxybook-fan updates on)"
-             else info "\"New version\" notifications: on, GitHub asked hourly (sudo galaxybook-fan updates off)"; fi ;;
+             # The command to change it on a line of its own: in brackets after
+             # "on" it read as if they were off
+             if [[ -e "$UPDATES_OFF" ]]; then
+                 info "\"New version\" notifications: off"
+                 echo "        To turn them on: sudo galaxybook-fan updates on"
+             else
+                 info "\"New version\" notifications: on (GitHub checked at login and hourly)"
+                 echo "        To turn them off: sudo galaxybook-fan updates off"
+             fi ;;
         check)
              # As the user: a notification sent as root wouldn't reach their desktop
              [[ $EUID -ne 0 ]] || fail "Run it without sudo, so the notification reaches your desktop: galaxybook-fan updates check"

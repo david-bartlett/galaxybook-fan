@@ -8,6 +8,8 @@
 
 ## Unreleased
 
+- **Clearer notification status:** `galaxybook-fan status` and `updates status` put the command to turn notifications off (or on) on its own line, so it no longer reads as if they're off
+
 ## 0.8.9 — 2026-11-01
 
 - **Hourly, like fingerprint-fix-sdcp:** the new-version check asks GitHub every hour and always at login (it was at most every 6 hours), so a second release the same day is noticed within the hour

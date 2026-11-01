@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.8.7 — 2026-11-01
 
 - **Upgrading on Ubuntu 26.04:** the new module is now really installed, so it loads after the upgrade

@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Upgrading on Ubuntu 26.04:** the new module is now really installed, so it loads after the upgrade
+- Ubuntu 26.04's DKMS could record the new version as installed without copying its module file, so the module didn't load and the fan went back to the stock driver (`dkms status` said *Differences between built and installed modules*). The install now checks the module file is there, and recognises that wording as well as Mint's
+
 ## 0.8.6 — 2026-11-01
 
 - **Stays on screen on Cinnamon:** the new-version notification now stays until you close or click it on every desktop, not just GNOME

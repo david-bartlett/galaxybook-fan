@@ -133,17 +133,41 @@ gbfan_dkms_install() {
     if (( removed )); then
         out="$(dkms install -m "$PKG_NAME" -v "$v" -k "$k" 2>&1)"; rc=$?
     fi
-    # Older DKMS (3.0: Mint 22, Ubuntu 24.04) instead keeps an old version's
+    # DKMS can record the new version as installed without its module file
+    # being in place: DKMS 3.0 (Mint 22, Ubuntu 24.04) keeps an old version's
     # file it takes for the same module ("exactly matches ... will not
-    # replace": galaxybook_fan has no version of its own) and marks the new
-    # one installed, so 'dkms status' says "Diff between built and installed
-    # module". Put the new file in place for each such kernel with --force.
+    # replace": galaxybook_fan has no version of its own); DKMS 3.2 (Ubuntu
+    # 26.04), after the "unversioned module" retry above, recorded it
+    # installed and copied nothing, so there was no file at all. 'dkms status'
+    # then says "Diff between built and installed module" (3.0) or
+    # "Differences between built and installed modules" (3.2). Put the new
+    # file in place with --force for each such kernel, and for any it calls
+    # installed with no module file there.
     while read -r dk; do
         out+=$'\n'"$(dkms install --force -m "$PKG_NAME" -v "$v" -k "$dk" 2>&1)" || rc=$?
-    done < <(dkms status -m "$PKG_NAME" -v "$v" 2>/dev/null \
-        | sed -n -E 's#^[^,]*, *([^,]*), .*Diff between built and installed.*#\1#p' | sort -u)
+    done < <(gbfan_dkms_not_in_place "$v")
     [[ -n "$out" ]] && printf '%s\n' "$out"
     return $rc
+}
+
+# gbfan_dkms_not_in_place VERSION - kernels DKMS calls VERSION installed for
+# whose module file isn't really there: its "Diff(erences) between built and
+# installed" warning, or no galaxybook_fan module file in the kernel's
+# updates/dkms (or extra) folder
+gbfan_dkms_not_in_place() {
+    local line k f found
+    while IFS= read -r line; do
+        [[ "$line" =~ ^[^,]*,\ *([^,]+),\ *[^:]*:\ *installed ]] || continue
+        k="${BASH_REMATCH[1]}"
+        if [[ "$line" =~ Diff(erences)?\ between\ built\ and\ installed ]]; then
+            echo "$k"; continue
+        fi
+        found=0
+        for f in /lib/modules/"$k"/updates/dkms/"$MOD_NAME".ko* /lib/modules/"$k"/extra/"$MOD_NAME".ko*; do
+            [[ -f "$f" ]] && { found=1; break; }
+        done
+        (( found )) || echo "$k"
+    done < <(dkms status -m "$PKG_NAME" -v "$1" 2>/dev/null) | sort -u
 }
 
 # gbfan_dkms_installed_for VERSION KERNEL - is VERSION installed for KERNEL?

@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Stays on screen on Cinnamon:** the new-version notification now stays until you close or click it on every desktop, not just GNOME
+- Cinnamon, like GNOME, slides a normal notification away after a few seconds, so it's now sent as critical everywhere, as fingerprint-fix-sdcp's always has been
+
 ## 0.8.5 — 2026-10-31
 
 - **Stays on screen on GNOME:** the new-version notification now stays until you close or click it, as it does on other desktops

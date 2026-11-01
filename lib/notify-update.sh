@@ -10,7 +10,7 @@
 # which the notification is shown again, so "Update now" is still there). It
 # waits for a click, so update-check.sh starts it on its own (systemd-run)
 # rather than waiting for it. Without buttons it's the same text, with the
-# command and the link in it. On GNOME it's critical (so it stays), shown by
+# command and the link in it. Critical everywhere (so it stays). On GNOME, shown by
 # notify-dbus.py (notify-send drops its buttons there), and clicking the
 # notification itself also opens the release page (its "default" action;
 # only there, so other desktops don't draw it as a third button). Same idea
@@ -18,15 +18,16 @@
 # =============================================================================
 title="${1:?Usage: $0 TITLE MESSAGE URL}"; msg="${2:-}"; url="${3:-}"
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-args=(-t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update)
-# GNOME (Ubuntu's is ubuntu:GNOME; not Budgie, budgie:GNOME): it ignores -t 0
-# and slides a normal notification into its list after a few seconds; only a
-# critical one stays on screen until it's closed or clicked (as
-# fingerprint-fix-sdcp's does). Other desktops keep -t 0 alone.
+# Critical as well as -t 0, on every desktop: GNOME and Cinnamon ignore -t 0
+# and slide a normal notification away after a few seconds; only a critical
+# one stays on screen until it's closed or clicked (as fingerprint-fix-sdcp's
+# always has, on every desktop)
+args=(-u critical -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update)
+# GNOME (Ubuntu's is ubuntu:GNOME; not Budgie, budgie:GNOME): notify-dbus.py
+# and the click on the notification, below
 desk="${XDG_CURRENT_DESKTOP,,}"
 gnome=0
 [[ "$desk" == *gnome* && "$desk" != *budgie* ]] && gnome=1
-(( gnome )) && args+=(-u critical)
 
 # The user's terminal: the desktop's default where it says, else the usual one
 # for this desktop, else any installed. Prints the command to start one with

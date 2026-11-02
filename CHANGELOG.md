@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.2 — 2026-11-02
 
 - **The LTS kernel too:** on Arch-based distros, `install.sh` also installs the module for every other kernel with headers, such as CachyOS's LTS kernel in the boot menu

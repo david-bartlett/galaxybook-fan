@@ -49,6 +49,39 @@ sudo ./uninstall.sh
 
 Either removes everything that was added and rebinds `acpi-fan`. No reboot is needed.
 
+## Updating
+
+You're told about each new release with a notification, a minute after login and then every hour while you stay logged in. It comes once per version, with two buttons. Nothing is installed until you choose to:
+
+| Button | What it does |
+| --- | --- |
+| **Update now** | Opens a terminal running `sudo galaxybook-fan update` |
+| **What's new** | Opens the release page |
+
+The update downloads your distro's package from the release, checks it against the release's `SHA256SUMS` and installs it with `dnf`, `apt` or `pacman`, which asks before installing as usual.
+
+From a terminal:
+
+| Command | What it does |
+| --- | --- |
+| `sudo galaxybook-fan update` | Install the newest release's package |
+| `sudo galaxybook-fan updates on` / `off` | "New version" notifications on or off |
+| `galaxybook-fan updates status` | Are they on? (checked hourly) |
+| `galaxybook-fan updates check` | Look now; if there's a new version, show the notification (no sudo) |
+
+**Installed with `install.sh`?** You get the same notification, and it tells you how to update instead: `git pull` (or the new release's source code), then `sudo ./install.sh`, in its folder.
+
+<details>
+<summary>How the update check works</summary>
+
+- At login it always asks GitHub, and waits up to 2 minutes for the network. Nothing is said when GitHub can't be reached.
+- A release is only announced once its packages are attached.
+- The notification stays on screen until you close it. After **What's new**, it comes back, so **Update now** is still there.
+- On GNOME, hover over it for the whole text and the buttons, or click it to open the release page.
+- **Update now** only appears when a terminal can be opened for it.
+
+</details>
+
 ## The `galaxybook-fan` command
 
 Installed with the fix; `galaxybook-fan --help` shows the same list.
@@ -75,7 +108,7 @@ Installed with the fix; `galaxybook-fan --help` shows the same list.
 |---|---|
 | [How it works](https://github.com/david-bartlett/galaxybook-fan/blob/main/docs/how-it-works.md) | The firmware bug, what the fix does, when it refuses, the initramfs, what each file is for |
 | [Installing with install.sh](https://github.com/david-bartlett/galaxybook-fan/blob/main/docs/installing.md) | Other distros or a clone, what the installer does, Secure Boot signing |
-| [Compatibility and updates](https://github.com/david-bartlett/galaxybook-fan/blob/main/docs/compatibility-and-updates.md) | When the fix is no longer needed, new version notifications, supported hardware and kernels, test results |
+| [Compatibility](https://github.com/david-bartlett/galaxybook-fan/blob/main/docs/compatibility.md) | When the fix is no longer needed, supported hardware and kernels, test results |
 
 ## How it stays safe
 

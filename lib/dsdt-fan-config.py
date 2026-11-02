@@ -213,6 +213,41 @@ def parse_fst(raw, code, fst_start, fst_end):
         if s and not any(re.fullmatch(p, s) for p in allowed):
             raise FanConfigError(f"_FST contains an unexpected statement: '{s}'")
 
+    # 8. ...and only in the order the table above models: each statement
+    #    once, where it belongs. The whitelist alone would accept, say, an
+    #    extra 'Local0 = One' after the EC read, a second 'Local0--', or the
+    #    offset added after the value is stored - and the table would quietly
+    #    be wrong. One letter per statement, then the whole method must match.
+    tokens = [
+        ("M", r'Method\s*\(_FST\b.*'),
+        ("{", r'\{'), ("}", r'\}'),
+        ("R", var + r'\s*=\s*[\^\\]*[\w.]+\.' + field),
+        ("S", r'Switch\s*\(\s*ToInteger\s*\(\s*' + var + r'\s*\)\s*\)'),
+        ("C", r'Case\s*\(\s*' + const + r'\s*\)'),
+        ("A", var + r'\s*=\s*' + const),
+        ("Q", r'\w{1,4}\s*\[\s*' + const + r'\s*\]\s*=\s*' + rvar),   # store the RPM
+        ("P", r'\w{1,4}\s*\[\s*' + const + r'\s*\]\s*=\s*' + var),    # store the level
+        ("I", r'If\s*\(\(\s*' + var + r'\s*==\s*Zero\s*\)\)'),
+        ("E", r'Else'),
+        ("D", var + r'\s*--'),
+        ("L", rvar + r'\s*=\s*(?:DerefOf\s*\(\s*)?' + table + r'\s*\[\s*' + var + r'\s*\]\s*\)?'),
+        ("O", rvar + r'\s*\+=\s*' + const),
+        ("T", r'Return\s*\(\s*\w{1,4}\s*\)'),
+    ]
+    seq = ""
+    for line in body:
+        s = line.strip()
+        if s:
+            seq += next((t for t, p in tokens if re.fullmatch(p, s)), "?")
+    #  Method { EC read  [Switch { (Case { remap })+ }]  [store level]*
+    #           If (off) { store level+ }  Else { -- lookup [offset] store RPM }  Return }
+    #  (The 940XHA stores the level, FSTP [One] = Local0, before the If.)
+    shape = r'M\{R(?:S\{(?:C\{A\})+\})?P*I\{P+\}E\{DLO?[PQ]*Q[PQ]*\}T\}'
+    if not re.fullmatch(shape, seq):
+        raise FanConfigError("_FST's statements aren't in the order this fix models "
+                             f"(read, remap, off check, --, lookup, offset, store; got {seq}) "
+                             "- refusing rather than guessing")
+
     return {
         "field": field, "full_path": full_path, "ec_path": ec_path,
         "level_map": level_map, "table": table, "offset": offset,

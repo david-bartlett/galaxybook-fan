@@ -239,9 +239,10 @@ def parse_fst(raw, code, fst_start, fst_end):
         s = line.strip()
         if s:
             seq += next((t for t, p in tokens if re.fullmatch(p, s)), "?")
-    #  Method { EC read  [Switch { (Case { remap })+ }]
+    #  Method { EC read  [Switch { (Case { remap })+ }]  [store level]*
     #           If (off) { store level+ }  Else { -- lookup [offset] store RPM }  Return }
-    shape = r'M\{R(?:S\{(?:C\{A\})+\})?I\{P+\}E\{DLO?[PQ]*Q[PQ]*\}T\}'
+    #  (The 940XHA stores the level, FSTP [One] = Local0, before the If.)
+    shape = r'M\{R(?:S\{(?:C\{A\})+\})?P*I\{P+\}E\{DLO?[PQ]*Q[PQ]*\}T\}'
     if not re.fullmatch(shape, seq):
         raise FanConfigError("_FST's statements aren't in the order this fix models "
                              f"(read, remap, off check, --, lookup, offset, store; got {seq}) "

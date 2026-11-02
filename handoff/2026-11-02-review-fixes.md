@@ -4,7 +4,7 @@ PR #42 · Claude · 2026-11-02
 
 ## What changed
 - `lib/samsung-galaxybook-fan-check.sh`: `record_state` writes with `printf`, leaving out an `INSTALL_DIR` with a newline; new `read_state` reads the four known keys line by line. `monitor` uses it instead of `source "$STATE_FILE"`.
-- `lib/dsdt-fan-config.py`: `parse_fst` step 8, one letter per statement (`M { R S C A I E D L O P Q T }`), and the whole method must match `M{R(S{(C{A})+})?I{P+}E{DLO?[PQ]*Q[PQ]*}T}`. P stores the level (`var`), Q the RPM (`rvar`).
+- `lib/dsdt-fan-config.py`: `parse_fst` step 8, one letter per statement (`M { R S C A I E D L O P Q T }`), and the whole method must match `M{R(S{(C{A})+})?P*I{P+}E{DLO?[PQ]*Q[PQ]*}T}`. P stores the level (`var`), Q the RPM (`rvar`). The 940XHA's real `_FST` has five Cases and stores the level (`FSTP [One] = Local0`) before the If: the first version of this PR missed that and refused it on David's laptop (`install.sh --check`), hence the `P*`.
 - `lib/package-scripts.sh`: `configure` adds `gbfan_dkms_kernels "$old"` to `held` before `dkms remove --all`.
 - `install.sh`: `install_module` notes the kernels of every registered version before removing them, and installs the new version for each (headers permitting) after the running kernel's.
 - PLAN.md (state file, upgrades, testing), README (what's refused), CHANGELOG.

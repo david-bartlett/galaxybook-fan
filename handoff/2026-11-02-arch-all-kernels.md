@@ -1,6 +1,6 @@
 # install.sh: every kernel on Arch-based distros
 
-PR #<number> · Claude · 2026-11-02
+PR #43 · Claude · 2026-11-02
 
 ## What changed
 - `install.sh` `install_module`: on `PKG_MGR=pacman`, adds every `/lib/modules/<k>/build` whose `/lib/modules/<k>/vmlinuz` exists to `others`, the list #42 added for an earlier install's kernels. The loop after the running kernel's install puts the module on each one.

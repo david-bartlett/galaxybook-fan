@@ -76,7 +76,7 @@ From a terminal:
 
 - At login it always asks GitHub, and waits up to 2 minutes for the network. Nothing is said when GitHub can't be reached.
 - A release is only announced once its packages are attached.
-- The notification stays on screen until you close it. After **What's new**, it comes back, so **Update now** is still there.
+- The notification stays on screen until you close it, or until the new version is installed some other way, such as `sudo galaxybook-fan update`. After **What's new**, it comes back, so **Update now** is still there.
 - On GNOME, hover over it for the whole text and the buttons, or click it to open the release page.
 - **Update now** only appears when a terminal can be opened for it.
 

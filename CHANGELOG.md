@@ -8,6 +8,8 @@
 
 ## Unreleased
 
+- **Update notification explained:** the README now says it closes by itself once the new version is installed some other way
+
 ## 0.9.3 — 2026-11-02
 
 - **Manual split into guides:** the README is now a short summary, with the detail in `docs/`

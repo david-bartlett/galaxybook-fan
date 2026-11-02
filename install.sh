@@ -527,6 +527,19 @@ install_module() {
         [[ -d "$d" && ! -L "${d%/}" && "$(basename "$d")" =~ ^[0-9][0-9.]*$ ]] || continue
         while read -r k; do [[ -n "$k" ]] && others+=("$k"); done < <(gbfan_dkms_kernels "$(basename "$d")")
     done
+    # Arch-based (pacman): every other installed kernel with its headers too.
+    # pacman keeps one version of each kernel package, so each is one in use
+    # (CachyOS's LTS kernel and Manjaro's second kernel are in the boot menu).
+    # The packages get this from Arch's DKMS hook; install.sh runs DKMS itself.
+    # Not on Fedora / Debian: their extra kernels are old fallbacks, and DKMS
+    # adds it to new kernels as they're installed. Only a kernel that is still
+    # installed (its vmlinuz is there), not headers left from a removed one.
+    if [[ "$PKG_MGR" == pacman ]]; then
+        for d in /lib/modules/*/build; do
+            k="${d%/build}"; k="${k##*/}"
+            [[ -e "$d" && -e "/lib/modules/$k/vmlinuz" ]] && others+=("$k")
+        done
+    fi
     if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
         info "Removing previous ${PKG_NAME} DKMS install"
         gbfan_unload || true
@@ -569,16 +582,17 @@ install_module() {
         fi
     fi
     ok "DKMS module installed for $(uname -r) (rebuilds automatically on kernel updates)"
-    # The other kernels the previous install was on (a second kernel in the
-    # boot menu, say), so they keep their fan reading too
+    # The other kernels: the ones the previous install was on, and on Arch
+    # every installed kernel with headers (above), so a second kernel in the
+    # boot menu has the fan reading too
     for k in $(printf '%s\n' "${others[@]}" | sort -u); do
         [[ "$k" == "$(uname -r)" ]] && continue
-        gbfan_has_headers "$k" || { warn "Not reinstalled for ${k}: its kernel headers aren't installed"; continue; }
+        gbfan_has_headers "$k" || { warn "Not installed for ${k}: its kernel headers aren't installed"; continue; }
         gbfan_dkms_install "$PKG_VERSION" "$k" >/dev/null 2>&1
         if gbfan_dkms_installed_for "$PKG_VERSION" "$k"; then
             ok "Also installed for ${k}"
         else
-            warn "Not reinstalled for ${k}: run 'sudo galaxybook-fan rebuild' after booting it"
+            warn "Not installed for ${k}: run 'sudo galaxybook-fan rebuild' after booting it"
         fi
     done
 

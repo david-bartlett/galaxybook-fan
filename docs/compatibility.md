@@ -1,8 +1,8 @@
-# Compatibility and updates
+# Compatibility
 
 [← Back to the README](../README.md)
 
-How the fix tells you when it's no longer needed, how you hear about new versions, and which laptops, kernels and distros it works on.
+How the fix tells you when it's no longer needed, and which laptops, kernels and distros it works on.
 
 ## Is the fix still needed?
 
@@ -19,10 +19,6 @@ The fix adds a login-time check, the same pattern as fingerprint-fix-sdcp and fn
 The native test is only conclusive while the fan is running, because the broken code path is only reached then. The monitor waits up to a minute for that. If the fan stays off, it quietly tries again at the next login.
 
 Nothing is installed or removed automatically: the notifications tell you what to run.
-
-## New versions
-
-A minute after login, and every hour while you stay logged in, the fix looks on GitHub for a newer release (at login it always asks; it waits up to 2 minutes for the network), and once its packages are attached, tells you once per version: *galaxybook-fan X.Y.Z is available*, with **Update now**, which opens a terminal running `sudo galaxybook-fan update`, and **What's new** opens the release page. It stays on screen until you close it; on GNOME it stays on screen too (hover over it for the whole text and the buttons), and clicking it opens the release page. That command downloads your distro's package from the release, checks it against the release's `SHA256SUMS` and installs it with `dnf`, `apt` or `pacman`, which asks before installing as usual. Nothing is installed without you running it. A copy installed with `install.sh` is told how to update it instead (`git pull`, then `sudo ./install.sh`). Nothing is said when GitHub can't be reached. Turn the notifications off with `sudo galaxybook-fan updates off`.
 
 ## Supported hardware and kernels
 

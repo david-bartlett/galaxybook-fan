@@ -22,7 +22,7 @@ The installer:
 - installs the module through DKMS, so it rebuilds automatically on kernel updates. On Arch-based distros (CachyOS, Manjaro, EndeavourOS…) it's also installed for every other kernel with headers, such as CachyOS's LTS kernel in the boot menu; on Fedora and Debian-based distros, for the running kernel (DKMS adds it to new kernels as they arrive)
 - autoloads it via `/etc/modules-load.d/galaxybook_fan.conf`, which is also a good file for checking whether the fix is installed
 - enables `galaxybook-acpi-fan-unbind.service`, which unbinds `acpi-fan` at boot
-- installs the [login-time check](compatibility-and-updates.md#is-the-fix-still-needed) (plus the shared graphical session helper on desktops that need it, such as Xfce), and the `galaxybook-fan` command
+- installs the [login-time check](compatibility.md#is-the-fix-still-needed) (plus the shared graphical session helper on desktops that need it, such as Xfce), and the `galaxybook-fan` command
 - refuses to install if your firmware's `_FST` is already correct, since the stock driver should work then (`--force` overrides)
 
 Re-running `install.sh` over an existing install is fine; there's no need to uninstall first, and every kernel the old install was on gets the new version. It won't run while the package is installed.

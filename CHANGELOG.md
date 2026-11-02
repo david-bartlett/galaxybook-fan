@@ -11,6 +11,9 @@
 - **Manual split into guides:** the README is now a short summary, with the detail in `docs/`
 - Three guides: how it works, installing with `install.sh`, and compatibility and updates
 
+- **Updating in the README:** how new versions reach you now has its own section, with the two buttons and the commands
+- `docs/compatibility-and-updates.md` is now `docs/compatibility.md`, as the update text moved out
+
 ## 0.9.2 — 2026-11-02
 
 - **The LTS kernel too:** on Arch-based distros, `install.sh` also installs the module for every other kernel with headers, such as CachyOS's LTS kernel in the boot menu

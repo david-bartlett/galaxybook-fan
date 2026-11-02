@@ -1,6 +1,6 @@
 # Fixes from a code review
 
-PR #<number> · Claude · 2026-11-02
+PR #42 · Claude · 2026-11-02
 
 ## What changed
 - `lib/samsung-galaxybook-fan-check.sh`: `record_state` writes with `printf`, leaving out an `INSTALL_DIR` with a newline; new `read_state` reads the four known keys line by line. `monitor` uses it instead of `source "$STATE_FILE"`.

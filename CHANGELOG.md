@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.1 — 2026-11-02
 
 - **Fixes from a code review:** a second kernel keeps its fan reading after an update, and two safety checks

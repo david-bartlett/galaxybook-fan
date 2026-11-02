@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.2 — 2026-11-02
 
 - **The LTS kernel too:** on Arch-based distros, `install.sh` also installs the module for every other kernel with headers, such as CachyOS's LTS kernel in the boot menu
 - The packages already got this from Arch's DKMS hook. Kernels whose headers were left behind after the kernel was removed are skipped. Fedora and Debian-based distros are unchanged: their extra kernels are older fallbacks, and building for each would only slow the install

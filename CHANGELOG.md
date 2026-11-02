@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.1 — 2026-11-02
 
 - **Fixes from a code review:** a second kernel keeps its fan reading after an update, and two safety checks
 - Updating the package installs the new version for every kernel the old one was on, not only the running one: before, a second kernel in the boot menu (Fedora's previous kernel, CachyOS's LTS kernel) lost its fan reading until it was rebuilt. Re-running `install.sh` over an earlier install does the same

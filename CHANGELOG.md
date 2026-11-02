@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.3 — 2026-11-02
 
 - **Manual split into guides:** the README is now a short summary, with the detail in `docs/`

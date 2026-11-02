@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- **Fixes from a code review:** a second kernel keeps its fan reading after an update, and two safety checks
+- Updating the package installs the new version for every kernel the old one was on, not only the running one: before, a second kernel in the boot menu (Fedora's previous kernel, CachyOS's LTS kernel) lost its fan reading until it was rebuilt. Re-running `install.sh` over an earlier install does the same
+- The firmware check also makes sure `_FST`'s statements are in the order the fix models, each once: a BIOS that added, repeated or moved one is refused rather than given a wrong RPM table
+- The install folder recorded for the login check is read as text, never run: a folder name with spaces now works, and one with `$(…)` or `;` in it can't run anything
+
 ## 0.9.0 — 2026-11-01
 
 - **The notification goes once you've updated:** if you update another way while the new-version notification is on screen (`sudo galaxybook-fan update`, or the downloaded file), it closes by itself a couple of seconds after the new version is installed

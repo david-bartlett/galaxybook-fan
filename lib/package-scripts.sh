@@ -87,6 +87,11 @@ configure() {
         old="$(basename "$d")"
         [[ "$old" =~ ^[0-9][0-9.]*$ && "$old" != "$v" ]] || continue
         gbfan_unload || true
+        # Every kernel the old version is on, noted first: removing it takes
+        # it off them all, and the new version only goes onto the running
+        # kernel by itself. Each is given the new version below (with its
+        # headers), so a second kernel in the boot menu keeps its fan reading.
+        while read -r k; do [[ -n "$k" ]] && held+=("$k"); done < <(gbfan_dkms_kernels "$old")
         dkms remove "${PKG_NAME}/${old}" --all >/dev/null 2>&1 || true
         # A deb upgrade deletes the old version's /usr/src first, and DKMS
         # then can't remove it ("Could not locate dkms.conf"; seen on Mint 22
@@ -115,7 +120,7 @@ configure() {
         [[ -z "$reason" ]] && tail -5 "$GBFAN_LOG" >&2
         warn "the package is installed; see 'galaxybook-fan status', and 'sudo galaxybook-fan rebuild' once it's sorted"
     fi
-    # Other kernels an old, forgotten version was installed for, and any the
+    # Other kernels the old version was on (removed or forgotten), and any the
     # new version is built for but not installed for (DKMS refused, over an
     # old version's file): install it there too, where their headers are
     # (else their old module stays until that kernel's next update, or

@@ -519,7 +519,14 @@ refresh_initramfs_if_needed() {
 }
 
 install_module() {
-    # Remove any previous registration of this package (any version)
+    # Remove any previous registration of this package (any version). The
+    # kernels it was on are noted first: removing takes it off them all, and
+    # they get this version back below (where their headers are).
+    local d k others=()
+    for d in /var/lib/dkms/"$PKG_NAME"/*/; do
+        [[ -d "$d" && ! -L "${d%/}" && "$(basename "$d")" =~ ^[0-9][0-9.]*$ ]] || continue
+        while read -r k; do [[ -n "$k" ]] && others+=("$k"); done < <(gbfan_dkms_kernels "$(basename "$d")")
+    done
     if [[ -d /var/lib/dkms/$PKG_NAME ]]; then
         info "Removing previous ${PKG_NAME} DKMS install"
         gbfan_unload || true
@@ -562,6 +569,18 @@ install_module() {
         fi
     fi
     ok "DKMS module installed for $(uname -r) (rebuilds automatically on kernel updates)"
+    # The other kernels the previous install was on (a second kernel in the
+    # boot menu, say), so they keep their fan reading too
+    for k in $(printf '%s\n' "${others[@]}" | sort -u); do
+        [[ "$k" == "$(uname -r)" ]] && continue
+        gbfan_has_headers "$k" || { warn "Not reinstalled for ${k}: its kernel headers aren't installed"; continue; }
+        gbfan_dkms_install "$PKG_VERSION" "$k" >/dev/null 2>&1
+        if gbfan_dkms_installed_for "$PKG_VERSION" "$k"; then
+            ok "Also installed for ${k}"
+        else
+            warn "Not reinstalled for ${k}: run 'sudo galaxybook-fan rebuild' after booting it"
+        fi
+    done
 
     # With Secure Boot on, make sure DKMS really signed it - an unsigned module
     # would only show up later as a confusing load failure

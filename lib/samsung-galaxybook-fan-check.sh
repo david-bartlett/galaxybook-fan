@@ -151,14 +151,33 @@ notify_user() {     # icon title message - format shared with the other fixes
     mv -f "$tmp" "$STATUS_FILE"
 }
 
+# The state file is data, KEY=value one per line, read by read_state (and by
+# sed in update.sh and the package scripts): never sourced, so a folder name
+# with spaces, $(...) or ; is only ever a value. A value can't hold a newline.
 record_state() {
+    local dir="${INSTALL_DIR:-}"
+    [[ "$dir" == *$'\n'* ]] && dir=""             # can't be one line: leave it out
     mkdir -p "$STATE_DIR"
     {
-        echo "KVER=$(uname -r)"
-        echo "BIOS=$(cat /sys/class/dmi/id/bios_version 2>/dev/null)"
-        echo "INSTALL_DIR=${INSTALL_DIR:-}"
-        echo "INSTALL_METHOD=${INSTALL_METHOD:-clone}"
+        printf 'KVER=%s\n' "$(uname -r)"
+        printf 'BIOS=%s\n' "$(head -1 /sys/class/dmi/id/bios_version 2>/dev/null)"
+        printf 'INSTALL_DIR=%s\n' "$dir"
+        printf 'INSTALL_METHOD=%s\n' "${INSTALL_METHOD:-clone}"
     } > "$STATE_FILE.tmp" && chmod 644 "$STATE_FILE.tmp" && mv -f "$STATE_FILE.tmp" "$STATE_FILE"
+}
+
+# Read the state file's known keys (the last line for each wins), as values
+read_state() {
+    local key val
+    [[ -f "$STATE_FILE" ]] || return 0
+    while IFS='=' read -r key val; do
+        case "$key" in
+            KVER) KVER="$val" ;;
+            BIOS) BIOS="$val" ;;
+            INSTALL_DIR) INSTALL_DIR="$val" ;;
+            INSTALL_METHOD) INSTALL_METHOD="$val" ;;
+        esac
+    done < "$STATE_FILE"
 }
 
 # What to do to remove the fix, for how it was installed
@@ -176,8 +195,7 @@ monitor() {
     [[ -f "/etc/modules-load.d/${MOD_NAME}.conf" ]] || exit 0    # fix not installed
 
     KVER="" BIOS="" INSTALL_DIR="" INSTALL_METHOD=""
-    # shellcheck disable=SC1090
-    [[ -f "$STATE_FILE" ]] && source "$STATE_FILE"
+    read_state
     cur_k="$(uname -r)"
     cur_b="$(cat /sys/class/dmi/id/bios_version 2>/dev/null)"
 

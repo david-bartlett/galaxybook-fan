@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **The LTS kernel too:** on Arch-based distros, `install.sh` also installs the module for every other kernel with headers, such as CachyOS's LTS kernel in the boot menu
+- The packages already got this from Arch's DKMS hook. Kernels whose headers were left behind after the kernel was removed are skipped. Fedora and Debian-based distros are unchanged: their extra kernels are older fallbacks, and building for each would only slow the install
+
 ## 0.9.1 — 2026-11-02
 
 - **Fixes from a code review:** a second kernel keeps its fan reading after an update, and two safety checks

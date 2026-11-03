@@ -14,4 +14,4 @@ PR #58 · Claude · 2026-11-03
 - How it looks on a real release page can't be seen until the next release.
 
 ## For the next person
-- The 0.9.9 page's body was updated by hand to the same table, so it matches this template.
+- The live 0.9.9 page keeps the old table until David updates it by hand: Claude sessions can't edit releases. This template gives the new table to every later release.

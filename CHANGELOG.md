@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.5 — 2026-11-03
 
 - **Nothing left behind if DKMS can't remove it:** uninstalling, or removing the package, now also deletes a module file DKMS failed to remove
 - When `dkms remove` fails (for example because an old version's source was already gone), the installed `galaxybook_fan` module file stayed in the kernel's module folder with nothing to remove it later, and could still be loaded by hand. It's now deleted, and the kernel's module list updated. `install.sh` does the same before installing over an earlier version

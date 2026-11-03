@@ -17,6 +17,34 @@ gbfan_dkms_remove_all() {
     done
     # Anything DKMS couldn't remove (half-added tree, etc.)
     rm -rf /var/lib/dkms/"$PKG_NAME"
+    gbfan_remove_stray_modules
+}
+
+# Module files no DKMS version owns any more. A 'dkms remove' that fails (its
+# /usr/src copy or dkms.conf already gone: see gbfan_dkms_forget) leaves the
+# installed .ko behind, and with /var/lib/dkms deleted above nothing would
+# ever remove it, so it could still be loaded by hand. Only this module's own
+# file, in the folders DKMS installs to (updates/dkms on most distros, extra
+# on Fedora, updates for DEST_MODULE_LOCATION on older DKMS), then depmod for
+# each kernel touched. Nothing to do after a removal that worked.
+gbfan_remove_stray_modules() {
+    local f k kernels=()
+    for f in /lib/modules/*/updates/dkms/"$MOD_NAME".ko* \
+             /lib/modules/*/updates/"$MOD_NAME".ko* \
+             /lib/modules/*/extra/"$MOD_NAME".ko*; do
+        [[ -f "$f" && ! -L "$f" ]] || continue
+        k="${f#/lib/modules/}"; k="${k%%/*}"
+        if rm -f "$f"; then
+            info "Removed ${f}, left behind by DKMS"
+            [[ " ${kernels[*]} " == *" $k "* ]] || kernels+=("$k")
+        else
+            warn "Couldn't remove ${f}: delete it by hand, then run: sudo depmod -a ${k}"
+        fi
+    done
+    for k in "${kernels[@]}"; do
+        depmod -a "$k" 2>/dev/null || true
+    done
+    return 0
 }
 
 # Unload galaxybook_fan if it's loaded. modprobe -r looks the module up in

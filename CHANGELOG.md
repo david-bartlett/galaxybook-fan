@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Nothing left behind if DKMS can't remove it:** uninstalling, or removing the package, now also deletes a module file DKMS failed to remove
+- When `dkms remove` fails (for example because an old version's source was already gone), the installed `galaxybook_fan` module file stayed in the kernel's module folder with nothing to remove it later, and could still be loaded by hand. It's now deleted, and the kernel's module list updated. `install.sh` does the same before installing over an earlier version
+
 ## 0.9.4 — 2026-11-03
 
 - **Update notification explained:** the README now says it closes by itself once the new version is installed some other way

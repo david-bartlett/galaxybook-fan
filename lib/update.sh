@@ -126,6 +126,11 @@ gbfan_update_notify() {
                 "$notifier" "$title" "$text" "$(gbfan_release_url "$latest")" 2>/dev/null; then
         return 0
     fi
+    # Another check started it in the same moment (systemd-run refused the
+    # name): that one shows it, so no plain copy
+    if [[ -x "$notifier" ]] && systemctl --user is-active --quiet "$unit" 2>/dev/null; then
+        return 0
+    fi
     notify-send -u critical -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update "$title" "$text" \
         || return 1
     gbfan_update_mark_told "$latest"
@@ -134,7 +139,12 @@ gbfan_update_notify() {
 # Where a version is remembered as announced to this user (so it's said once)
 gbfan_update_told_file() { echo "${XDG_STATE_HOME:-$HOME/.local/state}/galaxybook-fan/notified-version"; }
 gbfan_update_mark_told() {
-    local f
+    local f have
     f="$(gbfan_update_told_file)"
+    have="$(tr -d '[:space:]' < "$f" 2>/dev/null)"
+    # never over a newer version
+    if [[ -n "$have" && "$have" != "$1" && "$(printf '%s\n%s\n' "$have" "$1" | sort -V | tail -1)" == "$have" ]]; then
+        return 0
+    fi
     mkdir -p "$(dirname "$f")" 2>/dev/null && echo "$1" > "$f"
 }

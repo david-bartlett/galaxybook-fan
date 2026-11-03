@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **New-version notification: no second copy:** two rare cases that announced a release twice are fixed
+- An older release's notification still on screen, shown again by **What's new**, put the record back to its version, so the newer release was announced again at the next check. And two checks starting together could show both the notification and a plain copy
+
 ## 0.9.8 — 2026-11-03
 
 - **New-version notification: not lost at logout:** a release is now counted as announced only once its notification is on screen

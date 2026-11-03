@@ -48,7 +48,7 @@ Nothing is added to the boot chain: there's no DSDT override and no initrd chang
 `dsdt-fan-config.py` never guesses. It refuses, and the module isn't built, if:
 
 - there isn't exactly one `PNP0C0B` fan device with an `_FST` method
-- `_FST` contains any statement outside the known shape (extra maths, another EC read, `Case (Package …)`, `Default`, loops, calls…), or its statements aren't in the known order (a statement repeated or moved), or it stores anywhere but the speed and level slots of the package it returns (into the RPM table, another package, or over the speed once it's set)
+- `_FST` contains any statement outside the known shape (extra maths, another EC read, `Case (Package …)`, `Default`, loops, calls…), or its statements aren't in the known order (a statement repeated or moved), or it stores anywhere but the speed and level slots of the package it returns (into the RPM table, another package, or over the speed once it's set), or that package isn't a plain `Package` of its own (an `Alias` makes it, or the table, another name for something else)
 - the EC field isn't defined exactly once, is wider than 8 bits, or is in anything other than an EmbeddedControl, SystemMemory or SystemIO region
 - the RPM table is missing, defined more than once, the wrong length, or gives a speed outside 500–20000 RPM
 - the laptop boots with a **replacement DSDT** (an ACPI table override loaded from the initramfs, such as the old `fanspeed-fix-cpio`): the table in memory is then the override, not the laptop's own firmware. Remove the override and reboot, then `sudo galaxybook-fan rebuild`

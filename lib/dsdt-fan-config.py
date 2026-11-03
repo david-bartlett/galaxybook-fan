@@ -286,8 +286,32 @@ def parse_fst(raw, code, fst_start, fst_end):
     return {
         "field": field, "full_path": full_path, "ec_path": ec_path,
         "level_map": level_map, "table": table, "offset": offset,
-        "derefof": derefof,
+        "derefof": derefof, "ret": ret,
     }
+
+
+def check_return_package(code, name, table, dev_start, dev_end):
+    """The package _FST returns must be its own object: one Name (X, Package (3+))
+    declaration, and no Alias making it (or the table) another name for
+    something else. Step 9 of parse_fst compares names only, so with
+    'Alias (FANT, SFST)' every store into SFST would change the RPM table."""
+    def last(n):
+        return n.rsplit('.', 1)[-1].lstrip('\\^')
+    for line in code:
+        m = re.match(r'\s*Alias\s*\(\s*([\\^\w.]+)\s*,\s*([\\^\w.]+)\s*\)', line)
+        if m and {last(m.group(1)), last(m.group(2))} & {name, table}:
+            raise FanConfigError(f"The DSDT has '{line.strip()}', an Alias for {name} or {table} "
+                                 "- not supported")
+    pat = r'\s*Name\s*\(\s*' + name + r'\s*,'
+    decls = ([i for i in range(dev_start, dev_end + 1) if re.match(pat, code[i])]
+             or [i for i, l in enumerate(code) if re.match(pat, l)])
+    if len(decls) != 1:
+        raise FanConfigError(f"{name}, the package _FST returns, is declared {len(decls)} times "
+                             "- expected once")
+    m = re.match(pat + r'\s*Package\s*\((\w+)\)', code[decls[0]])
+    if not m or parse_int(m.group(1)) < 3:
+        raise FanConfigError(f"{name}, the package _FST returns, isn't a Package of 3 "
+                             "(Revision, Control, Speed)")
 
 
 def parse_table(code, name, dev_start, dev_end):
@@ -439,6 +463,7 @@ def main():
             _, dev_start, dev_end, (fst_start, fst_end, _) = find_fan_device(raw, code)
             fst = parse_fst(raw, code, fst_start, fst_end)
             parse_table(code, fst["table"], dev_start, dev_end)
+            check_return_package(code, fst["ret"], fst["table"], dev_start, dev_end)
         except FanConfigError as e:
             print("unknown")
             print(f"_FST not recognised: {e}", file=sys.stderr)
@@ -453,6 +478,7 @@ def main():
         dev_name, dev_start, dev_end, (fst_start, fst_end, _) = find_fan_device(raw, code)
         fst = parse_fst(raw, code, fst_start, fst_end)
         table_vals = parse_table(code, fst["table"], dev_start, dev_end)
+        check_return_package(code, fst["ret"], fst["table"], dev_start, dev_end)
         loc = parse_ec_field(code, fst["ec_path"], fst["field"])
         width = loc["width"]
         rpm = build_rpm_table(fst, table_vals, width)

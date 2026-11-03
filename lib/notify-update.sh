@@ -29,10 +29,21 @@ args=(-u critical -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update)
 # notification has appeared (notify-send printed its ID, notify-dbus.py's
 # Notify call returned one, or a plain notify-send worked), never before: if
 # this is stopped first (logging out, say), or nothing can be shown, the
-# next check tries again.
+# next check tries again. Never over a newer version: an older release's
+# notification shown again ("What's new") while a newer one has been
+# announced would otherwise get the newer one announced twice.
+# Stopped in the moment between appearing and being noted (up to 0.5 s; with
+# a notify-send without --print-id, until it's closed), it's announced again
+# at the next check: a rare second notification rather than a missed one.
 told_file="${GBFAN_TOLD_FILE:-}"; told_version="${GBFAN_TOLD_VERSION:-}"
 told() {
+    local have
     [[ -n "$told_file" && -n "$told_version" ]] || return 0
+    have="$(tr -d '[:space:]' < "$told_file" 2>/dev/null)"
+    if [[ -n "$have" && "$have" != "$told_version" \
+            && "$(printf '%s\n%s\n' "$have" "$told_version" | sort -V | tail -1)" == "$have" ]]; then
+        return 0
+    fi
     mkdir -p "$(dirname "$told_file")" 2>/dev/null && echo "$told_version" > "$told_file"
 }
 # GNOME (Ubuntu's is ubuntu:GNOME; not Budgie, budgie:GNOME): notify-dbus.py

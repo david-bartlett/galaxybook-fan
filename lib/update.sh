@@ -106,8 +106,10 @@ gbfan_update_text() {
 # (notify-update.sh, which waits for a click, so it runs on its own via
 # systemd-run), else plainly. Run as the user, in their desktop. The version
 # is recorded as told (notified-version) only once a notification has really
-# been shown: by notify-update.sh itself, which systemd-run only starts, or
-# here after a plain one. If none could be shown, the next check tries again.
+# appeared: by notify-update.sh itself, which systemd-run only starts, or
+# here after a plain one. If none appeared (none could be shown, or it was
+# stopped first, at logout say), the next check tries again. One already
+# waiting to appear or on screen (its unit still running) isn't started twice.
 gbfan_update_notify() {
     # notify-update.sh beside the script that's running (GBFAN_HERE: a clone's
     # lib/ when run from one), else the installed library folder
@@ -115,6 +117,9 @@ gbfan_update_notify() {
     local notifier="${GBFAN_HERE:-$GBFAN_LIBDIR}/notify-update.sh"
     title="$(gbfan_update_title "$cur" "$latest")"
     text="$(gbfan_update_text "$cur" "$latest")"
+    if [[ -x "$notifier" ]] && systemctl --user is-active --quiet "$unit" 2>/dev/null; then
+        return 0
+    fi
     if [[ -x "$notifier" ]] && command -v systemd-run >/dev/null 2>&1 \
             && systemd-run --user --collect --quiet --unit="$unit" \
                 --setenv=GBFAN_TOLD_FILE="$(gbfan_update_told_file)" --setenv=GBFAN_TOLD_VERSION="$latest" \

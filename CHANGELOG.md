@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.8 — 2026-11-03
 
 - **New-version notification: not lost at logout:** a release is now counted as announced only once its notification is on screen
 - 0.9.7 counted it as soon as the notifier started, and took that back only if it then failed. A notifier stopped before anything appeared, by logging out for example, left the release counted, so it was never announced. It's now counted the moment the notification appears, and the hourly check doesn't start a second one while the first is still waiting

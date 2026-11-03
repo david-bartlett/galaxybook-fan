@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.9 — 2026-11-03
 
 - **New-version notification: no second copy:** two rare cases that announced a release twice are fixed
 - An older release's notification still on screen, shown again by **What's new**, put the record back to its version, so the newer release was announced again at the next check. And two checks starting together could show both the notification and a plain copy

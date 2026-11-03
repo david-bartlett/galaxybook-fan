@@ -9,6 +9,7 @@
 ## Unreleased
 
 - **Release page: command before file:** the Install table now shows the command first
+- **Release page: download links:** the files in the Install table now link straight to that release's files
 
 ## 0.9.9 — 2026-11-03
 

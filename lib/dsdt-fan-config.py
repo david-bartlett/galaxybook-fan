@@ -235,17 +235,52 @@ def parse_fst(raw, code, fst_start, fst_end):
         ("T", r'Return\s*\(\s*\w{1,4}\s*\)'),
     ]
     seq = ""
+    stmts = []
     for line in body:
         s = line.strip()
         if s:
-            seq += next((t for t, p in tokens if re.fullmatch(p, s)), "?")
+            t = next((t for t, p in tokens if re.fullmatch(p, s)), "?")
+            seq += t
+            stmts.append((t, s))
     #  Method { EC read  [Switch { (Case { remap })+ }]  [store level]*
-    #           If (off) { store level+ }  Else { -- lookup [offset] store RPM }  Return }
-    #  (The 940XHA stores the level, FSTP [One] = Local0, before the If.)
-    shape = r'M\{R(?:S\{(?:C\{A\})+\})?P*I\{P+\}E\{DLO?[PQ]*Q[PQ]*\}T\}'
+    #           If (off) { store level+ }  Else { -- lookup [offset] [store level]* store RPM }
+    #           Return }
+    #  The 940XHA's:  Local0 = ^^H_EC.FANS; Switch {5 Cases}; SFST [One] = Local0;
+    #           If ((Local0 == Zero)) { SFST [0x02] = Local0 }
+    #           Else { Local0--; Local1 = FANT [Local0]; Local1 += 0x0A; SFST [0x02] = Local1 }
+    #           Return (SFST)
+    #  Nothing after the RPM store in the Else: a later store could overwrite it.
+    shape = r'M\{R(?:S\{(?:C\{A\})+\})?P*I\{P+\}E\{DLO?P*Q\}T\}'
     if not re.fullmatch(shape, seq):
         raise FanConfigError("_FST's statements aren't in the order this fix models "
                              f"(read, remap, off check, --, lookup, offset, store; got {seq}) "
+                             "- refusing rather than guessing")
+
+    # 9. ...and every store goes where the table above assumes: into the
+    #    package _FST returns, never into the lookup table, with the RPM in
+    #    one slot that the off branch sets to the level (zero). The order
+    #    check alone would accept 'FANT [Zero] = Local0' (changing the table)
+    #    or the off branch filling a different slot (leaving the last RPM).
+    store_re = r'(\w{1,4})\s*\[\s*(' + const + r')\s*\]\s*=\s*(Local\d)'
+    ret = re.fullmatch(r'Return\s*\(\s*(\w{1,4})\s*\)', stmts[-2][1]).group(1)
+    if ret == table:
+        raise FanConfigError(f"_FST returns its lookup table {table} - not supported")
+    stores = []                      # (token, slot, position in stmts)
+    for i, (t, s) in enumerate(stmts):
+        if t in "PQ":
+            sm = re.fullmatch(store_re, s)
+            if sm.group(1) != ret:
+                raise FanConfigError(f"_FST stores into {sm.group(1)}, not the package it "
+                                     f"returns ({ret}): '{s}'")
+            stores.append((t, parse_int(sm.group(2)), i))
+    rpm_slot = next(slot for t, slot, _ in stores if t == "Q")
+    if rpm_slot != 2:
+        raise FanConfigError(f"_FST stores the RPM in {ret} [{rpm_slot}] - expected [0x02], "
+                             "the Speed in ACPI's (Revision, Control, Speed)")
+    if_pos = next(i for i, (t, _) in enumerate(stmts) if t == "I")
+    else_pos = next(i for i, (t, _) in enumerate(stmts) if t == "E")
+    if not any(t == "P" and slot == rpm_slot and if_pos < i < else_pos for t, slot, i in stores):
+        raise FanConfigError(f"_FST's off branch doesn't set the speed ({ret} [{rpm_slot}]) "
                              "- refusing rather than guessing")
 
     return {

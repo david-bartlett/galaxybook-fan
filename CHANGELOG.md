@@ -12,6 +12,9 @@
 
 - **Update notification picture:** the README's Updating section now shows what it looks like
 
+- **Notification buttons out of the box:** the Arch package and `install.sh` now bring in `xdg-utils` and Python's GObject bindings, so a new install has **Update now** and **What's new** on GNOME
+- The Arch package listed them as optional, so a clean GNOME install could miss the buttons. The README also says to install your kernel's headers first on Arch-based distros, as the package can't choose them
+
 ## 0.9.3 — 2026-11-02
 
 - **Manual split into guides:** the README is now a short summary, with the detail in `docs/`

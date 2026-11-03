@@ -15,7 +15,7 @@ sudo ./install.sh --force    # other models, once --check output looks right
 ```
 
 The installer:
-- installs whatever's missing of: `iasl` (acpica), `python3`, `dkms`, `make`, `gcc`, the kernel headers, `mokutil` (EFI systems), polkit and `notify-send` (the last two can be absent on minimal Debian installs)
+- installs whatever's missing of: `iasl` (acpica), `python3`, `dkms`, `make`, `gcc`, the kernel headers, `mokutil` (EFI systems), polkit and `notify-send` (the last two can be absent on minimal Debian installs), `xdg-utils` and Python's GObject bindings (for the new-version notification's buttons)
 - warns if your user isn't in the `wheel` or `sudo` group, because the login check's polkit rule only lets those groups start its monitor
 - derives the fan config from the DSDT, as described in [How it works](how-it-works.md#the-fix)
 - with Secure Boot on, sorts out module signing (see below)

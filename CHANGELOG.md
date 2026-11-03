@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.5 — 2026-11-03
 
 - **Nothing left behind if DKMS can't remove it:** uninstalling, or removing the package, now also deletes a module file DKMS failed to remove

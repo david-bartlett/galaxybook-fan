@@ -58,6 +58,8 @@ You're told about each new release with a notification, a minute after login and
 | **Update now** | Opens a terminal running `sudo galaxybook-fan update` |
 | **What's new** | Opens the release page |
 
+<img src="images/update-notification.png" width="300" alt="Notification: galaxybook-fan 0.9.3 is available. You have 0.9.2. Buttons: Update now and What's new">
+
 The update downloads your distro's package from the release, checks it against the release's `SHA256SUMS` and installs it with `dnf`, `apt` or `pacman`, which asks before installing as usual.
 
 From a terminal:

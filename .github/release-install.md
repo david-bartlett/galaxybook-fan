@@ -19,9 +19,9 @@ Download your distro's file below, open a terminal in the folder you downloaded 
 
 | Distro | Install command | Download these files |
 | --- | --- | --- |
-| **Fedora 44, 45** | `sudo dnf install ./galaxybook-fan-@VERSION@-1.noarch.rpm` | [`galaxybook-fan-@VERSION@-1.noarch.rpm`](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/galaxybook-fan-@VERSION@-1.noarch.rpm) |
-| **Ubuntu 24.04, 26.04, Mint, Debian 13, MX 25** | `sudo apt install ./galaxybook-fan_@VERSION@-1_all.deb` | [`galaxybook-fan_@VERSION@-1_all.deb`](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/galaxybook-fan_@VERSION@-1_all.deb) |
-| **Arch, CachyOS, EndeavourOS** | `sudo pacman -U ./galaxybook-fan-@VERSION@-1-any.pkg.tar.zst` | [`galaxybook-fan-@VERSION@-1-any.pkg.tar.zst`](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/galaxybook-fan-@VERSION@-1-any.pkg.tar.zst) |
+| **Fedora 44, 45** | `sudo dnf install ./galaxybook-fan-@VERSION@-1.noarch.rpm` | • [`galaxybook-fan-@VERSION@-1.noarch.rpm`](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/galaxybook-fan-@VERSION@-1.noarch.rpm) |
+| **Ubuntu 24.04, 26.04, Mint, Debian 13, MX 25** | `sudo apt install ./galaxybook-fan_@VERSION@-1_all.deb` | • [`galaxybook-fan_@VERSION@-1_all.deb`](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/galaxybook-fan_@VERSION@-1_all.deb) |
+| **Arch, CachyOS, EndeavourOS** | `sudo pacman -U ./galaxybook-fan-@VERSION@-1-any.pkg.tar.zst` | • [`galaxybook-fan-@VERSION@-1-any.pkg.tar.zst`](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/galaxybook-fan-@VERSION@-1-any.pkg.tar.zst) |
 
 DKMS builds the module on your laptop, from its own firmware, for every kernel with headers: on Arch, install your kernel's headers package too (the install says which, e.g. `linux-cachyos-headers`). With Secure Boot on and the signing key not enrolled yet, the install prints the `mokutil` command to run once.
 

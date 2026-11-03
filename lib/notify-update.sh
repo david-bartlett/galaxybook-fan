@@ -25,17 +25,15 @@ HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 args=(-u critical -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update)
 
 # Told once: gbfan_update_notify (lib/update.sh) passes where this user's
-# notified-version is and the version announced. It's written now, so the
-# hourly check doesn't announce it again while this one is on screen, and
-# taken back if the first notification can't be shown at all, so the next
-# check tries again.
+# notified-version is and the version announced. It's written the moment a
+# notification has appeared (notify-send printed its ID, notify-dbus.py's
+# Notify call returned one, or a plain notify-send worked), never before: if
+# this is stopped first (logging out, say), or nothing can be shown, the
+# next check tries again.
 told_file="${GBFAN_TOLD_FILE:-}"; told_version="${GBFAN_TOLD_VERSION:-}"
-if [[ -n "$told_file" && -n "$told_version" ]]; then
+told() {
+    [[ -n "$told_file" && -n "$told_version" ]] || return 0
     mkdir -p "$(dirname "$told_file")" 2>/dev/null && echo "$told_version" > "$told_file"
-fi
-untold() {
-    [[ -n "$told_file" && "$(cat "$told_file" 2>/dev/null)" == "$told_version" ]] || return 0
-    rm -f "$told_file"
 }
 # GNOME (Ubuntu's is ubuntu:GNOME; not Budgie, budgie:GNOME): notify-dbus.py
 # and the click on the notification, below
@@ -138,15 +136,21 @@ updated() {
 wait_notify_send() {
     local out pid id="" i=0 closed=0
     if ! notify-send --help 2>&1 | grep -q -- '--print-id' || ! out="$(mktemp)"; then
-        notify-send "$@" 2>/dev/null; return
+        # Without --print-id it can't say when it appeared: told once it
+        # returns (a button pressed or closed), as before
+        notify-send "$@" 2>/dev/null || return
+        told; return 0
     fi
     local rc
     notify-send --print-id "$@" > "$out" 2>/dev/null &
     pid=$!
     while kill -0 "$pid" 2>/dev/null; do
         sleep 0.5                                   # a click is noticed at once...
+        if [[ -z "$id" ]]; then                     # ...and the notification appearing
+            id="$(head -1 "$out")"
+            [[ "$id" =~ ^[0-9]+$ ]] && told
+        fi
         (( ++i % 4 )) && continue                   # ...the version every 2 s
-        [[ -n "$id" ]] || id="$(head -1 "$out")"
         if (( ! closed )) && [[ "$id" =~ ^[0-9]+$ ]] && updated; then
             gdbus call --session --dest org.freedesktop.Notifications \
                 --object-path /org/freedesktop/Notifications \
@@ -155,7 +159,10 @@ wait_notify_send() {
         fi
     done
     wait "$pid" 2>/dev/null; rc=$?
-    [[ -n "$id" ]] || id="$(head -1 "$out")"
+    if [[ -z "$id" ]]; then
+        id="$(head -1 "$out")"
+        [[ "$id" =~ ^[0-9]+$ ]] && told
+    fi
     sed -n '2p' "$out"                              # the button (after the ID)
     rm -f "$out"
     # Never shown (no ID): say so, with notify-send's status
@@ -169,7 +176,9 @@ show() {
     case "$way" in
         dbus)
             for a in "${acts[@]}"; do pairs+=("${a%%=*}" "${a#*=}"); done
-            NOTIFY_WATCH_FILE="$watch" NOTIFY_WATCH_VERSION="$want" python3 -I "$HERE/notify-dbus.py" 2 \
+            NOTIFY_WATCH_FILE="$watch" NOTIFY_WATCH_VERSION="$want" \
+                NOTIFY_SHOWN_FILE="$told_file" NOTIFY_SHOWN_TEXT="$told_version" \
+                python3 -I "$HERE/notify-dbus.py" 2 \
                 "Samsung Galaxy Book Fixes" system-software-update "$title" "$msg" "${pairs[@]}" ;;
         notify-send)
             for a in "${acts[@]}"; do opts+=("--action=$a"); done
@@ -191,12 +200,12 @@ if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
         if [[ $way == dbus && $rc -eq 2 ]]; then
             # D-Bus didn't work after all: the plain notification, without
             # the line about clicking it
-            notify-send "${args[@]}" "$title" "$full" || { (( n )) || untold; }
+            notify-send "${args[@]}" "$title" "$full" && told
             break
         fi
         # notify-send couldn't show the first one at all
         if [[ $way == notify-send && $rc -ne 0 && $n -eq 0 ]]; then
-            notify-send "${args[@]}" "$title" "$full" || untold
+            notify-send "${args[@]}" "$title" "$full" && told
             break
         fi
         case "$choice" in
@@ -212,6 +221,6 @@ if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
         esac
     done
 else
-    notify-send "${args[@]}" "$title" "$msg" || untold
+    notify-send "${args[@]}" "$title" "$msg" && told
 fi
 exit 0

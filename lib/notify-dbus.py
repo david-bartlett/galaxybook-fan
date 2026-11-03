@@ -16,6 +16,10 @@
 # notification - it's this program's own, so the desktop allows it - and
 # print nothing, as when it's closed by hand.
 #
+# NOTIFY_SHOWN_FILE / NOTIFY_SHOWN_TEXT (environment): once the notification
+# is on screen (Notify gave its ID), write that text to that file - how
+# notify-update.sh records a release as announced only once it's shown.
+#
 # Why not notify-send: on David's Ubuntu 26.04 GNOME lists "actions" in its
 # capabilities and shows buttons when asked over D-Bus, but notify-send 0.8.8
 # says "Actions are not supported by this notifications server" and shows it
@@ -82,6 +86,15 @@ def main(argv):
             GLib.VariantType("(u)"), Gio.DBusCallFlags.NONE, -1, None).unpack()[0]
     except (GLib.Error, ValueError):
         return 2
+
+    shown_file, shown_text = os.environ.get("NOTIFY_SHOWN_FILE"), os.environ.get("NOTIFY_SHOWN_TEXT")
+    if shown_file and shown_text:
+        try:
+            os.makedirs(os.path.dirname(shown_file), exist_ok=True)
+            with open(shown_file, "w") as f:
+                f.write(shown_text + "\n")
+        except OSError:
+            pass
 
     watch, wanted = os.environ.get("NOTIFY_WATCH_FILE"), _version(os.environ.get("NOTIFY_WATCH_VERSION"))
 

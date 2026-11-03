@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.6 — 2026-11-03
 
 - **Firmware check: aliases too:** a BIOS where the fan method's result is another name for the RPM table (an ACPI `Alias`) is now refused

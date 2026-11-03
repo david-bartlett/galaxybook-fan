@@ -290,6 +290,23 @@ def parse_fst(raw, code, fst_start, fst_end):
     }
 
 
+def own_decl(code, name, dev_start, dev_end, what):
+    """The line declaring NAME (Name (NAME, ...)) directly in the fan device.
+    _FST refers to it by its bare name, which ACPI looks up in _FST's own
+    scope, then the device, then its parents, never in a device nested
+    inside: a FANT in a child device is another object. Every Galaxy Book 5
+    DSDT seen declares both its table and the package it returns in the fan
+    device itself, so anything else is refused rather than resolved."""
+    pat = r'\s*Name\s*\(\s*' + name + r'\s*,'
+    top = direct_children(code, dev_start, dev_end)
+    hits = [i for i in top if re.match(pat, code[i])]
+    if len(hits) != 1:
+        where = sum(1 for l in code if re.match(pat, l))
+        raise FanConfigError(f"{what} is declared {len(hits)} times in the fan device itself "
+                             f"({where} in the whole DSDT) - expected once there")
+    return hits[0]
+
+
 def check_return_package(code, name, table, dev_start, dev_end):
     """The package _FST returns must be its own object: one Name (X, Package (3+))
     declaration, and no Alias making it (or the table) another name for
@@ -303,26 +320,21 @@ def check_return_package(code, name, table, dev_start, dev_end):
             raise FanConfigError(f"The DSDT has '{line.strip()}', an Alias for {name} or {table} "
                                  "- not supported")
     pat = r'\s*Name\s*\(\s*' + name + r'\s*,'
-    decls = ([i for i in range(dev_start, dev_end + 1) if re.match(pat, code[i])]
-             or [i for i, l in enumerate(code) if re.match(pat, l)])
-    if len(decls) != 1:
-        raise FanConfigError(f"{name}, the package _FST returns, is declared {len(decls)} times "
-                             "- expected once")
-    m = re.match(pat + r'\s*Package\s*\((\w+)\)', code[decls[0]])
+    decl = own_decl(code, name, dev_start, dev_end, f"{name} (the package _FST returns)")
+    m = re.match(pat + r'\s*Package\s*\((\w+)\)', code[decl])
     if not m or parse_int(m.group(1)) < 3:
         raise FanConfigError(f"{name}, the package _FST returns, isn't a Package of 3 "
                              "(Revision, Control, Speed)")
 
 
 def parse_table(code, name, dev_start, dev_end):
-    """Name (FANT, Package (0xNN) { a, b, ... }) - prefer the fan device's own."""
-    pat = r'\s*Name\s*\(' + name + r',\s*Package\s*\((\w+)\)'
-    hits = find_blocks(code, pat, dev_start, dev_end) or find_blocks(code, pat)
-    if not hits:
-        raise FanConfigError(f"Table {name} not found")
-    if len(hits) > 1:
-        raise FanConfigError(f"Table {name} defined {len(hits)} times - ambiguous")
-    start, end, m = hits[0]
+    """Name (FANT, Package (0xNN) { a, b, ... }), declared in the fan device itself."""
+    pat = r'\s*Name\s*\(\s*' + name + r'\s*,\s*Package\s*\((\w+)\)'
+    start = own_decl(code, name, dev_start, dev_end, f"Table {name}")
+    m = re.match(pat, code[start])
+    if not m:
+        raise FanConfigError(f"Table {name} isn't a Package")
+    end = block_end(code, start)
     declared = parse_int(m.group(1))
     inner = " ".join(code[start:end + 1])
     inner = inner[inner.index('{') + 1:inner.rindex('}')]

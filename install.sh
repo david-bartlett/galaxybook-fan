@@ -249,7 +249,8 @@ derive_config() {
 # ---------------------------------------------------------------------------
 # Dependencies: dkms, make, gcc, headers for the running kernel; mokutil for
 # Secure Boot signing; polkit and notify-send for the login check (both can be
-# missing on minimal Debian installs)
+# missing on minimal Debian installs); xdg-utils and Python's GObject bindings
+# for the new-version notification's buttons
 # ---------------------------------------------------------------------------
 install_deps() {
     local kver pkgs=()
@@ -264,6 +265,8 @@ install_deps() {
             rpm -q dwarves >/dev/null 2>&1 || pkgs+=(dwarves)
             command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify)
             command -v pkcheck >/dev/null 2>&1 || pkgs+=(polkit)
+            command -v xdg-open >/dev/null 2>&1 || pkgs+=(xdg-utils)
+            python3 -c 'import gi' 2>/dev/null || pkgs+=(python3-gobject)
             [[ -d /sys/firmware/efi ]] && ! command -v mokutil >/dev/null 2>&1 && pkgs+=(mokutil)
             if [[ ${#pkgs[@]} -gt 0 ]]; then
                 info "Installing: ${pkgs[*]}"
@@ -277,6 +280,8 @@ install_deps() {
             [[ -d /lib/modules/${kver}/build ]] || pkgs+=("linux-headers-${kver}")
             command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify-bin)
             command -v pkcheck >/dev/null 2>&1 || pkgs+=(polkitd)
+            command -v xdg-open >/dev/null 2>&1 || pkgs+=(xdg-utils)
+            python3 -c 'import gi' 2>/dev/null || pkgs+=(python3-gi)
             [[ -d /sys/firmware/efi ]] && ! command -v mokutil >/dev/null 2>&1 && pkgs+=(mokutil)
             if [[ ${#pkgs[@]} -gt 0 ]]; then
                 info "Installing: ${pkgs[*]}"
@@ -290,6 +295,8 @@ install_deps() {
             command -v gcc  >/dev/null 2>&1 || pkgs+=(gcc)
             command -v notify-send >/dev/null 2>&1 || pkgs+=(libnotify)
             command -v pkcheck >/dev/null 2>&1 || pkgs+=(polkit)
+            command -v xdg-open >/dev/null 2>&1 || pkgs+=(xdg-utils)
+            python3 -c 'import gi' 2>/dev/null || pkgs+=(python-gobject)
             [[ -d /sys/firmware/efi ]] && ! command -v mokutil >/dev/null 2>&1 && pkgs+=(mokutil)
             if [[ ! -d /lib/modules/${kver}/build ]]; then
                 local kpkg

@@ -37,6 +37,8 @@ From the **[latest release](https://github.com/david-bartlett/galaxybook-fan/rel
 | **Ubuntu 24.04, 26.04, Mint, Debian 13, MX 25** | `sudo apt install ./galaxybook-fan_*_all.deb` |
 | **Arch, CachyOS, EndeavourOS** | `sudo pacman -U ./galaxybook-fan-*-any.pkg.tar.zst` (or `makepkg -si` with the release's `PKGBUILD` and `galaxybook-fan.install`) |
 
+**On Arch-based distros, install your kernel's headers first,** such as `sudo pacman -S --needed linux-headers`, or `linux-cachyos-headers` on CachyOS. The package can't install them itself, as they depend on your kernel. If they're missing, it names the package to add.
+
 The packages do what [`install.sh`](https://github.com/david-bartlett/galaxybook-fan/blob/main/docs/installing.md) does, with no questions: DKMS builds the module on your laptop from its own firmware, for every kernel with headers. They refuse anything that isn't a Galaxy Book 5 (on Arch the module just isn't built, and the install says why). A copy installed with `install.sh` is replaced by the rpm and deb; on Arch, run `sudo ./uninstall.sh` in its folder first. Remove the package with `sudo dnf remove`, `sudo apt remove` or `sudo pacman -R galaxybook-fan`. Details: [packaging/README.md](packaging/README.md). Other distros, or from a clone: [install.sh](https://github.com/david-bartlett/galaxybook-fan/blob/main/docs/installing.md).
 
 ## Uninstall

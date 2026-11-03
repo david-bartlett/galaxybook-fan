@@ -104,7 +104,10 @@ gbfan_update_text() {
 
 # Show it: with "Update now" / "What's new" where buttons work
 # (notify-update.sh, which waits for a click, so it runs on its own via
-# systemd-run), else plainly. Run as the user, in their desktop.
+# systemd-run), else plainly. Run as the user, in their desktop. The version
+# is recorded as told (notified-version) only once a notification has really
+# been shown: by notify-update.sh itself, which systemd-run only starts, or
+# here after a plain one. If none could be shown, the next check tries again.
 gbfan_update_notify() {
     # notify-update.sh beside the script that's running (GBFAN_HERE: a clone's
     # lib/ when run from one), else the installed library folder
@@ -113,15 +116,20 @@ gbfan_update_notify() {
     title="$(gbfan_update_title "$cur" "$latest")"
     text="$(gbfan_update_text "$cur" "$latest")"
     if [[ -x "$notifier" ]] && command -v systemd-run >/dev/null 2>&1 \
-            && systemd-run --user --collect --quiet --unit="$unit" "$notifier" \
-                "$title" "$text" "$(gbfan_release_url "$latest")" 2>/dev/null; then
+            && systemd-run --user --collect --quiet --unit="$unit" \
+                --setenv=GBFAN_TOLD_FILE="$(gbfan_update_told_file)" --setenv=GBFAN_TOLD_VERSION="$latest" \
+                "$notifier" "$title" "$text" "$(gbfan_release_url "$latest")" 2>/dev/null; then
         return 0
     fi
-    notify-send -u critical -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update "$title" "$text"
+    notify-send -u critical -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update "$title" "$text" \
+        || return 1
+    gbfan_update_mark_told "$latest"
 }
 
-# Remember a version was announced to this user (so it's said once)
+# Where a version is remembered as announced to this user (so it's said once)
+gbfan_update_told_file() { echo "${XDG_STATE_HOME:-$HOME/.local/state}/galaxybook-fan/notified-version"; }
 gbfan_update_mark_told() {
-    local dir="${XDG_STATE_HOME:-$HOME/.local/state}/galaxybook-fan"
-    mkdir -p "$dir" 2>/dev/null && echo "$1" > "$dir/notified-version"
+    local f
+    f="$(gbfan_update_told_file)"
+    mkdir -p "$(dirname "$f")" 2>/dev/null && echo "$1" > "$f"
 }

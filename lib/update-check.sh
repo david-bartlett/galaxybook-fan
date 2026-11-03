@@ -55,5 +55,6 @@ gbfan_version_newer "$cur" "$latest" || { stamp; exit 0; }
 gbfan_release_ready "$latest" || exit 0
 stamp
 # The notification, with buttons where the desktop shows them (lib/update.sh)
-gbfan_update_notify "$cur" "$latest" && gbfan_update_mark_told "$latest"
+# (recorded as told once it's really shown, so a failed one is tried again)
+gbfan_update_notify "$cur" "$latest"
 exit 0

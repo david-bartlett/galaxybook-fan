@@ -258,7 +258,6 @@ cmd_updates() {
              info "To update, run: $(gbfan_update_hint)"
              if [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] \
                      && gbfan_update_notify "$cur" "$latest" "galaxybook-fan-notify-check-$$"; then
-                 gbfan_update_mark_told "$latest"
                  info "Notification shown (with Update now / What's new where your desktop has buttons)"
              fi ;;
         *)   echo "Usage: galaxybook-fan updates on|off|status|check" >&2; exit 2 ;;

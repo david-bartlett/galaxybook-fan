@@ -15,6 +15,9 @@
 - A comment after a key path, or `${kernelver}` in it, gave `install.sh` the wrong file name, so it could miss a configured key and try to make a new one. It now reads the settings the way DKMS does
 - If a file in `/etc/dkms/framework.conf.d/` is read after `galaxybook-fan-signing.conf` and sets another key, DKMS signs with that key, while `install.sh` said it was signing with an enrolled one. It now names that file, and uses its key (and offers to enrol it) instead
 
+- **New-version notification: tried again if it failed:** a release is only counted as announced once its notification has really appeared
+- The check counted a version as announced as soon as it had started the notification, so if the notification then couldn't be shown (no notification service yet, say), you were never told about that release. It's now counted only once shown, and otherwise the next hourly check tries again. This takes effect once this version is installed, as the installed version draws the notification
+
 ## 0.9.6 — 2026-11-03
 
 - **Firmware check: aliases too:** a BIOS where the fan method's result is another name for the RPM table (an ACPI `Alias`) is now refused

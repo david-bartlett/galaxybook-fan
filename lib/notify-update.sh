@@ -23,6 +23,20 @@ HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 # one stays on screen until it's closed or clicked (as fingerprint-fix-sdcp's
 # always has, on every desktop)
 args=(-u critical -t 0 -a "Samsung Galaxy Book Fixes" -i system-software-update)
+
+# Told once: gbfan_update_notify (lib/update.sh) passes where this user's
+# notified-version is and the version announced. It's written now, so the
+# hourly check doesn't announce it again while this one is on screen, and
+# taken back if the first notification can't be shown at all, so the next
+# check tries again.
+told_file="${GBFAN_TOLD_FILE:-}"; told_version="${GBFAN_TOLD_VERSION:-}"
+if [[ -n "$told_file" && -n "$told_version" ]]; then
+    mkdir -p "$(dirname "$told_file")" 2>/dev/null && echo "$told_version" > "$told_file"
+fi
+untold() {
+    [[ -n "$told_file" && "$(cat "$told_file" 2>/dev/null)" == "$told_version" ]] || return 0
+    rm -f "$told_file"
+}
 # GNOME (Ubuntu's is ubuntu:GNOME; not Budgie, budgie:GNOME): notify-dbus.py
 # and the click on the notification, below
 desk="${XDG_CURRENT_DESKTOP,,}"
@@ -126,6 +140,7 @@ wait_notify_send() {
     if ! notify-send --help 2>&1 | grep -q -- '--print-id' || ! out="$(mktemp)"; then
         notify-send "$@" 2>/dev/null; return
     fi
+    local rc
     notify-send --print-id "$@" > "$out" 2>/dev/null &
     pid=$!
     while kill -0 "$pid" 2>/dev/null; do
@@ -139,9 +154,13 @@ wait_notify_send() {
             closed=1
         fi
     done
-    wait "$pid" 2>/dev/null
+    wait "$pid" 2>/dev/null; rc=$?
+    [[ -n "$id" ]] || id="$(head -1 "$out")"
     sed -n '2p' "$out"                              # the button (after the ID)
     rm -f "$out"
+    # Never shown (no ID): say so, with notify-send's status
+    [[ "$id" =~ ^[0-9]+$ ]] || return $(( rc ? rc : 1 ))
+    return 0
 }
 
 # Show it and print the button pressed (nothing if it was closed)
@@ -172,7 +191,12 @@ if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
         if [[ $way == dbus && $rc -eq 2 ]]; then
             # D-Bus didn't work after all: the plain notification, without
             # the line about clicking it
-            notify-send "${args[@]}" "$title" "$full"
+            notify-send "${args[@]}" "$title" "$full" || { (( n )) || untold; }
+            break
+        fi
+        # notify-send couldn't show the first one at all
+        if [[ $way == notify-send && $rc -ne 0 && $n -eq 0 ]]; then
+            notify-send "${args[@]}" "$title" "$full" || untold
             break
         fi
         case "$choice" in
@@ -188,6 +212,6 @@ if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
         esac
     done
 else
-    notify-send "${args[@]}" "$title" "$msg"
+    notify-send "${args[@]}" "$title" "$msg" || untold
 fi
 exit 0

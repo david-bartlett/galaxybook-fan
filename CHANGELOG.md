@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Nothing left behind if DKMS can't remove it:** uninstalling, or removing the package, now also deletes a module file DKMS failed to remove
+- When `dkms remove` fails (for example because an old version's source was already gone), the installed `galaxybook_fan` module file stayed in the kernel's module folder with nothing to remove it later, and could still be loaded by hand. It's now deleted, and the kernel's module list updated. `install.sh` does the same before installing over an earlier version
+
 - **Stricter firmware check:** a BIOS whose fan method writes somewhere unexpected is now refused, rather than given an RPM table that might be wrong
 - The check already refused statements that were moved or repeated. It now also checks where each one stores: only into the package the method returns, with the speed set in both the off and running branches and nothing written over it afterwards. Writing into the RPM table, or into another package, is refused. The Galaxy Book 5 Pro's firmware passes unchanged, with the same table
 

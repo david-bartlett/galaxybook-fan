@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.7 — 2026-11-03
 
 - **Firmware check: the right table:** the fan's RPM table and result must now be declared in the fan device itself, as they are on every Galaxy Book 5 seen

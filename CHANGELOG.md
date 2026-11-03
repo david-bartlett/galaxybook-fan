@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Stricter firmware check:** a BIOS whose fan method writes somewhere unexpected is now refused, rather than given an RPM table that might be wrong
+- The check already refused statements that were moved or repeated. It now also checks where each one stores: only into the package the method returns, with the speed set in both the off and running branches and nothing written over it afterwards. Writing into the RPM table, or into another package, is refused. The Galaxy Book 5 Pro's firmware passes unchanged, with the same table
+
 ## 0.9.4 — 2026-11-03
 
 - **Update notification explained:** the README now says it closes by itself once the new version is installed some other way

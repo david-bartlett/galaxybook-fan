@@ -8,6 +8,10 @@
 
 ## Unreleased
 
+- **Secure Boot: the key DKMS really uses:** `install.sh` now reads your DKMS signing settings exactly as DKMS does, and never claims a key that another setting overrides
+- A comment after a key path, or `${kernelver}` in it, gave `install.sh` the wrong file name, so it could miss a configured key and try to make a new one. It now reads the settings the way DKMS does
+- If a file in `/etc/dkms/framework.conf.d/` is read after `galaxybook-fan-signing.conf` and sets another key, DKMS signs with that key, while `install.sh` said it was signing with an enrolled one. It now names that file, and uses its key (and offers to enrol it) instead
+
 ## 0.9.6 — 2026-11-03
 
 - **Firmware check: aliases too:** a BIOS where the fan method's result is another name for the RPM table (an ACPI `Alias`) is now refused

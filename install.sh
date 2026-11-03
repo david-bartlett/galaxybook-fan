@@ -349,22 +349,37 @@ key_state() {   # cert -> enrolled | pending | not-enrolled | missing
     esac
 }
 
-# The key pair DKMS will really use: framework.conf, then framework.conf.d/*.conf
-# in glob order (DKMS sources them the same way, so later files win), skipping
-# our own drop-in. Without any setting DKMS uses its default pair.
+# The key pair DKMS will really use. DKMS reads framework.conf, then
+# framework.conf.d/*.conf in glob order, by sourcing them (later files win),
+# so do the same in a subshell: quotes, comments, ${kernelver} and $kernelver
+# then mean what they mean to DKMS. These are root's own DKMS settings,
+# which DKMS sources as root anyway. Our own drop-in is skipped unless
+# called with "all" (what DKMS will use once it's written). Without any
+# setting DKMS uses its default pair.
 dkms_effective_key() {
-    local f k="" c="" v kver
+    local with_ours="${1:-}" kver
     kver="$(uname -r)"
-    for f in /etc/dkms/framework.conf /etc/dkms/framework.conf.d/*.conf; do
-        [[ -f "$f" && "$f" != "$DKMS_SIGN_CONF" ]] || continue
-        v="$(sed -n 's/^[[:space:]]*mok_signing_key=//p' "$f" | tail -1 | tr -d "\"'")"
-        [[ -n "$v" ]] && k="$v"
-        v="$(sed -n 's/^[[:space:]]*mok_certificate=//p' "$f" | tail -1 | tr -d "\"'")"
-        [[ -n "$v" ]] && c="$v"
-    done
-    k="${k:-/var/lib/dkms/mok.key}"; c="${c:-/var/lib/dkms/mok.pub}"
-    # shellcheck disable=SC2016
-    echo "${c//'$kernelver'/$kver}|${k//'$kernelver'/$kver}"
+    (
+        set +eu
+        _gbfan_skip="$DKMS_SIGN_CONF"; _gbfan_all="$with_ours"; _gbfan_kver="$kver"
+        # shellcheck disable=SC2034  # read by the files sourced below
+        kernelver="$kver"; mok_signing_key=""; mok_certificate=""
+        for _gbfan_f in /etc/dkms/framework.conf /etc/dkms/framework.conf.d/*.conf; do
+            [[ -f "$_gbfan_f" ]] || continue
+            [[ "$_gbfan_f" == "$_gbfan_skip" && "$_gbfan_all" != all ]] && continue
+            # shellcheck disable=SC1090
+            . "$_gbfan_f" </dev/null >/dev/null 2>&1
+        done
+        _gbfan_k="${mok_signing_key:-/var/lib/dkms/mok.key}"
+        _gbfan_c="${mok_certificate:-/var/lib/dkms/mok.pub}"
+        # Single-quoted in the file, DKMS expands these later
+        # shellcheck disable=SC2016
+        for _gbfan_v in '${kernelver}' '$kernelver'; do
+            _gbfan_k="${_gbfan_k//"$_gbfan_v"/$_gbfan_kver}"
+            _gbfan_c="${_gbfan_c//"$_gbfan_v"/$_gbfan_kver}"
+        done
+        echo "${_gbfan_c}|${_gbfan_k}"
+    )
 }
 
 # Point DKMS at cert/key - via our own drop-in only if that isn't already
@@ -393,6 +408,18 @@ use_key() {
 mok_signing_key="${key}"
 mok_certificate="${cert}"
 EOF
+    # A file DKMS reads after ours (framework.conf.d is read in glob order)
+    # can set another key, and DKMS would sign with that one instead. Then
+    # ours does nothing: take it away and say so. Returns 1, so the caller
+    # tries the next key, ending with the one DKMS is set to use.
+    if [[ "$(dkms_effective_key all)" != "${cert}|${key}" ]]; then
+        rm -f "$DKMS_SIGN_CONF"
+        local later
+        later="$(grep -ls '^[[:space:]]*mok_\(signing_key\|certificate\)=' /etc/dkms/framework.conf.d/*.conf 2>/dev/null \
+                 | awk -v me="$DKMS_SIGN_CONF" '$0 > me' | tr '\n' ' ')"
+        warn "Can't point DKMS at ${cert}: ${later:-a file in /etc/dkms/framework.conf.d/ }sets another key and is read after ${DKMS_SIGN_CONF}"
+        return 1
+    fi
     info "DKMS pointed at ${cert} (${DKMS_SIGN_CONF})"
 }
 
@@ -448,7 +475,7 @@ setup_signing() {
     for c in "${candidates[@]}"; do
         cert="${c%%|*}"; key="${c##*|}"
         [[ -f "$key" && "$(key_state "$cert")" == enrolled ]] || continue
-        use_key "$cert" "$key"
+        use_key "$cert" "$key" || continue
         ok "Signing with ${cert} (enrolled)"
         return
     done
@@ -457,7 +484,7 @@ setup_signing() {
     for c in "${candidates[@]}"; do
         cert="${c%%|*}"; key="${c##*|}"
         [[ -f "$key" && "$(key_state "$cert")" == pending ]] || continue
-        use_key "$cert" "$key"
+        use_key "$cert" "$key" || continue
         warn "Signing with ${cert}, which is waiting to be enrolled at the next boot."
         MOK_PENDING=1; MOK_QUEUED=1; MOK_CERT="$cert"
         return
@@ -473,7 +500,11 @@ setup_signing() {
     if [[ ! -f "$cert" || ! -f "$key" ]]; then
         generate_key "$cert" "$key"
     fi
-    use_key "$cert" "$key"
+    if ! use_key "$cert" "$key"; then
+        # Fedora's akmods key overridden by a later file: that file's key it is
+        cert="$eff_cert"; key="$eff_key"
+        [[ -f "$cert" && -f "$key" ]] || generate_key "$cert" "$key"
+    fi
     st="$(key_state "$cert")"
     warn "Secure Boot is on, but ${cert} isn't enrolled in your firmware yet, so"
     warn "the module can't load until it is. (A BIOS update can also clear enrolled keys.)"

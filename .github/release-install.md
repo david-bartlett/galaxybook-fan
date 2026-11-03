@@ -17,7 +17,7 @@ It says whether galaxybook-fan will work on your laptop, and whether your model 
 
 Download your distro's file below, open a terminal in the folder you downloaded it to (usually Downloads) and run the command:
 
-| Distro | Install Command | Download this file |
+| Distro | Install command | Download these files |
 | --- | --- | --- |
 | **Fedora 44, 45** | `sudo dnf install ./galaxybook-fan-@VERSION@-1.noarch.rpm` | [`galaxybook-fan-@VERSION@-1.noarch.rpm`](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/galaxybook-fan-@VERSION@-1.noarch.rpm) |
 | **Ubuntu 24.04, 26.04, Mint, Debian 13, MX 25** | `sudo apt install ./galaxybook-fan_@VERSION@-1_all.deb` | [`galaxybook-fan_@VERSION@-1_all.deb`](https://github.com/david-bartlett/galaxybook-fan/releases/download/v@VERSION@/galaxybook-fan_@VERSION@-1_all.deb) |

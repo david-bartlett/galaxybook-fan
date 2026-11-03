@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.8 — 2026-11-03
 
 - **New-version notification: not lost at logout:** a release is now counted as announced only once its notification is on screen

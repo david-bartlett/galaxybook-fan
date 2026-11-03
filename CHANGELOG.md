@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.7 — 2026-11-03
 
 - **Firmware check: the right table:** the fan's RPM table and result must now be declared in the fan device itself, as they are on every Galaxy Book 5 seen
 - The check took a table from anywhere inside the fan device, including a device nested in it, which ACPI never looks in: with one table in the fan's parent and another in a nested device, it built the RPM list from the wrong one. A table or result declared anywhere else is now refused. The Galaxy Book 5 Pro's firmware passes unchanged

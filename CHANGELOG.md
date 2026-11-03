@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.6 — 2026-11-03
 
 - **Firmware check: aliases too:** a BIOS where the fan method's result is another name for the RPM table (an ACPI `Alias`) is now refused
 - The check compared names only, so `Alias (FANT, SFST)` let every store into the result change the table, and the module would report speeds the firmware never gives. The result now has to be a plain three-entry package of its own, and no `Alias` may name it or the table. The Galaxy Book 5 Pro's firmware passes unchanged

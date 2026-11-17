@@ -1,6 +1,6 @@
 # How it's built, SECURITY.md and CONTRIBUTING.md
 
-PR #<number> · Claude · 2026-11-17
+PR #61 · Claude · 2026-11-17
 
 ## What changed
 - README: "How it stays safe" gains **It only reads** (checked: the module's only firmware call is `acpi_evaluate_integer` on the fan field); a new **How it's built and tested** section (Claude writes, Codex reviews, David tests every release on real hardware across five distros, PRs and SHA256SUMS, the update check as the only network use).

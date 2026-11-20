@@ -75,4 +75,4 @@ It downloads your distro's file from this release, checks it against `SHA256SUMS
 
 Older versions, or a copy installed with `install.sh`: install this release's file the same way as in **2. Install**, which updates the old one. The Fedora and Ubuntu / Debian packages replace an `install.sh` copy; on Arch, run `sudo ./uninstall.sh` in its folder first.
 
-`SHA256SUMS` lists the files' checksums: `sha256sum -c SHA256SUMS --ignore-missing` in the download folder checks the ones you downloaded.
+`SHA256SUMS` lists the files' checksums: `sha256sum -c SHA256SUMS --ignore-missing` in the download folder checks the ones you downloaded. Each file also has a build attestation from GitHub: `gh attestation verify <file> -R david-bartlett/galaxybook-fan` confirms it was built by this repository's release workflow from this release's tag.

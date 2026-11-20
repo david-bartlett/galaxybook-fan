@@ -170,6 +170,12 @@ jobs:
     name: Attach to the release
     if: ${{ inputs.tag || github.event_name == 'push' }}
     needs: [rpm, deb, arch, check-script]
+    # Attestations (last step): who built the files. Job permissions replace the
+    # workflow's, so contents: write is repeated here.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -210,3 +216,12 @@ jobs:
           if [[ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)" == true ]]; then
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
           fi
+      # Signs a statement, kept by GitHub, that each attached file was built by
+      # this workflow from this tag: `gh attestation verify FILE -R david-bartlett/galaxybook-fan`
+      # checks a download (see .github/release-install.md). Last, and allowed to
+      # fail, so it can never hold back a release.
+      - name: Attest the files (build provenance)
+        continue-on-error: true
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "dist/*"

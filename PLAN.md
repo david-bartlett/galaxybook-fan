@@ -92,6 +92,7 @@ Users run `install.sh` and `uninstall.sh` from the top folder; what DKMS builds 
 | `VERSION` | The release version, `X.Y.Z`. The release tool keeps `PACKAGE_VERSION` in `module/dkms.conf` and `PKG_VERSION` in `install.sh` in step with it (§7.1). |
 | `CHANGELOG.md` | Release notes (§7.2). |
 | `PLAN.md`, `AGENTS.md`, `handoff/` | This file, the short rules for agents, and one note per PR. |
+| `SECURITY.md`, `CONTRIBUTING.md` | How to report a security problem privately (GitHub's private vulnerability reporting; newest release only), and how to send reports and pull requests (the rules from this file; AI-assisted contributions). |
 | `.github/workflows/release.yml`, `.github/release-notes.sh`, `.github/release-install.md` | The release workflow and the release page's text (§7.1). |
 
 ## 5. How it works

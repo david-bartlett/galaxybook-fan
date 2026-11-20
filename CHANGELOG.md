@@ -15,6 +15,9 @@
 - **Release page: download links:** the files in the Install table now link straight to that release's files
 - Each file has a bullet in front, the same as fingerprint-fix-sdcp's release page
 
+- **How it's made, in the README:** how the fix is written, reviewed and tested, that it only reads the fan speed, and its only network use
+- New `SECURITY.md` (report security problems privately, through GitHub's **Report a vulnerability**) and `CONTRIBUTING.md` (testing reports, bug reports and pull requests, including AI-assisted ones)
+
 ## 0.9.9 — 2026-11-03
 
 - **New-version notification: no second copy:** two rare cases that announced a release twice are fixed

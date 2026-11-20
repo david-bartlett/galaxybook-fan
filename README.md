@@ -120,6 +120,17 @@ Installed with the fix; `galaxybook-fan --help` shows the same list.
 - **Nothing is added to the boot chain,** so a BIOS update can't make the laptop unbootable.
 - **After a BIOS update the module refuses to load** until you run `sudo galaxybook-fan rebuild`, instead of giving wrong readings.
 - **Nothing is installed or removed automatically.** The notifications tell you what to run.
+- **It only reads.** The module reads the fan speed the firmware already reports; it never sets the fan or writes to the EC.
+
+## How it's built and tested
+
+- **Written with AI help:** much of the code is written with Claude (Anthropic) under David's direction, and commits credit Claude as co-author.
+- **Reviewed:** each change goes through repeated code reviews by Codex (OpenAI), and every bug found is fixed before release.
+- **Tested on real hardware:** nothing is released until David has installed it, from the same packages you download, on his Galaxy Book5 Pro across Fedora, Ubuntu, Linux Mint, MX Linux and CachyOS, with Secure Boot on and off. Results: [Compatibility](https://github.com/david-bartlett/galaxybook-fan/blob/main/docs/compatibility.md).
+- **Open:** every change is a pull request with its test plan, listed in the [changelog](CHANGELOG.md), and the packages are built by GitHub Actions from the release tag, with a `SHA256SUMS` file on each release.
+- **Network:** the only network use is the update check, which asks GitHub for the newest release about once an hour; `galaxybook-fan updates off` turns it off.
+
+Found a security problem? See [SECURITY.md](SECURITY.md). Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 

@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **No password prompt on the login screen:** after a kernel upgrade, the login check no longer asks for a password before you've logged in
+- The packages turn the login checks on for every user, and the login screen runs as a user of its own (`gdm` or `sddm`). After a kernel upgrade, the check ran there, and asked for a password to look at the new kernel. Both checks now skip system accounts like these, and the login check never asks for a password at all: it only starts the root check where it's allowed to without one
+
 - **Release files are attested:** each file on a release now has a build attestation from GitHub, so `gh attestation verify <file> -R david-bartlett/galaxybook-fan` shows it was built by this repository's release workflow from the release tag
 - The attestation step comes after the release is published and can't fail the run, so it never holds a release back
 

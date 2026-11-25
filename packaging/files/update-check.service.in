@@ -5,6 +5,10 @@ Description=galaxybook-fan - look for a new release
 # Not while the fix isn't installed, or 'galaxybook-fan updates off' is set.
 ConditionPathExists=@MODLOAD_CONF@
 ConditionPathExists=!@UPDATES_OFF@
+# Not for system accounts: the login screen's own session (gdm, sddm) is a
+# user session too, and with the packages' "systemctl --global enable" this
+# would run there, before anyone has logged in.
+ConditionUser=!@system
 
 [Service]
 Type=oneshot

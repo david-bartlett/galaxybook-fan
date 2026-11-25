@@ -4,6 +4,10 @@ Description=Samsung Galaxy Book — fan speed fix login check (10s after login)
 PartOf=graphical-session.target
 After=graphical-session.target
 DefaultDependencies=no
+# Not for system accounts: the login screen's own session (gdm, sddm) is a
+# user session too, and with the packages' "systemctl --global enable" this
+# would run there, before anyone has logged in.
+ConditionUser=!@system
 
 [Timer]
 OnActiveSec=10

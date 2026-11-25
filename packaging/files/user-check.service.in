@@ -1,6 +1,10 @@
 [Unit]
 Description=Samsung Galaxy Book — fan speed fix login check
 # Started by @USER_CHECK_TIMER@; no [Install] section on purpose.
+# Not for system accounts: the login screen's own session (gdm, sddm) is a
+# user session too, and with the packages' "systemctl --global enable" this
+# would run there, before anyone has logged in.
+ConditionUser=!@system
 
 [Service]
 Type=oneshot

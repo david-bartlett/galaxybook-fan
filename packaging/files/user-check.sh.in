@@ -16,8 +16,11 @@ if [[ "$(uname -r)" == "$KVER" && "$CUR_BIOS" == "$BIOS" && -d /sys/module/@MOD_
     exit 0
 fi
 
-# Type=oneshot: returns once the monitor has finished writing its status
-systemctl start @MONITOR_SVC@ || exit 0
+# Type=oneshot: returns once the monitor has finished writing its status.
+# Never asks for a password: polkit lets wheel/sudo members start it, and a
+# background check mustn't pop up a prompt for anyone else. (The units skip
+# system accounts, so it never runs on the login screen at all.)
+systemctl --no-ask-password start @MONITOR_SVC@ 2>/dev/null || exit 0
 
 [[ -s "$STATUS_FILE" ]] || exit 0
 { IFS= read -r ICON; IFS= read -r TITLE; IFS= read -r MSG; } < "$STATUS_FILE"

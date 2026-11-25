@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.10 — 2026-11-25
 
 - **No password prompt on the login screen:** after a kernel upgrade, the login check no longer asks for a password before you've logged in

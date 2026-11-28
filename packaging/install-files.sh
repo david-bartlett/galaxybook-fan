@@ -2,10 +2,12 @@
 # =============================================================================
 # galaxybook-fan - put the package's files in place (rpm, deb and Arch)
 # =============================================================================
-#   bash packaging/install-files.sh DESTDIR
+#   bash packaging/install-files.sh DESTDIR [deb]
 #
 #   DESTDIR   the package's staging root (%{buildroot}, debian/galaxybook-fan,
 #             $pkgdir)
+#   deb       the .deb (debian/rules): also the kernel hooks, which only
+#             Debian-based distros need
 #
 # Paths come from lib/fanpaths.sh (package layout), unit and script contents
 # from packaging/files/ via render.sh - the same files install.sh installs.
@@ -16,8 +18,9 @@ umask 022
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(dirname "$HERE")"
-[[ $# -eq 1 ]] || { echo "Usage: bash $0 DESTDIR" >&2; exit 2; }
+[[ $# -eq 1 || ( $# -eq 2 && "$2" == deb ) ]] || { echo "Usage: bash $0 DESTDIR [deb]" >&2; exit 2; }
 D="$1"
+FORMAT="${2:-}"
 GBFAN_LAYOUT=package
 # shellcheck source=../lib/fanpaths.sh
 . "$REPO/lib/fanpaths.sh"
@@ -57,3 +60,15 @@ put session.target.in             "$SESSION_HELPER_TARGET"
 put session-autostart.desktop.in  "$SESSION_HELPER_AUTOSTART"
 put dracut.conf.in                "$DRACUT_CONF"
 put modules-load.conf.in          "$MODLOAD_CONF"
+
+# ── Debian, Ubuntu, Mint: rebuild after a release upgrade replaces a kernel ───
+# with a new build of the same name, which DKMS's own hook skips. Links, not
+# files: dpkg would make files in /etc conffiles, kept after 'apt remove' and
+# never put back once deleted; links are removed and replaced with the package.
+if [[ "$FORMAT" == deb ]]; then
+    put kernel-rebuild-hook.in    "$KERNEL_HOOK_SCRIPT" 755
+    for l in "$KERNEL_HOOK_HEADERS" "$KERNEL_HOOK_POSTINST"; do
+        install -d "$D$(dirname "$l")"
+        ln -sfn "$KERNEL_HOOK_SCRIPT" "$D$l"
+    done
+fi

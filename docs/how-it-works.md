@@ -66,6 +66,12 @@ So after a **BIOS update** the fan sensor disappears, and you're told to run `su
 
 `galaxybook_fan` loads after boot from `modules-load.d`, so it never needs to be in the initramfs. Some distros (Fedora) set DKMS's `post_transaction` to rebuild **every** kernel's initramfs after each DKMS operation, which takes a minute or two. Like fnkeys-fix-book5, `install.sh`, `uninstall.sh`, the `galaxybook-fan` command and the packages suspend that for their own DKMS steps with a temporary drop-in (`/etc/dkms/framework.conf.d/zz-galaxybook-fan-defer-initramfs.conf`), which a trap removes when the script exits, even on failure. DKMS's own setting is never changed. On dracut systems, `galaxybook-fan.conf` (`omit_drivers`; in `/etc/dracut.conf.d/` from `install.sh`, `/usr/lib/dracut/dracut.conf.d/` from a package) also keeps the module out of future initramfs images. If an old copy is already in the running kernel's initramfs, only that one image is rebuilt.
 
+## Release upgrades on Debian, Ubuntu and Mint
+
+A release upgrade (Linux Mint 22.3 to 27, Ubuntu 24.04 to 26.04) can replace a kernel with a new build that has **the same name**, `7.0.0-44-generic` say: 24.04's HWE build of that kernel becomes 26.04's own. DKMS's own kernel hook sees that name already built and keeps the old module, which the new build refuses to load (`disagrees about version of symbol module_layout`), so the fan reading stops. Fedora and Arch give every kernel build a new name, so they never hit this.
+
+On Debian-based distros, `install.sh` and the `.deb` add a hook of their own that the kernel packages run after DKMS's, `/etc/kernel/header_postinst.d/zz-galaxybook-fan` and `/etc/kernel/postinst.d/zz-galaxybook-fan` (the package's are links to `/usr/lib/galaxybook-fan/kernel-rebuild-hook`). It compares the change time of the kernel's `Module.symvers`, which every new build of the headers replaces, with the installed module's: a module older than its headers was built for another build, so the hook rebuilds it with `dkms install galaxybook-fan/<version> -k <kernel> --force`. `galaxybook-fan status` asks the same hook about the running kernel and, if the module is out of date, says so with that command.
+
 ## Files
 
 <details>

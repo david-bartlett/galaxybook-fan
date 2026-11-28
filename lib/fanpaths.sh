@@ -65,6 +65,14 @@ UNBIND_SVC="galaxybook-acpi-fan-unbind.service"
 UNBIND_SERVICE="$SYSTEM_UNIT_DIR/$UNBIND_SVC"
 DKMS_SIGN_CONF="/etc/dkms/framework.conf.d/${PKG_NAME}-signing.conf"
 DKMS_DEFER_CONF="/etc/dkms/framework.conf.d/zz-${PKG_NAME}-defer-initramfs.conf"
+# Debian, Ubuntu, Mint only: the kernel packages run these with the kernel's
+# version (packaging/files/kernel-rebuild-hook.in). They rebuild the module
+# when a release upgrade replaces a kernel with a new build of the same name,
+# which DKMS's own hook skips. install.sh writes them as files; the deb links
+# them to KERNEL_HOOK_SCRIPT. No dot in the names: run-parts skips those.
+KERNEL_HOOK_HEADERS="/etc/kernel/header_postinst.d/zz-${PKG_NAME}"
+KERNEL_HOOK_POSTINST="/etc/kernel/postinst.d/zz-${PKG_NAME}"
+KERNEL_HOOK_SCRIPT="$GBFAN_LIBDIR/kernel-rebuild-hook"     # the deb's copy
 # Fedora: share the akmods key and DKMS config with Andy's fixes
 AKMODS_CERT="/etc/pki/akmods/certs/public_key.der"
 AKMODS_KEY="/etc/pki/akmods/private/private_key.priv"

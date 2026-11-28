@@ -26,6 +26,7 @@ Each format is **one package, architecture-independent**: it ships the module's 
 | Polkit rule | `/usr/share/polkit-1/rules.d/49-samsung-galaxybook-fan-monitor.rules` |
 | Keep out of the initramfs | `/usr/lib/dracut/dracut.conf.d/galaxybook-fan.conf` |
 | Autoload, session helper autostart | `/etc/modules-load.d/galaxybook_fan.conf`, `/etc/xdg/autostart/galaxybook-fan-session.desktop` |
+| Kernel hooks (the deb only): rebuild after a release upgrade replaces a kernel with a new build of the same name | `/etc/kernel/header_postinst.d/zz-galaxybook-fan` and `/etc/kernel/postinst.d/zz-galaxybook-fan`, links to `/usr/lib/galaxybook-fan/kernel-rebuild-hook` (links, not files, so they aren't conffiles: `apt remove` removes them) |
 
 The session helper uses its own names (`galaxybook-fan-session.*`), not the `samsung-galaxybook-session.*` files `install.sh` shares with the other fixes, so it never owns a file another package (fingerprint-fix-sdcp) also installs.
 

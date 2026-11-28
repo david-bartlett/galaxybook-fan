@@ -69,7 +69,7 @@ uninstall_hint() {
 }
 
 cmd_status() {
-    local v kernels rpm method dir rec_k rec_b
+    local v kernels rpm method dir rec_k rec_b stale
     v="$(gbfan_dkms_version || true)"
     method="$(state_value INSTALL_METHOD)"; dir="$(state_value INSTALL_DIR)"
     rec_k="$(state_value KVER)"; rec_b="$(state_value BIOS)"
@@ -89,6 +89,16 @@ cmd_status() {
         warn "Module not loaded on kernel $(uname -r)"
         [[ "$(cat /sys/class/dmi/id/bios_version 2>/dev/null)" != "$rec_b" && -n "$rec_b" ]] \
             && info "The BIOS changed since the last check ($rec_b) - run: sudo galaxybook-fan rebuild"
+    fi
+    # Debian, Ubuntu, Mint: built for an earlier build of this kernel (a
+    # release upgrade replaced it with one of the same name, and the kernel
+    # hook didn't rebuild it); the hook says so, with the command
+    if [[ -x "$KERNEL_HOOK_POSTINST" ]] && ! stale="$("$KERNEL_HOOK_POSTINST" --check 2>/dev/null)"; then
+        case "$stale" in
+            *" Rebuild it: "*) warn "${stale%% Rebuild it: *}"
+                               echo "        Rebuild it: ${stale##* Rebuild it: }" ;;
+            *)                 warn "$stale" ;;
+        esac
     fi
     [[ -n "$rec_k" ]] && info "Last checked at login: kernel ${rec_k}, BIOS ${rec_b}"
     declare -F gbfan_latest_version >/dev/null && cmd_updates status

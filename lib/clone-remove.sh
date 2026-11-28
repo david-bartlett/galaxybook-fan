@@ -54,6 +54,11 @@ gbfan_remove_clone() {
     for f in "$MODPROBE_CONF" "$DKMS_SIGN_CONF" "$DRACUT_CONF"; do
         [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"
     done
+    # The kernel hooks (Debian, Ubuntu, Mint). install.sh writes files; the
+    # deb's are links into its own folder, so those are left to dpkg
+    for f in "${KERNEL_HOOK_HEADERS:-}" "${KERNEL_HOOK_POSTINST:-}"; do
+        [[ -n "$f" && -f "$f" && ! -L "$f" ]] && rm -f "$f" && ok "Removed ${f}"
+    done
     if [[ -z "$keep" ]]; then
         for f in "$MODLOAD_CONF" "$FORCE_FLAG" "${UPDATES_OFF:-}"; do
             [[ -f "$f" ]] && rm -f "$f" && ok "Removed ${f}"

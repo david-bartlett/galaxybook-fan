@@ -1,0 +1,50 @@
+#!/bin/sh
+# Written by @WRITTEN_BY@ (Debian, Ubuntu, Mint only).
+# Rebuild a DKMS module when its kernel's headers were replaced after it was built.
+#
+# Installed as /etc/kernel/header_postinst.d/zz-<name> and /etc/kernel/postinst.d/zz-<name>
+# (Debian, Ubuntu, Mint), which the kernel packages run with the kernel version.
+# No dot in the names: run-parts skips those. The package links both to its
+# library folder; install.sh writes them as files.
+# A release upgrade (Mint 22.3 -> 27, Ubuntu 24.04 -> 26.04) can replace a kernel
+# with a new build of the same name, 7.0.0-44-generic say. DKMS's own hook sees
+# that name already built and keeps the old module, which the new kernel refuses
+# ("disagrees about version of symbol module_layout"). The headers' Module.symvers
+# changes with every build, and dpkg can't set a file's change time, so a module
+# older than it was built against another build.
+#   <hook> KERNEL                rebuild if stale (the kernel packages call this)
+#   <hook> --check [KERNEL]      exit 1 and say so if stale (galaxybook-fan status)
+# Always exits 0 otherwise: the kernel packages run it with --exit-on-error.
+set -u
+NAME=@PKG_NAME@
+VER=@GBFAN_VERSION@
+MODULE=@MOD_NAME@
+ROOT=${DKMS_REBUILD_ROOT:-}      # for the tests
+DKMS=${DKMS_REBUILD_DKMS:-dkms}
+
+check=0
+if [ "${1:-}" = --check ]; then check=1; shift; k=${1:-$(uname -r)}; else k=${1:-}; fi
+[ -n "$k" ] || exit 0
+
+stale() {   # prints the module file when it's older than the kernel's headers
+    symvers=$ROOT/lib/modules/$k/build/Module.symvers
+    [ -e "$symvers" ] || return 1
+    for f in "$ROOT/lib/modules/$k/updates/dkms/$MODULE".ko* "$ROOT/lib/modules/$k/updates/$MODULE".ko* \
+             "$ROOT/lib/modules/$k/extra/$MODULE".ko*; do
+        [ -e "$f" ] || continue
+        [ "$(stat -c %Z "$f")" -lt "$(stat -c %Z "$symvers")" ] && { echo "$f"; return 0; }
+        return 1
+    done
+    return 1
+}
+
+file=$(stale) || exit 0
+fix="sudo dkms install $NAME/$VER -k $k --force"
+if [ "$check" = 1 ]; then
+    echo "$MODULE for $k was built before that kernel's headers were replaced (a new build of the same kernel, after a release upgrade). Rebuild it: $fix"
+    exit 1
+fi
+command -v "$DKMS" >/dev/null 2>&1 || exit 0
+echo "$NAME: $k was replaced by a new build since $MODULE was built; rebuilding it."
+"$DKMS" install "$NAME/$VER" -k "$k" --force || echo "$NAME: the rebuild failed. Run: $fix"
+exit 0

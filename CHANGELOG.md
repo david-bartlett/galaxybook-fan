@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.11 — 2026-11-28
 
 - **Mint and Ubuntu release upgrades:** the fan module is rebuilt when an upgrade replaces a kernel with a new build of the same name

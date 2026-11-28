@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.13 — 2026-11-28
 
 - **Switching desktops:** the login checks and update notifications start for each login, even when the session before hasn't finished closing

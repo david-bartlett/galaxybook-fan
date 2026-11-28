@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.11 — 2026-11-28
 
 - **Mint and Ubuntu release upgrades:** the fan module is rebuilt when an upgrade replaces a kernel with a new build of the same name
 - Upgrading Linux Mint 22.3 to 27 (Ubuntu 24.04 to 26.04 underneath) replaced kernel `7.0.0-44-generic` with 26.04's own build of it. DKMS saw that kernel already built and kept the old module, which the new build won't load, so the fan reading stopped until the fix was reinstalled

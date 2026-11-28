@@ -22,6 +22,10 @@ GBFAN_LAYOUT="$1"
 . "$HERE/../lib/models.sh"
 BOOK5_MODELS_LIST="${BOOK5_MODELS[*]}"
 GBFAN_CMD_CLONE="/usr/local/sbin/galaxybook-fan"   # an install.sh copy, for the packages' check
+# The DKMS version, as module/dkms.conf registers it (the release tool keeps
+# it in step with VERSION and install.sh's PKG_VERSION)
+GBFAN_VERSION="$(sed -n 's/^PACKAGE_VERSION="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' "$HERE/../module/dkms.conf")"
+[[ -n "$GBFAN_VERSION" ]] || { echo "render.sh: no PACKAGE_VERSION in module/dkms.conf" >&2; exit 1; }
 TPL="$HERE/files/$2"
 [[ -f "$TPL" ]] || { echo "render.sh: no template $TPL" >&2; exit 1; }
 
@@ -29,7 +33,7 @@ VARS=(PKG_NAME MOD_NAME WRITTEN_BY CHECK_SCRIPT USER_CHECK_SCRIPT MONITOR_SVC
       USER_CHECK_SVC USER_CHECK_TIMER STATE_FILE STATUS_FILE MODLOAD_CONF
       SESSION_TARGET_NAME SESSION_HELPER_SCRIPT GBFAN_LIBDIR GBFAN_CMD
       BOOK5_MODELS_LIST FORCE_FLAG GBFAN_CMD_CLONE UPDATES_OFF UPDATE_CHECK_SVC
-      UPDATE_CHECK_TIMER UPDATE_CHECK_SCRIPT)
+      UPDATE_CHECK_TIMER UPDATE_CHECK_SCRIPT GBFAN_VERSION)
 
 text="$(<"$TPL")"
 for v in "${VARS[@]}"; do

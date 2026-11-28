@@ -3,8 +3,9 @@
 # galaxybook-fan - uninstall
 #
 # Removes the DKMS module, its autoload/options files, the acpi-fan unbind
-# service (and any old udev rule) and the DKMS signing drop-in (if install.sh
-# created it), then rebinds the stock acpi-fan driver.
+# service (and any old udev rule), the DKMS signing drop-in (if install.sh
+# created it) and the kernel hooks (Debian, Ubuntu, Mint), then rebinds the
+# stock acpi-fan driver.
 #
 # Usage: sudo ./uninstall.sh
 # ============================================================================

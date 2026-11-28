@@ -8,6 +8,11 @@
 
 ## Unreleased
 
+- **Mint and Ubuntu release upgrades:** the fan module is rebuilt when an upgrade replaces a kernel with a new build of the same name
+- Upgrading Linux Mint 22.3 to 27 (Ubuntu 24.04 to 26.04 underneath) replaced kernel `7.0.0-44-generic` with 26.04's own build of it. DKMS saw that kernel already built and kept the old module, which the new build won't load, so the fan reading stopped until the fix was reinstalled
+- On Debian, Ubuntu, Mint and MX, `install.sh` and the `.deb` now add a kernel hook (`/etc/kernel/header_postinst.d/zz-galaxybook-fan` and `/etc/kernel/postinst.d/zz-galaxybook-fan`) that runs after DKMS's: if the module is older than the kernel's headers, it rebuilds it. Fedora and Arch give every kernel build a new name, so they don't need it
+- `galaxybook-fan status` says when the module was built for an earlier build of the running kernel, with the command that rebuilds it
+
 ## 0.9.10 — 2026-11-25
 
 - **No password prompt on the login screen:** after a kernel upgrade, the login check no longer asks for a password before you've logged in

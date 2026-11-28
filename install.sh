@@ -695,6 +695,23 @@ install_session_helper() {
     touch "$SESSION_HELPER_USERS/galaxybook-fan"
 }
 
+# ---------------------------------------------------------------------------
+# Debian, Ubuntu, Mint: a release upgrade (Mint 22.3 -> 27) can replace a
+# kernel with a new build of the same name, and DKMS's own hook keeps the
+# module built for the old one, which the new build refuses. These hooks run
+# after DKMS's and rebuild it then (packaging/files/kernel-rebuild-hook.in).
+# Fedora and Arch give every kernel build a new name, so they don't need them.
+# ---------------------------------------------------------------------------
+install_kernel_hooks() {
+    [[ "$PKG_MGR" == apt ]] || return 0
+    local f
+    for f in "$KERNEL_HOOK_HEADERS" "$KERNEL_HOOK_POSTINST"; do
+        rm -f "$f"      # never write through a link
+        put_rendered kernel-rebuild-hook.in "$f" 755
+    done
+    ok "Kernel hooks: rebuilds the module if a release upgrade replaces this kernel with a new build of the same name"
+}
+
 install_monitor() {
     install -m 755 -o root -g root "$LIB_SRC/samsung-galaxybook-fan-check.sh" "$CHECK_SCRIPT" \
         || fail "Couldn't install ${CHECK_SCRIPT}"
@@ -908,6 +925,7 @@ keep_out_of_initramfs
 install_module
 refresh_initramfs_if_needed
 install_unbind
+install_kernel_hooks
 install_monitor
 verify
 

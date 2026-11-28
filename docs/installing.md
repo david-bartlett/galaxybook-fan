@@ -19,7 +19,7 @@ The installer:
 - warns if your user isn't in the `wheel` or `sudo` group, because the login check's polkit rule only lets those groups start its monitor
 - derives the fan config from the DSDT, as described in [How it works](how-it-works.md#the-fix)
 - with Secure Boot on, sorts out module signing (see below)
-- installs the module through DKMS, so it rebuilds automatically on kernel updates. On Arch-based distros (CachyOS, Manjaro, EndeavourOS…) it's also installed for every other kernel with headers, such as CachyOS's LTS kernel in the boot menu; on Fedora and Debian-based distros, for the running kernel (DKMS adds it to new kernels as they arrive)
+- installs the module through DKMS, so it rebuilds automatically on kernel updates. On Arch-based distros (CachyOS, Manjaro, EndeavourOS…) it's also installed for every other kernel with headers, such as CachyOS's LTS kernel in the boot menu; on Fedora and Debian-based distros, for the running kernel (DKMS adds it to new kernels as they arrive). On Debian-based distros it also adds a kernel hook that rebuilds the module when a release upgrade replaces a kernel with a new build of the same name, which DKMS itself skips ([details](how-it-works.md#release-upgrades-on-debian-ubuntu-and-mint))
 - autoloads it via `/etc/modules-load.d/galaxybook_fan.conf`, which is also a good file for checking whether the fix is installed
 - enables `galaxybook-acpi-fan-unbind.service`, which unbinds `acpi-fan` at boot
 - installs the [login-time check](compatibility.md#is-the-fix-still-needed) (plus the shared graphical session helper on desktops that need it, such as Xfce), and the `galaxybook-fan` command

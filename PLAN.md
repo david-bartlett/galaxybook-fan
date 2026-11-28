@@ -201,6 +201,7 @@ For a PR that changes packaging, he can also test the packages the PR's workflow
 - **Nothing in the boot chain:** no DSDT override, no initrd change, so a BIOS update can never make the laptop unbootable. Keep it that way; the module loads from `modules-load.d` after boot.
 - **Secure Boot keys:** never generate a second key when one is configured; Fedora shares one akmods key with Andy's fixes (`akmods-keys.conf` is shared and never removed). Check that the module really was signed.
 - **Shared files:** the session helper and `/var/lib/samsung-galaxybook/` are shared with other Galaxy Book fixes. Uninstall removes only this fix's parts.
+- **Session helper (`packaging/files/session-start.sh.in`):** passes the session's environment to the user manager first, at every login; starts the target if `graphical-session.target` isn't active; on desktops other than GNOME and KDE Plasma, stops and starts it again when it became active before this session began (`ActiveEnterTimestampMonotonic` < the session's `TimestampMonotonic`): left from a session still closing (Mint 27, 28 Nov 2026: MATE stayed "closing", and the next Cinnamon login started nothing). A lock in `$XDG_RUNTIME_DIR` serialises the copies the other fixes install. Kept the same as fnkeys-fix-book5's, fingerprint-fix-sdcp's and galaxybook-intel-camera's.
 - **DKMS and initramfs:** keep the deferred-rebuild drop-in removed by a trap, even on failure; never change DKMS's own settings.
 - **`--test-native`** is only conclusive while the fan is spinning; don't report "works" from an idle fan.
 

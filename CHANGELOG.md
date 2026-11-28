@@ -8,6 +8,9 @@
 
 ## Unreleased
 
+- **Switching desktops:** the login checks and update notifications start for each login, even when the session before hasn't finished closing
+- On desktops that don't start systemd's graphical session themselves (Cinnamon, MATE, Xfce), a small helper starts it at login. If the previous session was still closing (a MATE session stayed "closing" on Mint 27), the helper found it already started and did nothing, so this fix's user services kept running for the old session or didn't start. The helper now starts the graphical session again when it was started before this login, and passes the new session's details to it every time. GNOME and KDE Plasma manage their own and are left alone. The same helper is shared with fnkeys-fix-book5, fingerprint-fix-sdcp and galaxybook-intel-camera, which get the same change
+
 ## 0.9.12 — 2026-11-28
 
 - **Notification buttons on Mint 27 and Cinnamon:** the new-version notification has its **Update now** and **What's new** buttons again

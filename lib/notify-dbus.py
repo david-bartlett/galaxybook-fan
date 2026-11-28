@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # =============================================================================
 # galaxybook-fan - show a notification with buttons straight over D-Bus, and
-# print the button pressed (used by notify-update.sh on GNOME)
+# print the button pressed (used by notify-update.sh on every desktop but Budgie)
 # =============================================================================
 #   notify-dbus.py URGENCY APP ICON TITLE BODY [KEY LABEL]...
 #
@@ -20,9 +20,10 @@
 # is on screen (Notify gave its ID), write that text to that file - how
 # notify-update.sh records a release as announced only once it's shown.
 #
-# Why not notify-send: on David's Ubuntu 26.04 GNOME lists "actions" in its
-# capabilities and shows buttons when asked over D-Bus, but notify-send 0.8.8
-# says "Actions are not supported by this notifications server" and shows it
+# Why not notify-send: on Ubuntu 26.04 and Mint 27, GNOME and Cinnamon list
+# "actions" in their capabilities and show buttons when asked over D-Bus, but
+# AppArmor confines notify-send 0.8.8 and denies its GetCapabilities call, so
+# it says "Actions are not supported by this notifications server" and shows it
 # without them. GNOME sends the button press only to the program that made
 # the notification, so this one stays until it's pressed or closed.
 # =============================================================================

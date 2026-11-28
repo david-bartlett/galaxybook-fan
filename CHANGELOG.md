@@ -8,6 +8,10 @@
 
 ## Unreleased
 
+- **Notification buttons on Mint 27 and Cinnamon:** the new-version notification has its **Update now** and **What's new** buttons again
+- On Ubuntu 26.04 and Mint 27, AppArmor stops `notify-send` asking the desktop whether it shows buttons, so `notify-send` leaves them out. GNOME already got its buttons another way (`notify-dbus.py`, straight over D-Bus); now every desktop but Budgie does, with `notify-send` as the fallback. Clicking the notification to open the release page stays GNOME-only
+- A notification is drawn by the installed version, so this shows from the release after the one that brings it
+
 ## 0.9.11 — 2026-11-28
 
 - **Mint and Ubuntu release upgrades:** the fan module is rebuilt when an upgrade replaces a kernel with a new build of the same name

@@ -1,6 +1,6 @@
 # Rebuild when a release upgrade replaces a kernel with one of the same name
 
-PR #<number> · Claude · 2026-11-28
+PR #63 · Claude · 2026-11-28
 
 ## What changed
 - New `packaging/files/kernel-rebuild-hook.in` (POSIX sh): given a kernel, if the installed `galaxybook_fan.ko*` is older (change time) than that kernel's `build/Module.symvers`, runs `dkms install galaxybook-fan/<version> -k <kernel> --force`. `--check [KERNEL]` exits 1 with that command instead.

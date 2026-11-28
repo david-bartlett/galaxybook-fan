@@ -1,14 +1,31 @@
 #!/bin/bash
 # Samsung Galaxy Book — start graphical-session.target on desktops that don't.
-# Run from XDG autostart at login. Does nothing if the desktop has already
-# started the target itself (KDE Plasma, GNOME).
-systemctl --user is-active --quiet graphical-session.target && exit 0
-# Pass the session's display variables to the systemd user manager first, so
-# services that show notifications or tray icons can reach the desktop.
+# Run from XDG autostart at login. KDE Plasma and GNOME start it themselves.
+#
+# The session's display variables go to the systemd user manager first, at
+# every login: services that show notifications or tray icons need them, and
+# a user manager that outlived the last session still has that one's.
 if command -v dbus-update-activation-environment >/dev/null 2>&1; then
     dbus-update-activation-environment --systemd --all
 else
     systemctl --user import-environment DISPLAY XAUTHORITY WAYLAND_DISPLAY \
-        XDG_CURRENT_DESKTOP XDG_SESSION_TYPE 2>/dev/null
+        XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_SESSION_ID 2>/dev/null
+fi
+# One copy at a time: each Galaxy Book fix can install its own.
+lock="${XDG_RUNTIME_DIR:-/tmp}/samsung-galaxybook-session.lock"
+if { exec 9>"$lock"; } 2>/dev/null; then flock -w 10 9 || true; fi
+if systemctl --user is-active --quiet graphical-session.target; then
+    # Started for this session (by the desktop, or another copy of this
+    # helper): nothing to do. Started before this session began: it's left
+    # from an earlier one that never finished closing (Mint 27, 28 Nov 2026:
+    # a MATE session stayed "closing", and the Cinnamon login after it found
+    # the target active, so nothing ran for Cinnamon). Stop it, so its
+    # services start again for this session. Never on GNOME or KDE Plasma,
+    # whose own session services run under it.
+    case "${XDG_CURRENT_DESKTOP,,}" in *gnome*|*kde*|*plasma*) exit 0 ;; esac
+    began=$(loginctl show-session "${XDG_SESSION_ID:-}" -p TimestampMonotonic --value 2>/dev/null)
+    since=$(systemctl --user show graphical-session.target -p ActiveEnterTimestampMonotonic --value 2>/dev/null)
+    [[ $began =~ ^[0-9]+$ && $since =~ ^[0-9]+$ ]] && (( since < began )) || exit 0
+    systemctl --user stop graphical-session.target
 fi
 systemctl --user start @SESSION_TARGET_NAME@

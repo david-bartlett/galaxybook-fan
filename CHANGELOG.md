@@ -6,7 +6,7 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
-## Unreleased
+## 0.9.12 — 2026-11-28
 
 - **Notification buttons on Mint 27 and Cinnamon:** the new-version notification has its **Update now** and **What's new** buttons again
 - On Ubuntu 26.04 and Mint 27, AppArmor stops `notify-send` asking the desktop whether it shows buttons, so `notify-send` leaves them out. GNOME already got its buttons another way (`notify-dbus.py`, straight over D-Bus); now every desktop but Budgie does, with `notify-send` as the fallback. Clicking the notification to open the release page stays GNOME-only

@@ -10,10 +10,12 @@
 # which the notification is shown again, so "Update now" is still there). It
 # waits for a click, so update-check.sh starts it on its own (systemd-run)
 # rather than waiting for it. With buttons the text is just "You have
-# X.Y.Z."; without them it's all of MESSAGE, with the command and the link. Critical everywhere (so it stays). On GNOME, shown by
-# notify-dbus.py (notify-send drops its buttons there), and clicking the
-# notification itself also opens the release page (its "default" action;
-# only there, so other desktops don't draw it as a third button). Same idea
+# X.Y.Z."; without them it's all of MESSAGE, with the command and the link. Critical everywhere (so it stays). Shown by notify-dbus.py on
+# every desktop but Budgie (on Ubuntu 26.04 and Mint 27 AppArmor makes
+# notify-send drop its buttons; below), with notify-send as the fallback. On
+# GNOME, clicking the notification itself also opens the release page (its
+# "default" action; only there, so other desktops don't draw it as a third
+# button). Same idea
 # as fingerprint-fix-sdcp's notify-update.sh.
 # =============================================================================
 title="${1:?Usage: $0 TITLE MESSAGE URL}"; msg="${2:-}"; url="${3:-}"
@@ -105,12 +107,15 @@ if (( gnome )) && [[ -n "$url" && -n "$opener" ]]; then
     acts+=("default=What's new")
 fi
 
-# How to show it with buttons: notify-send --action, or on GNOME
-# notify-dbus.py, straight over D-Bus - there notify-send (0.8.8, Ubuntu
-# 26.04) says "Actions are not supported" and drops them, although GNOME
-# shows them when asked directly. 2 = can't (no PyGObject): plain instead.
+# How to show it with buttons: notify-send --action, or notify-dbus.py,
+# straight over D-Bus, on every desktop but Budgie. On Ubuntu 26.04 (and
+# Mint 27) AppArmor stops notify-send (0.8.8) asking the desktop what it
+# supports (apparmor="DENIED" ... member="GetCapabilities" label="notify-send"
+# in the journal), so it says "Actions are not supported" and drops the
+# buttons, on GNOME and Cinnamon alike, although both show them when asked
+# directly. 2 = can't (no PyGObject): plain instead.
 way=""
-if (( gnome )) && [[ -f "$HERE/notify-dbus.py" ]] && command -v python3 >/dev/null 2>&1 \
+if [[ "$desk" != *budgie* && -f "$HERE/notify-dbus.py" ]] && command -v python3 >/dev/null 2>&1 \
         && python3 -c 'import gi' 2>/dev/null; then
     way=dbus
 elif notify-send --help 2>&1 | grep -q -- '--action'; then
@@ -209,8 +214,13 @@ if [[ -n "$way" && ${#acts[@]} -gt 0 ]]; then
     for (( n = 0; n < 20; n++ )); do
         choice="$(show)"; rc=$?
         if [[ $way == dbus && $rc -eq 2 ]]; then
-            # D-Bus didn't work after all: the plain notification, without
-            # the line about clicking it
+            # D-Bus didn't work after all: notify-send's buttons where it may
+            # still draw them (not GNOME: its text says to click it, and
+            # notify-send drops them there anyway), else the plain
+            # notification, without the line about clicking it
+            if (( ! gnome )) && notify-send --help 2>&1 | grep -q -- '--action'; then
+                way=notify-send; (( n-- )); continue
+            fi
             notify-send "${args[@]}" "$title" "$full" && told
             break
         fi

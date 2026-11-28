@@ -6,6 +6,8 @@
      Plain lines: the full detail, shown only in Full changelog.
      Every release, even a small one: at least one bold line. -->
 
+## Unreleased
+
 ## 0.9.12 — 2026-11-28
 
 - **Notification buttons on Mint 27 and Cinnamon:** the new-version notification has its **Update now** and **What's new** buttons again
